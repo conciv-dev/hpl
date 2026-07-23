@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runGen } from '../src/commands/gen.js';
-import type { AgentRunner } from '@hpl/core';
-import type { CommandResult } from '@hpl/core';
-import { contentHash } from '@hpl/core';
-import type { LlmClient } from '@hpl/core';
-import { emptyMap, readMap, recordAttribution, writeMap } from '@hpl/core';
+import type { AgentRunner } from '@napl/core';
+import type { CommandResult } from '@napl/core';
+import { contentHash } from '@napl/core';
+import type { LlmClient } from '@napl/core';
+import { emptyMap, readMap, recordAttribution, writeMap } from '@napl/core';
 
 let root: string;
 
@@ -29,24 +29,24 @@ function fakeAgent(): AgentRunner {
 
 async function writePrompt(): Promise<void> {
   await mkdir(join(root, 'examples'), { recursive: true });
-  await writeFile(join(root, 'examples', 'greeting.hl'), PROMPT, 'utf8');
+  await writeFile(join(root, 'examples', 'greeting.napl'), PROMPT, 'utf8');
 }
 
 async function seedUpToDate(): Promise<void> {
   const map = emptyMap();
   recordAttribution(map, {
-    rel: 'examples/greeting.hl',
+    rel: 'examples/greeting.napl',
     module: 'greeting',
     promptHash: contentHash(PROMPT),
     target: 'typescript',
     declaredTargets: ['typescript'],
     files: [],
   });
-  await writeMap(join(root, '.hl', 'map.json'), map);
+  await writeMap(join(root, '.napl', 'map.json'), map);
 }
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'hl-gen-'));
+  root = await mkdtemp(join(tmpdir(), 'napl-gen-'));
   await writePrompt();
 });
 
@@ -84,7 +84,7 @@ describe('runGen staleness', () => {
 
 describe('runGen attribution', () => {
   it('attributes agent-created files to the driving prompt, locks them, and derives artifacts', async () => {
-    const targetDir = join(root, '.hl', 'src', 'typescript');
+    const targetDir = join(root, '.napl', 'src', 'typescript');
     const agent: AgentRunner = {
       run: vi.fn(async () => {
         await mkdir(targetDir, { recursive: true });
@@ -104,15 +104,15 @@ describe('runGen attribution', () => {
     const result = await runGen({ root, target: 'typescript', agent, llm, model: 'm', exec });
 
     expect(result.generated).toEqual(['greeting']);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.files).toEqual([
-      '.hl/src/typescript/greeting.ts',
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.files).toEqual([
+      '.napl/src/typescript/greeting.ts',
     ]);
-    expect(map.files['.hl/src/typescript/greeting.ts'].prompts).toEqual(['examples/greeting.hl']);
+    expect(map.files['.napl/src/typescript/greeting.ts'].prompts).toEqual(['examples/greeting.napl']);
 
-    const ir = await readFile(join(root, '.hl', 'ir', 'greeting.yaml'), 'utf8');
+    const ir = await readFile(join(root, '.napl', 'ir', 'greeting.yaml'), 'utf8');
     expect(ir).toContain('module: greeting');
-    const attribution = await readFile(join(root, '.hl', 'attribution', 'greeting.yaml'), 'utf8');
+    const attribution = await readFile(join(root, '.napl', 'attribution', 'greeting.yaml'), 'utf8');
     expect(attribution).toContain('builds the greeting');
   });
 });
@@ -129,7 +129,7 @@ const OUT_OF_SET_ATTR =
 function writingAgent(): AgentRunner {
   return {
     run: vi.fn(async () => {
-      const targetDir = join(root, '.hl', 'src', 'typescript');
+      const targetDir = join(root, '.napl', 'src', 'typescript');
       await mkdir(targetDir, { recursive: true });
       await writeFile(
         join(targetDir, 'greeting.ts'),
@@ -156,7 +156,7 @@ function attrLlm(responses: string[]): LlmClient {
 }
 
 function targetFile(): string {
-  return join(root, '.hl', 'src', 'typescript', 'greeting.ts');
+  return join(root, '.napl', 'src', 'typescript', 'greeting.ts');
 }
 
 async function isWritable(path: string): Promise<boolean> {
@@ -176,12 +176,12 @@ describe('runGen attribution gate', () => {
     });
 
     expect(result.generated).toEqual(['greeting']);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.promptHashAtGen).toBe(contentHash(PROMPT));
     expect(entry.unattributed).toBeUndefined();
     expect(await isWritable(targetFile())).toBe(false);
-    expect(existsSync(join(root, '.hl', 'attribution', 'greeting.yaml'))).toBe(true);
+    expect(existsSync(join(root, '.napl', 'attribution', 'greeting.yaml'))).toBe(true);
   });
 
   it('fails gen after 3 invalid attribution attempts, leaving files unlocked and marking the target unattributed', async () => {
@@ -191,13 +191,13 @@ describe('runGen attribution gate', () => {
     ).rejects.toThrow(/attribution could not be derived/);
 
     expect(llm.complete).toHaveBeenCalledTimes(4);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.unattributed).toBe(true);
     expect(entry.promptHashAtGen).toBeUndefined();
-    expect(entry.files).toEqual(['.hl/src/typescript/greeting.ts']);
+    expect(entry.files).toEqual(['.napl/src/typescript/greeting.ts']);
     expect(await isWritable(targetFile())).toBe(true);
-    expect(existsSync(join(root, '.hl', 'attribution', 'greeting.yaml'))).toBe(false);
+    expect(existsSync(join(root, '.napl', 'attribution', 'greeting.yaml'))).toBe(false);
   });
 
   it('rejects an attribution result with empty entries as a failed attempt', async () => {
@@ -205,8 +205,8 @@ describe('runGen attribution gate', () => {
     await expect(
       runGen({ root, target: 'typescript', agent: writingAgent(), llm, model: 'm', exec: PASSING_EXEC }),
     ).rejects.toThrow(/no entries/);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.unattributed).toBe(true);
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.unattributed).toBe(true);
   });
 
   it('rejects an attribution result referencing a file outside the attributed set', async () => {
@@ -214,8 +214,8 @@ describe('runGen attribution gate', () => {
     await expect(
       runGen({ root, target: 'typescript', agent: writingAgent(), llm, model: 'm', exec: PASSING_EXEC }),
     ).rejects.toThrow(/outside the attributed file set/);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.unattributed).toBe(true);
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.unattributed).toBe(true);
   });
 
   it('writes the prompt body to prompts-at-gen on a successful gen', async () => {
@@ -227,7 +227,7 @@ describe('runGen attribution gate', () => {
       model: 'm',
       exec: PASSING_EXEC,
     });
-    const priorBody = await readFile(join(root, '.hl', 'prompts-at-gen', 'greeting.md'), 'utf8');
+    const priorBody = await readFile(join(root, '.napl', 'prompts-at-gen', 'greeting.md'), 'utf8');
     expect(priorBody).toContain('Greet a person by name.');
   });
 
@@ -242,8 +242,8 @@ describe('runGen attribution gate', () => {
         exec: PASSING_EXEC,
       }),
     ).rejects.toThrow(/attribution could not be derived/);
-    let map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.unattributed).toBe(true);
+    let map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.unattributed).toBe(true);
 
     const result = await runGen({
       root,
@@ -256,8 +256,8 @@ describe('runGen attribution gate', () => {
     });
 
     expect(result.generated).toEqual(['greeting']);
-    map = await readMap(join(root, '.hl', 'map.json'));
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    map = await readMap(join(root, '.napl', 'map.json'));
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.unattributed).toBeUndefined();
     expect(entry.promptHashAtGen).toBe(contentHash(PROMPT));
     expect(await isWritable(targetFile())).toBe(false);
@@ -286,7 +286,7 @@ function recordingAgent(tasks: string[]): AgentRunner {
   return {
     run: vi.fn(async (request: { task: string }) => {
       tasks.push(request.task);
-      const targetDir = join(root, '.hl', 'src', 'typescript');
+      const targetDir = join(root, '.napl', 'src', 'typescript');
       await mkdir(targetDir, { recursive: true });
       await writeFile(
         join(targetDir, 'greeting.ts'),
@@ -299,29 +299,29 @@ function recordingAgent(tasks: string[]): AgentRunner {
 }
 
 async function seedPriorGen(): Promise<void> {
-  const targetDir = join(root, '.hl', 'src', 'typescript');
+  const targetDir = join(root, '.napl', 'src', 'typescript');
   await mkdir(targetDir, { recursive: true });
   await writeFile(join(targetDir, 'greeting.ts'), 'export const greet = (n: string) => `Hello, ${n}!`;\n', 'utf8');
   const map = emptyMap();
   recordAttribution(map, {
-    rel: 'examples/greeting.hl',
+    rel: 'examples/greeting.napl',
     module: 'greeting',
     promptHash: contentHash(PROMPT),
     target: 'typescript',
     declaredTargets: ['typescript'],
-    files: [{ filePath: '.hl/src/typescript/greeting.ts', hash: contentHash('seed') }],
+    files: [{ filePath: '.napl/src/typescript/greeting.ts', hash: contentHash('seed') }],
   });
-  await writeMap(join(root, '.hl', 'map.json'), map);
-  await mkdir(join(root, '.hl', 'prompts-at-gen'), { recursive: true });
-  await writeFile(join(root, '.hl', 'prompts-at-gen', 'greeting.md'), 'Greet a person by name.\n', 'utf8');
-  await mkdir(join(root, '.hl', 'attribution'), { recursive: true });
-  await writeFile(join(root, '.hl', 'attribution', 'greeting.yaml'), PRIOR_ATTRIBUTION, 'utf8');
+  await writeMap(join(root, '.napl', 'map.json'), map);
+  await mkdir(join(root, '.napl', 'prompts-at-gen'), { recursive: true });
+  await writeFile(join(root, '.napl', 'prompts-at-gen', 'greeting.md'), 'Greet a person by name.\n', 'utf8');
+  await mkdir(join(root, '.napl', 'attribution'), { recursive: true });
+  await writeFile(join(root, '.napl', 'attribution', 'greeting.yaml'), PRIOR_ATTRIBUTION, 'utf8');
 }
 
 describe('runGen incremental mode', () => {
   it('takes the incremental path when a prior body + attribution exist, feeding the agent a diff-scoped task', async () => {
     await seedPriorGen();
-    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    await writeFile(join(root, 'examples', 'greeting.napl'), NEW_PROMPT, 'utf8');
     const tasks: string[] = [];
 
     const result = await runGen({
@@ -339,13 +339,13 @@ describe('runGen incremental mode', () => {
     expect(tasks[0]).toContain('+Greet a person by name loudly.');
     expect(tasks[0]).toContain('greeting.ts lines 1-1');
 
-    const priorBody = await readFile(join(root, '.hl', 'prompts-at-gen', 'greeting.md'), 'utf8');
+    const priorBody = await readFile(join(root, '.napl', 'prompts-at-gen', 'greeting.md'), 'utf8');
     expect(priorBody).toContain('loudly');
   });
 
   it('falls back to a full task when --full is passed even if prior state exists', async () => {
     await seedPriorGen();
-    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    await writeFile(join(root, 'examples', 'greeting.napl'), NEW_PROMPT, 'utf8');
     const tasks: string[] = [];
 
     await runGen({
@@ -410,7 +410,7 @@ function mlLlm(mlResponses: string[]): LlmClient {
 describe('runGen no-op rule (the silent-success bug fix)', () => {
   it('changed prompt + empty diff + valid no-op note → success WITH ml entry, module stays clean', async () => {
     await seedPriorGen();
-    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    await writeFile(join(root, 'examples', 'greeting.napl'), NEW_PROMPT, 'utf8');
     const tasks: string[] = [];
     const agent = noopAgent(tasks);
 
@@ -427,18 +427,18 @@ describe('runGen no-op rule (the silent-success bug fix)', () => {
     expect(agent.run).toHaveBeenCalledTimes(2);
     expect(tasks[1]).toContain('CRITICAL');
 
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.promptHashAtGen).toBe(contentHash(NEW_PROMPT));
 
-    const ml = await readFile(join(root, '.hl', 'ml', 'greeting.ml'), 'utf8');
+    const ml = await readFile(join(root, '.napl', 'mapl', 'greeting.mapl'), 'utf8');
     expect(ml).toContain('kind: no-op');
     expect(ml).toContain('requirement already satisfied');
   });
 
   it('changed prompt + empty diff + no no-op entry → gen FAILS and module stays stale', async () => {
     await seedPriorGen();
-    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    await writeFile(join(root, 'examples', 'greeting.napl'), NEW_PROMPT, 'utf8');
 
     await expect(
       runGen({
@@ -451,17 +451,17 @@ describe('runGen no-op rule (the silent-success bug fix)', () => {
       }),
     ).rejects.toThrow(/made no source edits/);
 
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.promptHashAtGen).toBe(contentHash(PROMPT));
     expect(entry.promptHashAtGen).not.toBe(contentHash(NEW_PROMPT));
-    const ml = await readFile(join(root, '.hl', 'ml', 'greeting.ml'), 'utf8');
+    const ml = await readFile(join(root, '.napl', 'mapl', 'greeting.mapl'), 'utf8');
     expect(ml).toContain('kind: note');
   });
 
   it('changed prompt + empty diff + failed ml derivation → gen FAILS and stays stale', async () => {
     await seedPriorGen();
-    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    await writeFile(join(root, 'examples', 'greeting.napl'), NEW_PROMPT, 'utf8');
 
     await expect(
       runGen({
@@ -474,8 +474,8 @@ describe('runGen no-op rule (the silent-success bug fix)', () => {
       }),
     ).rejects.toThrow(/machine-layer derivation failed/);
 
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
   });
 
   it('unchanged prompt + --force + empty diff → old idempotent success, no no-op required', async () => {
@@ -496,9 +496,9 @@ describe('runGen no-op rule (the silent-success bug fix)', () => {
     expect(result.generated).toEqual(['greeting']);
     expect(agent.run).toHaveBeenCalledTimes(1);
     expect(tasks.some((task) => task.includes('CRITICAL'))).toBe(false);
-    const map = await readMap(join(root, '.hl', 'map.json'));
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
-    expect(existsSync(join(root, '.hl', 'ml', 'greeting.ml'))).toBe(true);
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
+    expect(existsSync(join(root, '.napl', 'mapl', 'greeting.mapl'))).toBe(true);
   });
 });
 
@@ -512,7 +512,7 @@ tests: []
 ---
 Do something else.
 `;
-    await writeFile(join(root, 'examples', 'other.hl'), OTHER, 'utf8');
+    await writeFile(join(root, 'examples', 'other.napl'), OTHER, 'utf8');
     const agent = writingAgent();
 
     const result = await runGen({
@@ -527,6 +527,6 @@ Do something else.
 
     expect(result.generated).toEqual(['greeting']);
     expect(result.skipped).toEqual([]);
-    expect(existsSync(join(root, '.hl', 'attribution', 'other.yaml'))).toBe(false);
+    expect(existsSync(join(root, '.napl', 'attribution', 'other.yaml'))).toBe(false);
   });
 });

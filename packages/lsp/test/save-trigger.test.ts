@@ -103,8 +103,8 @@ describe('reduceSave queue-one semantics', () => {
 
 describe('buildSpawnCommand', () => {
   it('runs a bare command on PATH directly', () => {
-    expect(buildSpawnCommand('hl', '/usr/bin/node', 'typescript', 'greeting')).toEqual({
-      command: 'hl',
+    expect(buildSpawnCommand('napl', '/usr/bin/node', 'typescript', 'greeting')).toEqual({
+      command: 'napl',
       args: ['gen', 'typescript', '--module', 'greeting'],
     });
   });

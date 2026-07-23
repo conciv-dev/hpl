@@ -74,13 +74,13 @@ describe('selectIntersectingEntries', () => {
 
 describe('incrementalUnlockList', () => {
   it('unions owned files with the target-resolved intersecting entry files, sorted and deduped', () => {
-    const owned = ['.hl/src/typescript/src/greeting.ts', '.hl/src/typescript/package.json'];
+    const owned = ['.napl/src/typescript/src/greeting.ts', '.napl/src/typescript/package.json'];
     const entries = [entry([6, 6], 'src/greeting.ts', [1, 1]), entry([7, 7], 'src/new.ts', [1, 1])];
-    const list = incrementalUnlockList(owned, entries, '.hl/src/typescript');
+    const list = incrementalUnlockList(owned, entries, '.napl/src/typescript');
     expect(list).toEqual([
-      '.hl/src/typescript/package.json',
-      '.hl/src/typescript/src/greeting.ts',
-      '.hl/src/typescript/src/new.ts',
+      '.napl/src/typescript/package.json',
+      '.napl/src/typescript/src/greeting.ts',
+      '.napl/src/typescript/src/new.ts',
     ]);
   });
 });

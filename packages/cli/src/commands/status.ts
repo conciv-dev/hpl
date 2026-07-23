@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { relative } from 'node:path';
-import { readMap } from '@hpl/core';
-import { classifyPrompt } from '@hpl/core';
-import type { FileStatus, StatusEntry } from '@hpl/core';
-import { findPromptFiles, resolvePaths } from '@hpl/core';
+import { readMap } from '@napl/core';
+import { classifyPrompt } from '@napl/core';
+import type { FileStatus, StatusEntry } from '@napl/core';
+import { findPromptFiles, resolvePaths } from '@napl/core';
 
 export type { FileStatus, StatusEntry };
 

@@ -4,7 +4,7 @@ export interface BuildOptions {
 
 export async function runBuild(options: BuildOptions): Promise<void> {
   options.log?.(
-    'hl build is deprecated. Generation now works directly from prompts — the coding agent writes ' +
-      'source, and the IR is derived afterwards. Run "hl gen <target>" instead.',
+    'napl build is deprecated. Generation now works directly from prompts — the coding agent writes ' +
+      'source, and the IR is derived afterwards. Run "napl gen <target>" instead.',
   );
 }

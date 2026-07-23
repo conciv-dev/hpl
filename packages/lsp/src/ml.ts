@@ -1,6 +1,6 @@
 import { DiagnosticSeverity } from 'vscode-languageserver/node.js';
 import type { Diagnostic } from 'vscode-languageserver/node.js';
-import type { Ml, MlEntry, MlKind } from '@hpl/core';
+import type { Ml, MlEntry, MlKind } from '@napl/core';
 
 export function mlSeverity(kind: MlKind): DiagnosticSeverity {
   switch (kind) {
@@ -24,7 +24,7 @@ export function mlDiagnostics(ml: Ml, bodyStartLine: number, docLines: string[])
       severity: mlSeverity(entry.kind),
       range: { start: { line: startLine, character: 0 }, end: { line: endLine, character: endChar } },
       message: entry.message,
-      source: 'hl-ml',
+      source: 'napl-mapl',
     };
   });
 }

@@ -1,8 +1,8 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCommand } from '@hpl/core';
-import { resolvePaths } from '@hpl/core';
-import { getAdapter } from '@hpl/core';
+import { runCommand } from '@napl/core';
+import { resolvePaths } from '@napl/core';
+import { getAdapter } from '@napl/core';
 
 export interface TestOptions {
   root: string;

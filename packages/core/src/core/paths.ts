@@ -1,11 +1,11 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export const PROMPT_EXTENSION = '.hl';
+export const PROMPT_EXTENSION = '.napl';
 
-export interface HlPaths {
+export interface NaplPaths {
   root: string;
-  hlDir: string;
+  naplDir: string;
   irDir: string;
   srcDir: string;
   mapPath: string;
@@ -16,23 +16,23 @@ export interface HlPaths {
   examplesDir: string;
 }
 
-export function resolvePaths(root: string): HlPaths {
-  const hlDir = join(root, '.hl');
+export function resolvePaths(root: string): NaplPaths {
+  const naplDir = join(root, '.napl');
   return {
     root,
-    hlDir,
-    irDir: join(hlDir, 'ir'),
-    srcDir: join(hlDir, 'src'),
-    mapPath: join(hlDir, 'map.json'),
-    lockPath: join(hlDir, 'lock.json'),
-    genLockPath: join(hlDir, 'gen.lock'),
-    journalPath: join(hlDir, 'journal.jsonl'),
-    promptsAtGenDir: join(hlDir, 'prompts-at-gen'),
+    naplDir,
+    irDir: join(naplDir, 'ir'),
+    srcDir: join(naplDir, 'src'),
+    mapPath: join(naplDir, 'map.json'),
+    lockPath: join(naplDir, 'lock.json'),
+    genLockPath: join(naplDir, 'gen.lock'),
+    journalPath: join(naplDir, 'journal.jsonl'),
+    promptsAtGenDir: join(naplDir, 'prompts-at-gen'),
     examplesDir: join(root, 'examples'),
   };
 }
 
-const IGNORED_DIRS = new Set(['node_modules', '.hl', '.git']);
+const IGNORED_DIRS = new Set(['node_modules', '.napl', '.git']);
 
 export async function findPromptFiles(root: string): Promise<string[]> {
   const results: string[] = [];

@@ -27,7 +27,7 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
     devDependencies:
-      '@hpl/lsp':
+      '@napl/lsp':
         specifier: workspace:*
         version: link:../../packages/lsp
       '@types/node':
@@ -45,7 +45,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@hpl/core':
+      '@napl/core':
         specifier: workspace:*
         version: link:../core
       commander:
@@ -89,7 +89,7 @@ importers:
 
   packages/lsp:
     dependencies:
-      '@hpl/core':
+      '@napl/core':
         specifier: workspace:*
         version: link:../core
       vscode-languageserver:

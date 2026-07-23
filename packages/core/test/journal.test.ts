@@ -27,7 +27,7 @@ function entry(gen: number, path: string): JournalEntry {
 }
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'hl-journal-'));
+  dir = await mkdtemp(join(tmpdir(), 'napl-journal-'));
 });
 
 afterEach(async () => {

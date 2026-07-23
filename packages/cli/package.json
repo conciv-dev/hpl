@@ -1,11 +1,11 @@
 {
-  "name": "@hpl/cli",
+  "name": "@napl/cli",
   "version": "0.1.0",
-  "description": "human-language CLI: the `hl` command (init, gen, status, test, blame).",
+  "description": "NAPL CLI: the `napl` command (init, gen, status, test, blame).",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "hl": "./dist/cli.js"
+    "napl": "./dist/cli.js"
   },
   "files": [
     "dist"
@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hpl/core": "workspace:*",
+    "@napl/core": "workspace:*",
     "commander": "^15.0.0",
     "yaml": "^2.9.0"
   },

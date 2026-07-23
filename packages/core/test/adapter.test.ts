@@ -22,7 +22,7 @@ describe('target adapter interface', () => {
   });
 
   it('builds a test-run command that runs inside the target directory', () => {
-    const cmd = getAdapter('react').testCommand('/repo/.hl/src/react');
+    const cmd = getAdapter('react').testCommand('/repo/.napl/src/react');
     expect(cmd.command).toBe('npx');
     expect(cmd.args).toContain('vitest');
     expect(cmd.args).toContain('run');

@@ -14,29 +14,29 @@ import {
   recordUnattributed,
   writeMap,
 } from '../src/core/map.js';
-import type { HlMap } from '../src/core/map.js';
+import type { NaplMap } from '../src/core/map.js';
 
 let dir: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'hl-map-'));
+  dir = await mkdtemp(join(tmpdir(), 'napl-map-'));
 });
 
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-function seeded(): HlMap {
+function seeded(): NaplMap {
   const map = emptyMap();
   recordAttribution(map, {
-    rel: 'examples/greeting.hl',
+    rel: 'examples/greeting.napl',
     module: 'greeting',
     promptHash: 'p1',
     target: 'typescript',
     declaredTargets: ['typescript'],
     files: [
-      { filePath: '.hl/src/typescript/greeting.ts', hash: 'h1' },
-      { filePath: '.hl/src/typescript/greeting.test.ts', hash: 'h2' },
+      { filePath: '.napl/src/typescript/greeting.ts', hash: 'h1' },
+      { filePath: '.napl/src/typescript/greeting.test.ts', hash: 'h2' },
     ],
   });
   return map;
@@ -50,7 +50,7 @@ describe('map read/write', () => {
   });
 
   it('round-trips a written map', async () => {
-    const mapPath = join(dir, '.hl', 'map.json');
+    const mapPath = join(dir, '.napl', 'map.json');
     const map = seeded();
     await writeMap(mapPath, map);
     const roundTrip = await readMap(mapPath);
@@ -67,11 +67,11 @@ describe('map read/write', () => {
     const map = parseMap(
       JSON.stringify({
         version: 2,
-        prompts: { 'a.hl': { module: 'm', promptHash: 'h' } },
+        prompts: { 'a.napl': { module: 'm', promptHash: 'h' } },
       }),
     );
-    expect(map.prompts['a.hl'].declaredTargets).toEqual([]);
-    expect(map.prompts['a.hl'].targets).toEqual({});
+    expect(map.prompts['a.napl'].declaredTargets).toEqual([]);
+    expect(map.prompts['a.napl'].targets).toEqual({});
   });
 });
 
@@ -83,40 +83,40 @@ describe('map query helpers', () => {
     expect(declaredTargetsForModule(map, 'greeting')).toEqual(['typescript']);
     const files = filesForModule(map, 'greeting');
     expect(files).toEqual([
-      { target: 'typescript', filePath: '.hl/src/typescript/greeting.ts' },
-      { target: 'typescript', filePath: '.hl/src/typescript/greeting.test.ts' },
+      { target: 'typescript', filePath: '.napl/src/typescript/greeting.ts' },
+      { target: 'typescript', filePath: '.napl/src/typescript/greeting.test.ts' },
     ]);
   });
 
   it('records file-to-prompt attribution as many-to-many', () => {
     const map = seeded();
     recordAttribution(map, {
-      rel: 'examples/extra.hl',
+      rel: 'examples/extra.napl',
       module: 'extra',
       promptHash: 'p2',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: [{ filePath: '.hl/src/typescript/greeting.ts', hash: 'h1' }],
+      files: [{ filePath: '.napl/src/typescript/greeting.ts', hash: 'h1' }],
     });
-    expect(map.files['.hl/src/typescript/greeting.ts'].prompts.sort()).toEqual([
-      'examples/extra.hl',
-      'examples/greeting.hl',
+    expect(map.files['.napl/src/typescript/greeting.ts'].prompts.sort()).toEqual([
+      'examples/extra.napl',
+      'examples/greeting.napl',
     ]);
   });
 
   it('drops orphaned file attributions when a prompt no longer produces them', () => {
     const map = seeded();
     recordAttribution(map, {
-      rel: 'examples/greeting.hl',
+      rel: 'examples/greeting.napl',
       module: 'greeting',
       promptHash: 'p1b',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: [{ filePath: '.hl/src/typescript/greeting.ts', hash: 'h1b' }],
+      files: [{ filePath: '.napl/src/typescript/greeting.ts', hash: 'h1b' }],
     });
-    expect(map.files['.hl/src/typescript/greeting.test.ts']).toBeUndefined();
-    expect(map.prompts['examples/greeting.hl'].targets.typescript.files).toEqual([
-      '.hl/src/typescript/greeting.ts',
+    expect(map.files['.napl/src/typescript/greeting.test.ts']).toBeUndefined();
+    expect(map.prompts['examples/greeting.napl'].targets.typescript.files).toEqual([
+      '.napl/src/typescript/greeting.ts',
     ]);
   });
 });
@@ -124,17 +124,17 @@ describe('map query helpers', () => {
 describe('isPromptGenStale', () => {
   it('is not stale when the prompt hash matches and not forced', () => {
     const map = seeded();
-    expect(isPromptGenStale(map.prompts['examples/greeting.hl'], 'typescript', 'p1', false)).toBe(false);
+    expect(isPromptGenStale(map.prompts['examples/greeting.napl'], 'typescript', 'p1', false)).toBe(false);
   });
 
   it('is stale when the prompt hash changed', () => {
     const map = seeded();
-    expect(isPromptGenStale(map.prompts['examples/greeting.hl'], 'typescript', 'p2', false)).toBe(true);
+    expect(isPromptGenStale(map.prompts['examples/greeting.napl'], 'typescript', 'p2', false)).toBe(true);
   });
 
   it('is stale for an ungenerated target', () => {
     const map = seeded();
-    expect(isPromptGenStale(map.prompts['examples/greeting.hl'], 'react', 'p1', false)).toBe(true);
+    expect(isPromptGenStale(map.prompts['examples/greeting.napl'], 'react', 'p1', false)).toBe(true);
   });
 
   it('is stale when there is no prior record', () => {
@@ -143,20 +143,20 @@ describe('isPromptGenStale', () => {
 
   it('is stale when forced even if the hash matches', () => {
     const map = seeded();
-    expect(isPromptGenStale(map.prompts['examples/greeting.hl'], 'typescript', 'p1', true)).toBe(true);
+    expect(isPromptGenStale(map.prompts['examples/greeting.napl'], 'typescript', 'p1', true)).toBe(true);
   });
 
   it('is stale when the target carries an unattributed marker', () => {
     const map = seeded();
     recordUnattributed(map, {
-      rel: 'examples/greeting.hl',
+      rel: 'examples/greeting.napl',
       module: 'greeting',
       promptHash: 'p1',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: ['.hl/src/typescript/greeting.ts'],
+      files: ['.napl/src/typescript/greeting.ts'],
     });
-    expect(isPromptGenStale(map.prompts['examples/greeting.hl'], 'typescript', 'p1', false)).toBe(true);
+    expect(isPromptGenStale(map.prompts['examples/greeting.napl'], 'typescript', 'p1', false)).toBe(true);
   });
 });
 
@@ -164,40 +164,40 @@ describe('recordUnattributed', () => {
   it('marks the target, drops the recorded prompt hash, keeps the file list, and detaches file records', () => {
     const map = seeded();
     recordUnattributed(map, {
-      rel: 'examples/greeting.hl',
+      rel: 'examples/greeting.napl',
       module: 'greeting',
       promptHash: 'p1',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: ['.hl/src/typescript/greeting.ts'],
+      files: ['.napl/src/typescript/greeting.ts'],
     });
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.unattributed).toBe(true);
     expect(entry.promptHashAtGen).toBeUndefined();
-    expect(entry.files).toEqual(['.hl/src/typescript/greeting.ts']);
-    expect(map.files['.hl/src/typescript/greeting.ts']).toBeUndefined();
-    expect(map.files['.hl/src/typescript/greeting.test.ts']).toBeUndefined();
+    expect(entry.files).toEqual(['.napl/src/typescript/greeting.ts']);
+    expect(map.files['.napl/src/typescript/greeting.ts']).toBeUndefined();
+    expect(map.files['.napl/src/typescript/greeting.test.ts']).toBeUndefined();
   });
 
   it('is cleared by a subsequent successful recordAttribution', () => {
     const map = seeded();
     recordUnattributed(map, {
-      rel: 'examples/greeting.hl',
+      rel: 'examples/greeting.napl',
       module: 'greeting',
       promptHash: 'p1',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: ['.hl/src/typescript/greeting.ts'],
+      files: ['.napl/src/typescript/greeting.ts'],
     });
     recordAttribution(map, {
-      rel: 'examples/greeting.hl',
+      rel: 'examples/greeting.napl',
       module: 'greeting',
       promptHash: 'p2',
       target: 'typescript',
       declaredTargets: ['typescript'],
-      files: [{ filePath: '.hl/src/typescript/greeting.ts', hash: 'h9' }],
+      files: [{ filePath: '.napl/src/typescript/greeting.ts', hash: 'h9' }],
     });
-    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    const entry = map.prompts['examples/greeting.napl'].targets.typescript;
     expect(entry.unattributed).toBeUndefined();
     expect(entry.promptHashAtGen).toBe('p2');
   });

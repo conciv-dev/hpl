@@ -1,6 +1,6 @@
-import type { AttributionEntry } from '@hpl/core';
+import type { AttributionEntry } from '@napl/core';
 
-const GENERATED_PREFIX = '.hl/src/';
+const GENERATED_PREFIX = '.napl/src/';
 
 export const DRIFT_LENS_PREFIX = 'DRIFT — edits here are not reflected in any prompt';
 

@@ -44,7 +44,7 @@ export async function acquireGenLock(lockPath: string, deps: GenLockDeps = {}): 
     const heldPid = await readHeldPid(lockPath);
     if (heldPid !== null && heldPid !== pid && isAlive(heldPid)) {
       throw new Error(
-        `another hl gen is already running (pid ${heldPid}); the lock ${lockPath} is held. Wait for it to finish or remove the lock if the process is gone.`,
+        `another napl gen is already running (pid ${heldPid}); the lock ${lockPath} is held. Wait for it to finish or remove the lock if the process is gone.`,
       );
     }
     await writeFile(lockPath, `${pid}\n`, { encoding: 'utf8', flag: 'w' });

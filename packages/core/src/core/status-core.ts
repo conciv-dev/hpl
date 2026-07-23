@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseFrontmatter } from './frontmatter.js';
 import { contentHash } from './hash.js';
-import type { HlMap, PromptRecord } from './map.js';
+import type { NaplMap, PromptRecord } from './map.js';
 
 export type FileStatus = 'clean' | 'prompt-stale' | 'DRIFT' | 'unattributed';
 
@@ -19,7 +19,7 @@ export interface ClassifyInput {
   root: string;
   relPath: string;
   raw: string;
-  map: HlMap;
+  map: NaplMap;
 }
 
 interface DriftResult {
@@ -28,7 +28,7 @@ interface DriftResult {
   driftFile?: string;
 }
 
-async function detectDrift(root: string, record: PromptRecord, map: HlMap): Promise<DriftResult> {
+async function detectDrift(root: string, record: PromptRecord, map: NaplMap): Promise<DriftResult> {
   for (const [target, targetRecord] of Object.entries(record.targets)) {
     if (targetRecord.unattributed === true) continue;
     for (const filePath of targetRecord.files) {
@@ -49,7 +49,7 @@ async function detectDrift(root: string, record: PromptRecord, map: HlMap): Prom
 function detectUnattributed(record: PromptRecord): string | null {
   for (const [target, targetRecord] of Object.entries(record.targets)) {
     if (targetRecord.unattributed === true) {
-      return `generated files lack prompt attribution — run hl gen ${target} --force`;
+      return `generated files lack prompt attribution — run napl gen ${target} --force`;
     }
   }
   return null;

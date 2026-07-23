@@ -1,5 +1,5 @@
 {
-  "name": "@hpl/monorepo",
+  "name": "@napl/monorepo",
   "version": "0.1.0",
   "private": true,
   "description": "Prompts are the source of truth: a coding agent generates and locks per-target code, attributed line by line.",

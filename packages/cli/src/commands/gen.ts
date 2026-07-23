@@ -2,28 +2,28 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import type { AgentRunner } from '@hpl/core';
-import { validateAttribution } from '@hpl/core';
-import { parseAttributionEntries } from '@hpl/core';
-import type { Attribution } from '@hpl/core';
-import { numberLines, promptBodyLines } from '@hpl/core';
-import { runCommand } from '@hpl/core';
-import type { CommandResult } from '@hpl/core';
-import { parseFrontmatter } from '@hpl/core';
-import { acquireGenLock } from '@hpl/core';
-import { contentHash } from '@hpl/core';
-import { diffBodyLines, incrementalUnlockList, selectIntersectingEntries } from '@hpl/core';
-import { validateIr } from '@hpl/core';
-import type { LlmClient } from '@hpl/core';
-import { appendJournalEntry, filePatch, nextGenNumber, readJournal } from '@hpl/core';
-import type { JournalEntry, JournalFile } from '@hpl/core';
-import { isPromptGenStale, readMap, recordAttribution, recordUnattributed, writeMap } from '@hpl/core';
-import type { HlMap } from '@hpl/core';
-import { parseMlEntries, validateMl } from '@hpl/core';
-import type { MlEntry } from '@hpl/core';
-import { extractYaml } from '@hpl/core';
-import { resolvePaths } from '@hpl/core';
-import { findPromptFiles } from '@hpl/core';
+import type { AgentRunner } from '@napl/core';
+import { validateAttribution } from '@napl/core';
+import { parseAttributionEntries } from '@napl/core';
+import type { Attribution } from '@napl/core';
+import { numberLines, promptBodyLines } from '@napl/core';
+import { runCommand } from '@napl/core';
+import type { CommandResult } from '@napl/core';
+import { parseFrontmatter } from '@napl/core';
+import { acquireGenLock } from '@napl/core';
+import { contentHash } from '@napl/core';
+import { diffBodyLines, incrementalUnlockList, selectIntersectingEntries } from '@napl/core';
+import { validateIr } from '@napl/core';
+import type { LlmClient } from '@napl/core';
+import { appendJournalEntry, filePatch, nextGenNumber, readJournal } from '@napl/core';
+import type { JournalEntry, JournalFile } from '@napl/core';
+import { isPromptGenStale, readMap, recordAttribution, recordUnattributed, writeMap } from '@napl/core';
+import type { NaplMap } from '@napl/core';
+import { parseMlEntries, validateMl } from '@napl/core';
+import type { MlEntry } from '@napl/core';
+import { extractYaml } from '@napl/core';
+import { resolvePaths } from '@napl/core';
+import { findPromptFiles } from '@napl/core';
 import {
   ATTRIBUTION_SYSTEM,
   IR_DERIVATION_SYSTEM,
@@ -35,12 +35,12 @@ import {
   buildIncrementalTask,
   buildIrDerivationUser,
   buildMlDerivationUser,
-} from '@hpl/core';
-import type { DepSummary } from '@hpl/core';
-import { diffSnapshots, makeFilter, snapshotContents, snapshotHashes } from '@hpl/core';
-import type { SnapshotFilter } from '@hpl/core';
-import { getAdapter } from '@hpl/core';
-import type { TargetAdapter } from '@hpl/core';
+} from '@napl/core';
+import type { DepSummary } from '@napl/core';
+import { diffSnapshots, makeFilter, snapshotContents, snapshotHashes } from '@napl/core';
+import type { SnapshotFilter } from '@napl/core';
+import { getAdapter } from '@napl/core';
+import type { TargetAdapter } from '@napl/core';
 
 const MAX_ATTEMPTS = 3;
 const READONLY_MODE = 0o444;
@@ -238,7 +238,7 @@ async function deriveMl(
 async function writeMl(mlDir: string, module: string, target: string, entries: MlEntry[]): Promise<void> {
   await mkdir(mlDir, { recursive: true });
   const ml = validateMl({ module, target, entries });
-  await writeFile(join(mlDir, `${module}.ml`), stringifyYaml(ml), 'utf8');
+  await writeFile(join(mlDir, `${module}.mapl`), stringifyYaml(ml), 'utf8');
 }
 
 async function tryDeriveMl(
@@ -264,7 +264,7 @@ async function enforceNoOp(
   mlDir: string,
   module: string,
   target: string,
-  map: HlMap,
+  map: NaplMap,
   mapPath: string,
   log?: (message: string) => void,
 ): Promise<void> {
@@ -281,7 +281,7 @@ async function enforceNoOp(
       : 'the machine layer produced no "no-op" entry explaining why nothing changed';
   log?.(`  FAILED no-op check for '${module}' (${target}); module left stale, promptHashAtGen not updated`);
   throw new Error(
-    `gen failed for module '${module}' (${target}): the prompt changed but the coding agent made no source edits, and ${reason}. The requested change was NOT applied and the module is left stale; refine the prompt and re-run 'hl gen ${target} --module ${module} --force'.`,
+    `gen failed for module '${module}' (${target}): the prompt changed but the coding agent made no source edits, and ${reason}. The requested change was NOT applied and the module is left stale; refine the prompt and re-run 'napl gen ${target} --module ${module} --force'.`,
     error !== null ? { cause: error } : undefined,
   );
 }
@@ -500,8 +500,8 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
   const exec = options.exec ?? runCommand;
   const adapter = getAdapter(target);
   const targetDir = join(paths.srcDir, target);
-  const attributionDir = join(paths.hlDir, 'attribution');
-  const mlDir = join(paths.hlDir, 'ml');
+  const attributionDir = join(paths.naplDir, 'attribution');
+  const mlDir = join(paths.naplDir, 'mapl');
   await mkdir(targetDir, { recursive: true });
 
   const filter: SnapshotFilter = makeFilter(
@@ -641,7 +641,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
       await writeMl(mlDir, module, target, emptyMlEntries);
       log?.(`  attributed ${files.length} file(s) to ${module}`);
       log?.('  attribution: no source files to map; span attribution skipped');
-      log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
+      log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.mapl`)))}`);
       await recordJournal();
       generated.push(module);
       continue;
@@ -662,7 +662,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
       await writeMap(paths.mapPath, map);
       log?.(`  FAILED attribution for '${module}' (${target}); files left unlocked, target marked unattributed`);
       throw new Error(
-        `gen failed for module '${module}' (${target}): required prompt attribution could not be derived after ${MAX_ATTEMPTS} attempts. The generated files were left unlocked and the target is marked unattributed; re-run 'hl gen ${target} --force' after resolving the issue. ${errorMessage(cause)}`,
+        `gen failed for module '${module}' (${target}): required prompt attribution could not be derived after ${MAX_ATTEMPTS} attempts. The generated files were left unlocked and the target is marked unattributed; re-run 'napl gen ${target} --force' after resolving the issue. ${errorMessage(cause)}`,
         { cause },
       );
     }
@@ -681,8 +681,8 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     await writeMl(mlDir, module, target, mlEntries);
     log?.(`  attributed ${files.length} file(s) to ${module}`);
     log?.(`  attribution: ${attribution.entries.length} mapping(s) -> ${toPosix(relative(root, outPath))}`);
-    if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty .ml written): ${errorMessage(mlError)}`);
-    else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
+    if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty .mapl written): ${errorMessage(mlError)}`);
+    else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.mapl`)))}`);
 
     await recordJournal();
     generated.push(module);

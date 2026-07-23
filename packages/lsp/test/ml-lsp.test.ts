@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DiagnosticSeverity } from 'vscode-languageserver/node.js';
-import { validateMl } from '@hpl/core';
+import { validateMl } from '@napl/core';
 import { mlDiagnostics, mlHoverMarkdown, mlSeverity } from '../src/ml.js';
 
 describe('mlSeverity', () => {
@@ -26,7 +26,7 @@ describe('mlDiagnostics', () => {
     const diagnostics = mlDiagnostics(ml, 3, docLines);
 
     expect(diagnostics[0].severity).toBe(DiagnosticSeverity.Error);
-    expect(diagnostics[0].source).toBe('hl-ml');
+    expect(diagnostics[0].source).toBe('napl-mapl');
     expect(diagnostics[0].message).toBe('vague phrase');
     expect(diagnostics[0].range.start.line).toBe(5);
     expect(diagnostics[0].range.end.line).toBe(5);

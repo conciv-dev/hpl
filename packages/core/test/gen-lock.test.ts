@@ -9,9 +9,9 @@ let dir: string;
 let lockPath: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'hl-genlock-'));
-  lockPath = join(dir, '.hl', 'gen.lock');
-  await mkdir(join(dir, '.hl'), { recursive: true });
+  dir = await mkdtemp(join(tmpdir(), 'napl-genlock-'));
+  lockPath = join(dir, '.napl', 'gen.lock');
+  await mkdir(join(dir, '.napl'), { recursive: true });
 });
 
 afterEach(async () => {
@@ -31,7 +31,7 @@ describe('acquireGenLock', () => {
     await writeFile(lockPath, '9999\n', 'utf8');
     await expect(
       acquireGenLock(lockPath, { pid: 1, isAlive: (pid) => pid === 9999 }),
-    ).rejects.toThrow(/another hl gen is already running \(pid 9999\)/);
+    ).rejects.toThrow(/another napl gen is already running \(pid 9999\)/);
   });
 
   it('steals a stale lock left by a dead process', async () => {

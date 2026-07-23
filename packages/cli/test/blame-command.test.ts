@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runBlame } from '../src/commands/blame.js';
-import { appendJournalEntry, filePatch } from '@hpl/core';
-import type { JournalEntry } from '@hpl/core';
+import { appendJournalEntry, filePatch } from '@napl/core';
+import type { JournalEntry } from '@napl/core';
 
 let root: string;
-const FILE = '.hl/src/react/src/App.tsx';
+const FILE = '.napl/src/react/src/App.tsx';
 const V1 = 'const a = 1;\nconst b = 2;\nconst c = 3;\n';
 const V2 = 'const a = 1;\nconst b = 20;\nconst c = 3;\n';
 
@@ -25,15 +25,15 @@ function entry(gen: number, before: string | null, after: string, promptDiff: st
 }
 
 async function seed(): Promise<void> {
-  const journalPath = join(root, '.hl', 'journal.jsonl');
+  const journalPath = join(root, '.napl', 'journal.jsonl');
   await appendJournalEntry(journalPath, entry(1, null, V1, ''));
   await appendJournalEntry(journalPath, entry(2, V1, V2, '@@ -5,1 +5,1 @@\n-old counter\n+new counter'));
-  await mkdir(join(root, '.hl', 'src', 'react', 'src'), { recursive: true });
+  await mkdir(join(root, '.napl', 'src', 'react', 'src'), { recursive: true });
   await writeFile(join(root, FILE), V2, 'utf8');
 }
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'hl-blame-'));
+  root = await mkdtemp(join(tmpdir(), 'napl-blame-'));
   await seed();
 });
 
@@ -73,7 +73,7 @@ describe('runBlame file mode', () => {
   });
 
   it('errors for a file with no journal history', async () => {
-    const { exitCode } = await runBlame({ root, file: '.hl/src/react/src/Nope.tsx', log: () => undefined });
+    const { exitCode } = await runBlame({ root, file: '.napl/src/react/src/Nope.tsx', log: () => undefined });
     expect(exitCode).toBe(1);
   });
 });
@@ -104,7 +104,7 @@ describe('runBlame gen mode', () => {
 
 describe('runBlame with no journal', () => {
   it('reports the missing journal and exits 1', async () => {
-    const empty = await mkdtemp(join(tmpdir(), 'hl-blame-empty-'));
+    const empty = await mkdtemp(join(tmpdir(), 'napl-blame-empty-'));
     try {
       const { exitCode } = await runBlame({ root: empty, file: FILE, log: () => undefined });
       expect(exitCode).toBe(1);

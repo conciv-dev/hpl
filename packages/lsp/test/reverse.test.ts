@@ -14,7 +14,7 @@ const SOURCES: AttributionSource[] = [
   {
     module: 'greeting',
     target: 'typescript',
-    promptFiles: ['examples/greeting.hl'],
+    promptFiles: ['examples/greeting.napl'],
     entries: [
       { promptLines: [3, 4], file: 'src/greeting.ts', lines: [1, 1], note: 'greet function signature' },
       { promptLines: [7, 7], file: 'src/greeting.ts', lines: [2, 2], note: 'trims name whitespace' },
@@ -27,22 +27,22 @@ const SOURCES: AttributionSource[] = [
 
 describe('parseGeneratedPath', () => {
   it('splits a generated path into target and repo-relative path', () => {
-    expect(parseGeneratedPath('.hl/src/typescript/src/greeting.ts')).toEqual({
+    expect(parseGeneratedPath('.napl/src/typescript/src/greeting.ts')).toEqual({
       target: 'typescript',
       targetRelPath: 'src/greeting.ts',
     });
   });
 
   it('normalizes windows separators', () => {
-    expect(parseGeneratedPath('.hl\\src\\typescript\\src\\greeting.ts')).toEqual({
+    expect(parseGeneratedPath('.napl\\src\\typescript\\src\\greeting.ts')).toEqual({
       target: 'typescript',
       targetRelPath: 'src/greeting.ts',
     });
   });
 
   it('returns null for non-generated paths', () => {
-    expect(parseGeneratedPath('examples/greeting.hl')).toBeNull();
-    expect(parseGeneratedPath('.hl/src/typescript')).toBeNull();
+    expect(parseGeneratedPath('examples/greeting.napl')).toBeNull();
+    expect(parseGeneratedPath('.napl/src/typescript')).toBeNull();
     expect(parseGeneratedPath('src/greeting.ts')).toBeNull();
   });
 });
@@ -52,7 +52,7 @@ describe('reverseMatches', () => {
     const matches = reverseMatches(SOURCES, 'typescript', 'src/greeting.ts', 2);
     expect(matches.map((m) => m.note)).toEqual(['trims name whitespace']);
     expect(matches[0].promptLines).toEqual([7, 7]);
-    expect(matches[0].promptFile).toBe('examples/greeting.hl');
+    expect(matches[0].promptFile).toBe('examples/greeting.napl');
   });
 
   it('matches a multi-line code range', () => {
@@ -78,12 +78,12 @@ describe('reverseMatches', () => {
       {
         module: 'greeting',
         target: 'typescript',
-        promptFiles: ['examples/a.hl', 'examples/b.hl'],
+        promptFiles: ['examples/a.napl', 'examples/b.napl'],
         entries: [{ promptLines: [1, 1], file: 'src/x.ts', lines: [4, 4], note: 'shared' }],
       },
     ];
     const matches = reverseMatches(multi, 'typescript', 'src/x.ts', 4);
-    expect(matches.map((m) => m.promptFile)).toEqual(['examples/a.hl', 'examples/b.hl']);
+    expect(matches.map((m) => m.promptFile)).toEqual(['examples/a.napl', 'examples/b.napl']);
   });
 });
 
@@ -116,17 +116,17 @@ describe('isFileDrifted', () => {
 
 describe('codeLensTitle', () => {
   it('formats a lens title with a note', () => {
-    expect(codeLensTitle('greeting.hl', 19, 'trims name whitespace')).toBe(
-      '⇠ greeting.hl:19 — trims name whitespace',
+    expect(codeLensTitle('greeting.napl', 19, 'trims name whitespace')).toBe(
+      '⇠ greeting.napl:19 — trims name whitespace',
     );
   });
 
   it('omits the dash when the note is empty', () => {
-    expect(codeLensTitle('greeting.hl', 19, '')).toBe('⇠ greeting.hl:19');
+    expect(codeLensTitle('greeting.napl', 19, '')).toBe('⇠ greeting.napl:19');
   });
 
   it('composes with the DRIFT prefix', () => {
-    const base = codeLensTitle('greeting.hl', 19, 'trims');
+    const base = codeLensTitle('greeting.napl', 19, 'trims');
     expect(`${DRIFT_LENS_PREFIX}   ${base}`).toContain('DRIFT — edits here are not reflected');
   });
 });

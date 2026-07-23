@@ -1,7 +1,7 @@
 {
-  "name": "@hpl/core",
+  "name": "@napl/core",
   "version": "0.1.0",
-  "description": "human-language core: prompts, IR, attribution, journal/blame, targets, and the LLM/agent backends.",
+  "description": "napl core: prompts, IR, attribution, journal/blame, targets, and the LLM/agent backends.",
   "type": "module",
   "license": "MIT",
   "exports": {

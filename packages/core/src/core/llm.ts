@@ -27,7 +27,7 @@ export function requireApiKey(env: NodeJS.ProcessEnv): string {
   const key = env.ANTHROPIC_API_KEY;
   if (!key || key.trim() === '') {
     throw new Error(
-      'ANTHROPIC_API_KEY is not set. Export it before running "hl build" or "hl gen", or set backend to "claude-cli" in .hl/lock.json.',
+      'ANTHROPIC_API_KEY is not set. Export it before running "napl build" or "napl gen", or set backend to "claude-cli" in .napl/lock.json.',
     );
   }
   return key;
@@ -37,7 +37,7 @@ export function requireClaudeCli(env: NodeJS.ProcessEnv): void {
   const probe = spawnSync('claude', ['--version'], { stdio: 'ignore', env });
   if (probe.error !== undefined || probe.status !== 0) {
     throw new Error(
-      'the "claude" CLI was not found on PATH. Install Claude Code (claude.ai/code) or set backend to "anthropic-api" in .hl/lock.json.',
+      'the "claude" CLI was not found on PATH. Install Claude Code (claude.ai/code) or set backend to "anthropic-api" in .napl/lock.json.',
       probe.error === undefined ? undefined : { cause: probe.error },
     );
   }

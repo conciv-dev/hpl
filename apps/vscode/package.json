@@ -1,9 +1,9 @@
 {
-  "name": "human-language",
-  "displayName": "Human Language",
-  "description": "Syntax highlighting and language server for human-language (.hl) prompt files.",
+  "name": "napl",
+  "displayName": "NAPL",
+  "description": "Syntax highlighting and language server for napl (.napl) prompt files.",
   "version": "0.1.0",
-  "publisher": "human-language",
+  "publisher": "napl",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
@@ -13,44 +13,44 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:hl"
+    "onLanguage:napl"
   ],
   "contributes": {
     "languages": [
       {
-        "id": "hl",
+        "id": "napl",
         "aliases": [
-          "Human Language",
-          "hl"
+          "NAPL",
+          "napl"
         ],
         "extensions": [
-          ".hl"
+          ".napl"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "hl",
-        "scopeName": "source.hl",
-        "path": "./syntaxes/hl.tmLanguage.json",
+        "language": "napl",
+        "scopeName": "source.napl",
+        "path": "./syntaxes/napl.tmLanguage.json",
         "embeddedLanguages": {
           "meta.embedded.block.yaml": "yaml"
         }
       }
     ],
     "configuration": {
-      "title": "Human Language",
+      "title": "NAPL",
       "properties": {
-        "humanLanguage.genOnSave": {
+        "napl.genOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically run a diff-scoped incremental gen when a .hl prompt file is saved."
+          "description": "Automatically run a diff-scoped incremental gen when a .napl prompt file is saved."
         },
-        "humanLanguage.cliPath": {
+        "napl.cliPath": {
           "type": "string",
-          "default": "hl",
-          "description": "Path to the hl CLI used for gen-on-save. Either a command on PATH (default \"hl\") or an absolute path to the CLI's dist entry (e.g. .../dist/cli.js)."
+          "default": "napl",
+          "description": "Path to the napl CLI used for gen-on-save. Either a command on PATH (default \"napl\") or an absolute path to the CLI's dist entry (e.g. .../dist/cli.js)."
         }
       }
     }
@@ -63,7 +63,7 @@
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@hpl/lsp": "workspace:*",
+    "@napl/lsp": "workspace:*",
     "@types/node": "^26.1.1",
     "@types/vscode": "^1.75.0",
     "esbuild": "^0.24.0",

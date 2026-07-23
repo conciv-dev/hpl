@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { emptyMap, writeMap } from '@hpl/core';
-import { DEFAULT_BACKEND, DEFAULT_MODEL, writeLock } from '@hpl/core';
-import { resolvePaths } from '@hpl/core';
-import { listTargets } from '@hpl/core';
+import { emptyMap, writeMap } from '@napl/core';
+import { DEFAULT_BACKEND, DEFAULT_MODEL, writeLock } from '@napl/core';
+import { resolvePaths } from '@napl/core';
+import { listTargets } from '@napl/core';
 
 export interface InitOptions {
   root: string;
@@ -69,8 +69,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     await mkdir(targetDir, { recursive: true });
   }
 
-  await writeIfAbsent(join(paths.examplesDir, 'greeting.hl'), EXAMPLE_PROMPT, log);
+  await writeIfAbsent(join(paths.examplesDir, 'greeting.napl'), EXAMPLE_PROMPT, log);
 
-  log?.('initialized. Next: edit a *.hl prompt, then run "hl gen <target>" (e.g. hl gen typescript).');
+  log?.('initialized. Next: edit a *.napl prompt, then run "napl gen <target>" (e.g. napl gen typescript).');
   log?.('gen runs a coding agent that writes the source directly, then derives the IR and attribution.');
 }

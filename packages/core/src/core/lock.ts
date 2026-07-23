@@ -34,7 +34,7 @@ export function parseLock(raw: string): HlLock {
 
 export async function readLock(lockPath: string): Promise<HlLock> {
   if (!existsSync(lockPath)) {
-    throw new Error("missing .hl/lock.json — run 'hl init' first");
+    throw new Error("missing .napl/lock.json — run 'napl init' first");
   }
   return parseLock(await readFile(lockPath, 'utf8'));
 }

@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { createClaudeAgentRunner, requireClaudeAgent } from '@hpl/core';
-import type { AgentRunner } from '@hpl/core';
+import { createClaudeAgentRunner, requireClaudeAgent } from '@napl/core';
+import type { AgentRunner } from '@napl/core';
 import { runBlame } from './commands/blame.js';
 import { runBuild } from './commands/build.js';
 import { runGen } from './commands/gen.js';
 import { runInit } from './commands/init.js';
 import { runStatus } from './commands/status.js';
 import { runTest } from './commands/test.js';
-import { createLlmClient, requireApiKey, requireClaudeCli } from '@hpl/core';
-import { readLock } from '@hpl/core';
-import { resolvePaths } from '@hpl/core';
-import type { LlmClient } from '@hpl/core';
+import { createLlmClient, requireApiKey, requireClaudeCli } from '@napl/core';
+import { readLock } from '@napl/core';
+import { resolvePaths } from '@napl/core';
+import type { LlmClient } from '@napl/core';
 
 async function makeLlm(root: string): Promise<{ llm: LlmClient; model: string }> {
   const paths = resolvePaths(root);
@@ -32,13 +32,13 @@ function makeAgent(): AgentRunner {
 const program = new Command();
 
 program
-  .name('hl')
-  .description('human-language: prompts are the source of truth; a coding agent generates and locks target code')
+  .name('napl')
+  .description('NAPL — prompts are the source of truth; a coding agent generates and locks target code')
   .version('0.1.0');
 
 program
   .command('init')
-  .description('create the .hl/ structure, lock.json, and an example prompt')
+  .description('create the .napl/ structure, lock.json, and an example prompt')
   .action(async () => {
     await runInit({ root: process.cwd(), log: (m) => console.log(m) });
   });
@@ -78,7 +78,7 @@ program
 program
   .command('blame')
   .description('git-blame-style line history for a generated file: which gen produced each line, when, and why')
-  .argument('[file]', 'a generated file under .hl/src/<target>/')
+  .argument('[file]', 'a generated file under .napl/src/<target>/')
   .option('-l, --line <n>', 'blame only a single 1-based line', (v) => Number.parseInt(v, 10))
   .option('-g, --gen <n>', 'print the summary of a single gen journal entry', (v) => Number.parseInt(v, 10))
   .option('-v, --verbose', 'also show the prompt edit that caused each line')
@@ -113,6 +113,6 @@ program
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`hl: ${message}`);
+  console.error(`napl: ${message}`);
   process.exitCode = 1;
 });

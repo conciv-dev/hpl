@@ -20,7 +20,7 @@ export function requireClaudeAgent(env: NodeJS.ProcessEnv): void {
   const probe = spawnSync('claude', ['--version'], { stdio: 'ignore', env });
   if (probe.error !== undefined || probe.status !== 0) {
     throw new Error(
-      'the "claude" CLI was not found on PATH. Install Claude Code (claude.ai/code) — hl gen runs it as a coding agent.',
+      'the "claude" CLI was not found on PATH. Install Claude Code (claude.ai/code) — napl gen runs it as a coding agent.',
       probe.error === undefined ? undefined : { cause: probe.error },
     );
   }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Human Language",
-  "scopeName": "source.hl",
+  "name": "NAPL",
+  "scopeName": "source.napl",
   "patterns": [
     { "include": "#frontmatter" },
     { "include": "#module-ref" },
@@ -11,11 +11,11 @@
     "frontmatter": {
       "begin": "\\A(-{3})[ \\t]*$",
       "beginCaptures": {
-        "1": { "name": "punctuation.definition.frontmatter.begin.hl" }
+        "1": { "name": "punctuation.definition.frontmatter.begin.napl" }
       },
       "end": "^(-{3})[ \\t]*$",
       "endCaptures": {
-        "1": { "name": "punctuation.definition.frontmatter.end.hl" }
+        "1": { "name": "punctuation.definition.frontmatter.end.napl" }
       },
       "contentName": "meta.embedded.block.yaml",
       "patterns": [
@@ -24,7 +24,7 @@
     },
     "module-ref": {
       "match": "@[A-Za-z0-9_/-]+",
-      "name": "entity.name.namespace.hl"
+      "name": "entity.name.namespace.napl"
     },
     "body": {
       "patterns": [

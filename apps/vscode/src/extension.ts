@@ -33,10 +33,10 @@ async function revealLocation(uriString: string, range: LspRange): Promise<void>
 }
 
 function readConfig(): { genOnSave: boolean; cliPath: string } {
-  const config = workspace.getConfiguration('humanLanguage');
+  const config = workspace.getConfiguration('napl');
   return {
     genOnSave: config.get<boolean>('genOnSave', true),
-    cliPath: config.get<string>('cliPath', 'hl'),
+    cliPath: config.get<string>('cliPath', 'napl'),
   };
 }
 
@@ -47,13 +47,13 @@ function showGenStatus(status: GenStatus): void {
     errorTimer = undefined;
   }
   if (status.state === 'running') {
-    statusBar.text = `$(sync~spin) HL: compiling ${status.module}…`;
-    statusBar.tooltip = 'Human Language is regenerating code from the saved prompt.';
+    statusBar.text = `$(sync~spin) NAPL: compiling ${status.module}…`;
+    statusBar.tooltip = 'NAPL is regenerating code from the saved prompt.';
     statusBar.show();
     return;
   }
   if (status.state === 'error') {
-    statusBar.text = `$(error) HL: ${status.module} failed`;
+    statusBar.text = `$(error) NAPL: ${status.module} failed`;
     statusBar.tooltip = status.message ?? 'gen-on-save failed';
     statusBar.show();
     errorTimer = setTimeout(() => statusBar?.hide(), 6000);
@@ -64,7 +64,7 @@ function showGenStatus(status: GenStatus): void {
 
 export function activate(context: ExtensionContext): void {
   context.subscriptions.push(
-    commands.registerCommand('hl.revealLocation', (uriString: string, range: LspRange) =>
+    commands.registerCommand('napl.revealLocation', (uriString: string, range: LspRange) =>
       revealLocation(uriString, range),
     ),
   );
@@ -79,21 +79,21 @@ export function activate(context: ExtensionContext): void {
   };
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
-      { scheme: 'file', language: 'hl' },
-      { scheme: 'file', pattern: '**/.hl/src/**' },
+      { scheme: 'file', language: 'napl' },
+      { scheme: 'file', pattern: '**/.napl/src/**' },
     ],
     initializationOptions: readConfig(),
   };
-  client = new LanguageClient('hl', 'Human Language', serverOptions, clientOptions);
+  client = new LanguageClient('napl', 'NAPL', serverOptions, clientOptions);
 
   void client.start().then(() => {
-    client?.onNotification('hl/genStatus', (status: GenStatus) => showGenStatus(status));
+    client?.onNotification('napl/genStatus', (status: GenStatus) => showGenStatus(status));
   });
 
   context.subscriptions.push(
     workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('humanLanguage')) {
-        void client?.sendNotification('hl/config', readConfig());
+      if (event.affectsConfiguration('napl')) {
+        void client?.sendNotification('napl/config', readConfig());
       }
     }),
   );

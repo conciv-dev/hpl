@@ -22,29 +22,29 @@ import type {
   TextDocumentPositionParams,
 } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { validateAttribution } from '@hpl/core';
-import { entriesAtBodyLine } from '@hpl/core';
-import type { Attribution, AttributionEntry } from '@hpl/core';
-import { blameFile, firstPromptDiffLine } from '@hpl/core';
-import type { BlameLine } from '@hpl/core';
-import { fileHistory, readJournal } from '@hpl/core';
-import { mlEntriesAtBodyLine, validateMl } from '@hpl/core';
-import type { Ml } from '@hpl/core';
+import { validateAttribution } from '@napl/core';
+import { entriesAtBodyLine } from '@napl/core';
+import type { Attribution, AttributionEntry } from '@napl/core';
+import { blameFile, firstPromptDiffLine } from '@napl/core';
+import type { BlameLine } from '@napl/core';
+import { fileHistory, readJournal } from '@napl/core';
+import { mlEntriesAtBodyLine, validateMl } from '@napl/core';
+import type { Ml } from '@napl/core';
 import { mlDiagnostics, mlHoverMarkdown } from './ml.js';
-import { bodyLineForDocLine, promptBodyLines } from '@hpl/core';
-import { parseFrontmatter } from '@hpl/core';
-import { contentHash } from '@hpl/core';
-import { validateIr } from '@hpl/core';
-import type { Ir } from '@hpl/core';
+import { bodyLineForDocLine, promptBodyLines } from '@napl/core';
+import { parseFrontmatter } from '@napl/core';
+import { contentHash } from '@napl/core';
+import { validateIr } from '@napl/core';
+import type { Ir } from '@napl/core';
 import {
   declaredTargetsForModule,
   filesForModule,
   hasModule,
   promptsForModule,
   readMap,
-} from '@hpl/core';
-import type { HlMap, ModuleFile } from '@hpl/core';
-import { classifyPrompt } from '@hpl/core';
+} from '@napl/core';
+import type { NaplMap, ModuleFile } from '@napl/core';
+import { classifyPrompt } from '@napl/core';
 import {
   buildSpawnCommand,
   decideTriggers,
@@ -70,7 +70,7 @@ const HOVER_CODE_LINES = 40;
 export function findWorkspaceRoot(startPath: string): string | null {
   let dir = dirname(startPath);
   for (;;) {
-    if (existsSync(join(dir, '.hl'))) return dir;
+    if (existsSync(join(dir, '.napl'))) return dir;
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -95,7 +95,7 @@ function fenceLang(filePath: string): string {
 }
 
 async function loadIr(root: string, module: string): Promise<Ir | null> {
-  const irPath = join(root, '.hl', 'ir', `${module}.yaml`);
+  const irPath = join(root, '.napl', 'ir', `${module}.yaml`);
   if (!existsSync(irPath)) return null;
   try {
     const raw = await readFile(irPath, 'utf8');
@@ -106,7 +106,7 @@ async function loadIr(root: string, module: string): Promise<Ir | null> {
 }
 
 async function loadAttribution(root: string, module: string): Promise<Attribution | null> {
-  const path = join(root, '.hl', 'attribution', `${module}.yaml`);
+  const path = join(root, '.napl', 'attribution', `${module}.yaml`);
   if (!existsSync(path)) return null;
   try {
     const raw = await readFile(path, 'utf8');
@@ -117,7 +117,7 @@ async function loadAttribution(root: string, module: string): Promise<Attributio
 }
 
 async function loadMl(root: string, module: string): Promise<Ml | null> {
-  const path = join(root, '.hl', 'ml', `${module}.ml`);
+  const path = join(root, '.napl', 'mapl', `${module}.mapl`);
   if (!existsSync(path)) return null;
   try {
     const raw = await readFile(path, 'utf8');
@@ -128,13 +128,13 @@ async function loadMl(root: string, module: string): Promise<Ml | null> {
 }
 
 function attributionFileAbs(root: string, attribution: Attribution, entry: AttributionEntry): string {
-  return join(root, '.hl', 'src', attribution.target, entry.file);
+  return join(root, '.napl', 'src', attribution.target, entry.file);
 }
 
 async function buildHoverMarkdown(root: string, module: string): Promise<string> {
-  const map = await readMap(join(root, '.hl', 'map.json'));
+  const map = await readMap(join(root, '.napl', 'map.json'));
   if (!hasModule(map, module)) {
-    return `**module \`${module}\`** — not generated yet — run \`hl gen\`.`;
+    return `**module \`${module}\`** — not generated yet — run \`napl gen\`.`;
   }
 
   const lines: string[] = [];
@@ -154,7 +154,7 @@ async function buildHoverMarkdown(root: string, module: string): Promise<string>
   const files = orderedFiles(filesForModule(map, module));
   if (files.length === 0) {
     lines.push('');
-    lines.push('_no generated code yet — run `hl gen`._');
+    lines.push('_no generated code yet — run `napl gen`._');
     return lines.join('\n');
   }
 
@@ -162,7 +162,7 @@ async function buildHoverMarkdown(root: string, module: string): Promise<string>
   const abs = join(root, impl.filePath);
   if (!existsSync(abs)) {
     lines.push('');
-    lines.push(`_generated file missing: \`${impl.filePath}\` — run \`hl gen\`._`);
+    lines.push(`_generated file missing: \`${impl.filePath}\` — run \`napl gen\`._`);
     return lines.join('\n');
   }
 
@@ -236,8 +236,8 @@ async function resolveTarget(
   return { root, target };
 }
 
-async function loadAttributionSources(root: string, map: HlMap): Promise<AttributionSource[]> {
-  const dir = join(root, '.hl', 'attribution');
+async function loadAttributionSources(root: string, map: NaplMap): Promise<AttributionSource[]> {
+  const dir = join(root, '.napl', 'attribution');
   let names: string[];
   try {
     names = (await readdir(dir)).filter((name) => name.endsWith('.yaml'));
@@ -262,7 +262,7 @@ interface GeneratedContext {
   root: string;
   relFull: string;
   info: GeneratedPathInfo;
-  map: HlMap;
+  map: NaplMap;
   sources: AttributionSource[];
 }
 
@@ -273,7 +273,7 @@ async function resolveGeneratedContext(document: TextDocument): Promise<Generate
   const relFull = relative(root, fsPath).split(sep).join('/');
   const info = parseGeneratedPath(relFull);
   if (info === null) return null;
-  const map = await readMap(join(root, '.hl', 'map.json'));
+  const map = await readMap(join(root, '.napl', 'map.json'));
   const sources = await loadAttributionSources(root, map);
   return { root, relFull, info, map, sources };
 }
@@ -313,9 +313,9 @@ interface MechanicalContext {
 }
 
 async function loadMechanical(root: string, info: GeneratedPathInfo): Promise<MechanicalContext | null> {
-  const entries = await readJournal(join(root, '.hl', 'journal.jsonl'));
+  const entries = await readJournal(join(root, '.napl', 'journal.jsonl'));
   if (entries.length === 0) return null;
-  const relPath = `.hl/src/${info.target}/${info.targetRelPath}`;
+  const relPath = `.napl/src/${info.target}/${info.targetRelPath}`;
   const history = fileHistory(entries, relPath);
   if (history.length === 0) return null;
   const abs = join(root, relPath);
@@ -411,7 +411,7 @@ async function reverseCodeLenses(ctx: GeneratedContext, currentText: string): Pr
     const anchor = match.codeLines[0] - 1;
     lenses.push({
       range: { start: { line: anchor, character: 0 }, end: { line: anchor, character: 0 } },
-      command: { title, command: 'hl.revealLocation', arguments: [location.uri, location.range] },
+      command: { title, command: 'napl.revealLocation', arguments: [location.uri, location.range] },
     });
   }
   return lenses;
@@ -432,7 +432,7 @@ async function computeDiagnostics(root: string, relPath: string, text: string): 
         severity: DiagnosticSeverity.Error,
         range: { start: { line, character }, end: { line, character: character + 1 } },
         message: `YAML frontmatter error: ${error.message}`,
-        source: 'hl',
+        source: 'napl',
       });
     }
     if (doc.errors.length > 0) return diagnostics;
@@ -441,12 +441,12 @@ async function computeDiagnostics(root: string, relPath: string, text: string): 
       severity: DiagnosticSeverity.Error,
       range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
       message: 'missing YAML frontmatter: a prompt file must start with a --- delimited block',
-      source: 'hl',
+      source: 'napl',
     });
     return diagnostics;
   }
 
-  const map = await readMap(join(root, '.hl', 'map.json'));
+  const map = await readMap(join(root, '.napl', 'map.json'));
   let entry;
   try {
     entry = await classifyPrompt({ root, relPath, raw: text, map });
@@ -455,7 +455,7 @@ async function computeDiagnostics(root: string, relPath: string, text: string): 
       severity: DiagnosticSeverity.Error,
       range: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } },
       message: cause instanceof Error ? cause.message : String(cause),
-      source: 'hl',
+      source: 'napl',
     });
     return diagnostics;
   }
@@ -465,15 +465,15 @@ async function computeDiagnostics(root: string, relPath: string, text: string): 
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
       range: firstLine,
-      message: `DRIFT: generated file ${entry.driftFile ?? entry.detail} was edited — it no longer matches the prompt. Run \`hl gen\` to regenerate.`,
-      source: 'hl',
+      message: `DRIFT: generated file ${entry.driftFile ?? entry.detail} was edited — it no longer matches the prompt. Run \`napl gen\` to regenerate.`,
+      source: 'napl',
     });
   } else if (entry.status === 'prompt-stale') {
     diagnostics.push({
       severity: DiagnosticSeverity.Information,
       range: firstLine,
-      message: `prompt changed since last gen (${entry.detail}) — run hl gen`,
-      source: 'hl',
+      message: `prompt changed since last gen (${entry.detail}) — run napl gen`,
+      source: 'napl',
     });
   }
 
@@ -508,7 +508,7 @@ interface SaveConfig {
   cliPath: string;
 }
 
-const saveConfig: SaveConfig = { genOnSave: true, cliPath: 'hl' };
+const saveConfig: SaveConfig = { genOnSave: true, cliPath: 'napl' };
 
 interface ModuleRun {
   state: ModuleState;
@@ -537,13 +537,13 @@ connection.onInitialize((params): InitializeResult => {
   };
 });
 
-connection.onNotification('hl/config', (cfg: { genOnSave?: boolean; cliPath?: string }) => {
+connection.onNotification('napl/config', (cfg: { genOnSave?: boolean; cliPath?: string }) => {
   if (typeof cfg.genOnSave === 'boolean') saveConfig.genOnSave = cfg.genOnSave;
   if (typeof cfg.cliPath === 'string' && cfg.cliPath.length > 0) saveConfig.cliPath = cfg.cliPath;
 });
 
 function sendGenStatus(module: string, state: 'running' | 'done' | 'error', message?: string): void {
-  connection.sendNotification('hl/genStatus', { module, state, message });
+  connection.sendNotification('napl/genStatus', { module, state, message });
 }
 
 function refreshDiagnostics(): void {
@@ -561,11 +561,11 @@ function runGenChild(root: string, cliPath: string, target: string, module: stri
     child.stdout.on('data', capture);
     child.stderr.on('data', capture);
     child.on('error', () => {
-      connection.console.error(`hl gen ${target} --module ${module} failed to spawn`);
+      connection.console.error(`napl gen ${target} --module ${module} failed to spawn`);
       resolve(1);
     });
     child.on('close', (code) => {
-      if (code !== 0) connection.console.error(`hl gen ${target} --module ${module} exited ${code ?? 1}:\n${tail}`);
+      if (code !== 0) connection.console.error(`napl gen ${target} --module ${module} exited ${code ?? 1}:\n${tail}`);
       resolve(code ?? 1);
     });
   });
@@ -576,7 +576,7 @@ async function performRun(module: string): Promise<void> {
   if (run === undefined) return;
   const targets = [...run.targets];
   sendGenStatus(module, 'running', `compiling ${module}…`);
-  connection.console.log(`hl: gen-on-save running for ${module} [${targets.join(', ')}]`);
+  connection.console.log(`napl: gen-on-save running for ${module} [${targets.join(', ')}]`);
   let failure: string | null = null;
   for (const target of targets) {
     const code = await runGenChild(run.root, saveConfig.cliPath, target, module);
@@ -626,7 +626,7 @@ async function triggerGenOnSave(document: TextDocument): Promise<void> {
   if (frontmatter.targets.length === 0) return;
 
   const relPath = relative(root, fsPath).split(sep).join('/');
-  const map = await readMap(join(root, '.hl', 'map.json'));
+  const map = await readMap(join(root, '.napl', 'map.json'));
   const record = map.prompts[relPath];
   const currentPromptHash = contentHash(text);
   const targetStates: TargetTriggerState[] = frontmatter.targets.map((target) => ({
@@ -704,7 +704,7 @@ connection.onDefinition(async (params): Promise<Definition | null> => {
   const resolved = await resolveTarget(document, params);
   if (resolved !== null) {
     const { root, target } = resolved;
-    const map = await readMap(join(root, '.hl', 'map.json'));
+    const map = await readMap(join(root, '.napl', 'map.json'));
     if (!hasModule(map, target.module)) return null;
     const locations: Location[] = [];
     for (const { filePath } of orderedFiles(filesForModule(map, target.module))) {
