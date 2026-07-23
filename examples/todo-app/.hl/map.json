@@ -3,13 +3,13 @@
   "prompts": {
     "todo-app.hl": {
       "module": "todo-app",
-      "promptHash": "83c8e7634b6bcedf534b8214206a1b126abfc9604e662038bc5abf8a08671538",
+      "promptHash": "849a039746b56b16a4298580241703a29a3625d032354d3551afc3ea8f8dbde9",
       "declaredTargets": [
         "react"
       ],
       "targets": {
         "react": {
-          "promptHashAtGen": "83c8e7634b6bcedf534b8214206a1b126abfc9604e662038bc5abf8a08671538",
+          "promptHashAtGen": "849a039746b56b16a4298580241703a29a3625d032354d3551afc3ea8f8dbde9",
           "files": [
             ".hl/src/react/index.html",
             ".hl/src/react/package.json",

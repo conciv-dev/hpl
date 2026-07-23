@@ -25,6 +25,9 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { validateAttribution } from '../core/attribution-schema.js';
 import { entriesAtBodyLine } from '../core/attribution-schema.js';
 import type { Attribution, AttributionEntry } from '../core/attribution-schema.js';
+import { mlEntriesAtBodyLine, validateMl } from '../core/ml-schema.js';
+import type { Ml } from '../core/ml-schema.js';
+import { mlDiagnostics, mlHoverMarkdown } from './ml.js';
 import { bodyLineForDocLine, promptBodyLines } from '../core/body-lines.js';
 import { parseFrontmatter } from '../core/frontmatter.js';
 import { contentHash } from '../core/hash.js';
@@ -105,6 +108,17 @@ async function loadAttribution(root: string, module: string): Promise<Attributio
   try {
     const raw = await readFile(path, 'utf8');
     return validateAttribution(parseDocument(raw).toJSON());
+  } catch {
+    return null;
+  }
+}
+
+async function loadMl(root: string, module: string): Promise<Ml | null> {
+  const path = join(root, '.hl', 'ml', `${module}.ml`);
+  if (!existsSync(path)) return null;
+  try {
+    const raw = await readFile(path, 'utf8');
+    return validateMl(parseDocument(raw).toJSON());
   } catch {
     return null;
   }
@@ -422,7 +436,25 @@ async function computeDiagnostics(root: string, relPath: string, text: string): 
     });
   }
 
+  await appendMlDiagnostics(root, text, diagnostics);
+
   return diagnostics;
+}
+
+async function appendMlDiagnostics(root: string, text: string, diagnostics: Diagnostic[]): Promise<void> {
+  let module: string;
+  try {
+    module = parseFrontmatter(text).frontmatter.module;
+  } catch {
+    return;
+  }
+  const ml = await loadMl(root, module);
+  if (ml === null) return;
+  const body = promptBodyLines(text);
+  const docLines = text.split(/\r?\n/);
+  for (const diagnostic of mlDiagnostics(ml, body.bodyStartLine, docLines)) {
+    diagnostics.push(diagnostic);
+  }
 }
 
 const connection = createConnection(ProposedFeatures.all);
@@ -598,17 +630,25 @@ connection.onHover(async (params): Promise<Hover | null> => {
   const context = resolveBodyContext(document.getText(), params.position);
   if (context === null) return null;
   const attribution = await loadAttribution(root, context.module);
-  if (attribution === null) return null;
-  const entries = entriesAtBodyLine(attribution, context.bodyLine);
-  if (entries.length === 0) return null;
-  const markdown = await buildAttributionHover(root, attribution, entries);
-  if (markdown === null) return null;
+  const ml = await loadMl(root, context.module);
+  const attrEntries = attribution !== null ? entriesAtBodyLine(attribution, context.bodyLine) : [];
+  const mlEntries = ml !== null ? mlEntriesAtBodyLine(ml, context.bodyLine) : [];
+  if (attrEntries.length === 0 && mlEntries.length === 0) return null;
 
+  const sections: string[] = [];
+  if (attribution !== null && attrEntries.length > 0) {
+    const attrMarkdown = await buildAttributionHover(root, attribution, attrEntries);
+    if (attrMarkdown !== null) sections.push(attrMarkdown);
+  }
+  if (mlEntries.length > 0) sections.push(mlHoverMarkdown(mlEntries));
+  if (sections.length === 0) return null;
+
+  const rangeEntries = [...attrEntries, ...mlEntries];
   const bodyStart = promptBodyLines(document.getText()).bodyStartLine;
-  const startLine = bodyStart + Math.min(...entries.map((e) => e.promptLines[0])) - 1;
-  const endLine = bodyStart + Math.max(...entries.map((e) => e.promptLines[1])) - 1;
+  const startLine = bodyStart + Math.min(...rangeEntries.map((e) => e.promptLines[0])) - 1;
+  const endLine = bodyStart + Math.max(...rangeEntries.map((e) => e.promptLines[1])) - 1;
   return {
-    contents: { kind: MarkupKind.Markdown, value: markdown },
+    contents: { kind: MarkupKind.Markdown, value: sections.join('\n\n---\n\n') },
     range: { start: { line: startLine, character: 0 }, end: { line: endLine, character: 200 } },
   };
 });

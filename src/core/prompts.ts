@@ -77,6 +77,18 @@ export function buildIncrementalTask(
   return parts.join('\n');
 }
 
+export function buildChangeRequiredRetry(baseTask: string): string {
+  return [
+    baseTask,
+    '',
+    'CRITICAL: A previous attempt made NO source changes at all, yet the prompt REQUIRES a change.',
+    'Either implement the change now with real edits to the source files, or — only if you are certain',
+    'no code change is needed — state CLEARLY in your final message WHY no change is required (for',
+    'example: the requirement is already satisfied by the existing code, or the instruction cannot be',
+    'acted on because it is unclear or nonsensical). Do not finish silently without doing one of these.',
+  ].join('\n');
+}
+
 export function buildAgentTask(
   adapter: TargetAdapter,
   frontmatter: Frontmatter,
@@ -201,5 +213,60 @@ export function buildAttributionRepair(previousOutput: string, errorMessage: str
     '',
     'The validation error was:',
     errorMessage,
+  ].join('\n');
+}
+
+export const ML_DERIVATION_SYSTEM = [
+  'You are the MACHINE LAYER of a prompt compiler. A prompt (the contract, in prose) was compiled',
+  'to source code by a coding agent. Your job is to record — for the human who wrote the prompt —',
+  'where the prompt was ambiguous, what you had to assume, and anything else worth surfacing about',
+  'this compile.',
+  '',
+  'You are given: the numbered prompt body, the numbered changes the agent made to the source',
+  '(or the literal text "NO CHANGES"), and the coding agent\'s final message.',
+  '',
+  'Output a YAML list (which may be empty). Each item has these keys:',
+  '- promptLines: [start, end]  — 1-based inclusive line range in the PROMPT BODY the entry is about.',
+  '- kind: one of "ambiguity", "assumption", "note", or "no-op".',
+  '- message: a one-line human-facing summary.',
+  '- reasoning: a fuller explanation of what was unclear and what was done instead.',
+  '- suggestion: OPTIONAL — a proposed clearer rewording of the prompt line(s).',
+  '',
+  'How to choose kind:',
+  '- "ambiguity": the prompt line is vague, contradictory, self-referential, out of place, or reads',
+  '  like an accidental or nonsensical insertion — an odd literal string, a phrase that does not fit',
+  '  the surrounding requirement, or wording a careful engineer would stop and question. BE AGGRESSIVE',
+  '  about flagging strange, surprising, or unmotivated phrasing; do NOT smooth it over or assume the',
+  '  author must have meant something reasonable.',
+  '- "assumption": you had to decide something the prompt left open; record the choice you made.',
+  '- "note": something worth surfacing that is neither an ambiguity nor an assumption.',
+  '- "no-op": use ONLY when the changes are "NO CHANGES". Explain why nothing was produced — the',
+  '  requirement was already satisfied by existing code, or the instruction could not be understood or',
+  '  acted upon. When the changes are "NO CHANGES" you MUST emit at least one "no-op" entry.',
+  '',
+  'An empty list is valid ONLY when the prompt is entirely clear AND real changes were made.',
+  'Output ONLY a single fenced ```yaml code block containing the list, and nothing else.',
+].join('\n');
+
+export function buildMlDerivationUser(
+  module: string,
+  numberedBody: string,
+  changeSummary: string,
+  agentOutput: string,
+): string {
+  const output = agentOutput.trim().slice(-4000);
+  return [
+    `Module: ${module}`,
+    '',
+    'Prompt body (1-based line numbers) — the durable source of truth:',
+    numberedBody,
+    '',
+    'What the coding agent changed in the source (1-based line numbers), or "NO CHANGES":',
+    changeSummary,
+    '',
+    "The coding agent's final message:",
+    '"""',
+    output === '' ? '(no output captured)' : output,
+    '"""',
   ].join('\n');
 }

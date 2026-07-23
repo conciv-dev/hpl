@@ -16,17 +16,23 @@ import { diffBodyLines, incrementalUnlockList, selectIntersectingEntries } from 
 import { validateIr } from '../core/ir-schema.js';
 import type { LlmClient } from '../core/llm.js';
 import { isPromptGenStale, readMap, recordAttribution, recordUnattributed, writeMap } from '../core/map.js';
+import type { HlMap } from '../core/map.js';
+import { parseMlEntries, validateMl } from '../core/ml-schema.js';
+import type { MlEntry } from '../core/ml-schema.js';
 import { extractYaml } from '../core/parse-output.js';
 import { resolvePaths } from '../core/paths.js';
 import { findPromptFiles } from '../core/paths.js';
 import {
   ATTRIBUTION_SYSTEM,
   IR_DERIVATION_SYSTEM,
+  ML_DERIVATION_SYSTEM,
   buildAgentTask,
   buildAttributionRepair,
   buildAttributionUser,
+  buildChangeRequiredRetry,
   buildIncrementalTask,
   buildIrDerivationUser,
+  buildMlDerivationUser,
 } from '../core/prompts.js';
 import type { DepSummary } from '../core/prompts.js';
 import { diffSnapshots, makeFilter, snapshotHashes } from '../core/snapshot.js';
@@ -161,6 +167,89 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+async function deriveMl(
+  llm: LlmClient,
+  module: string,
+  target: string,
+  numberedBody: string,
+  changeSummary: string,
+  agentOutput: string,
+  log?: (message: string) => void,
+): Promise<MlEntry[]> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const response = await llm.complete({
+        system: attempt === 1 ? ML_DERIVATION_SYSTEM : ML_DERIVATION_SYSTEM + YAML_STRICTNESS,
+        user: buildMlDerivationUser(module, numberedBody, changeSummary, agentOutput),
+      });
+      const parsed = parseYaml(extractYaml(response));
+      const entries = parseMlEntries(parsed);
+      validateMl({ module, target, entries });
+      log?.(`  machine-layer attempt ${attempt}/2: ${entries.length} entr(ies) valid`);
+      return entries;
+    } catch (cause) {
+      lastError = cause;
+      log?.(`  machine-layer attempt ${attempt}/2 failed: ${errorMessage(cause)}`);
+    }
+  }
+  throw new Error(
+    `machine-layer derivation failed for module '${module}' (${target}) after 2 attempts: ${errorMessage(lastError)}`,
+    { cause: lastError },
+  );
+}
+
+async function writeMl(mlDir: string, module: string, target: string, entries: MlEntry[]): Promise<void> {
+  await mkdir(mlDir, { recursive: true });
+  const ml = validateMl({ module, target, entries });
+  await writeFile(join(mlDir, `${module}.ml`), stringifyYaml(ml), 'utf8');
+}
+
+async function tryDeriveMl(
+  llm: LlmClient,
+  module: string,
+  target: string,
+  numberedBody: string,
+  changeSummary: string,
+  agentOutput: string,
+  log?: (message: string) => void,
+): Promise<{ entries: MlEntry[]; error: unknown }> {
+  try {
+    const entries = await deriveMl(llm, module, target, numberedBody, changeSummary, agentOutput, log);
+    return { entries, error: null };
+  } catch (error) {
+    return { entries: [], error };
+  }
+}
+
+async function enforceNoOp(
+  entries: MlEntry[],
+  error: unknown,
+  mlDir: string,
+  module: string,
+  target: string,
+  map: HlMap,
+  mapPath: string,
+  log?: (message: string) => void,
+): Promise<void> {
+  const hasNoOp = error === null && entries.some((entry) => entry.kind === 'no-op');
+  if (hasNoOp) {
+    log?.('  no-op: prompt changed but the agent produced no edits; the machine layer recorded a no-op note (module stays clean, squiggle surfaces)');
+    return;
+  }
+  if (entries.length > 0) await writeMl(mlDir, module, target, entries);
+  await writeMap(mapPath, map);
+  const reason =
+    error !== null
+      ? `the machine-layer derivation failed (${errorMessage(error)})`
+      : 'the machine layer produced no "no-op" entry explaining why nothing changed';
+  log?.(`  FAILED no-op check for '${module}' (${target}); module left stale, promptHashAtGen not updated`);
+  throw new Error(
+    `gen failed for module '${module}' (${target}): the prompt changed but the coding agent made no source edits, and ${reason}. The requested change was NOT applied and the module is left stale; refine the prompt and re-run 'hl gen ${target} --module ${module} --force'.`,
+    error !== null ? { cause: error } : undefined,
+  );
+}
+
 function assertAttributionSane(attribution: Attribution, allowedFiles: string[]): void {
   if (allowedFiles.length > 0 && attribution.entries.length === 0) {
     throw new Error('attribution has no entries but the module has attributed source files');
@@ -267,21 +356,44 @@ async function runAttempts(
   exec: ExecFn,
   task: (failure: string | null) => string,
   log?: (message: string) => void,
-): Promise<boolean> {
+): Promise<{ ok: boolean; output: string }> {
   let failure: string | null = null;
+  let output = '';
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     log?.(`  attempt ${attempt}/${MAX_ATTEMPTS}: running coding agent`);
-    await agent.run({ task: task(failure), cwd: targetDir, model, allowedTools: adapter.agentTools });
+    const run = await agent.run({ task: task(failure), cwd: targetDir, model, allowedTools: adapter.agentTools });
+    output = run.output;
     const { command, args } = adapter.testCommand(targetDir);
     const result = await exec(command, args, targetDir);
     if (result.code === 0) {
       log?.(`  attempt ${attempt}/${MAX_ATTEMPTS}: tests passed`);
-      return true;
+      return { ok: true, output };
     }
     failure = result.output;
     log?.(`  attempt ${attempt}/${MAX_ATTEMPTS}: tests failed`);
   }
-  return false;
+  return { ok: false, output };
+}
+
+async function retryForChange(
+  adapter: TargetAdapter,
+  targetDir: string,
+  model: string,
+  agent: AgentRunner,
+  exec: ExecFn,
+  baseTask: string,
+  log?: (message: string) => void,
+): Promise<{ output: string; testsPassed: boolean }> {
+  log?.('  prompt changed but the agent made no source edits — retrying once with an explicit change-required instruction');
+  const run = await agent.run({
+    task: buildChangeRequiredRetry(baseTask),
+    cwd: targetDir,
+    model,
+    allowedTools: adapter.agentTools,
+  });
+  const { command, args } = adapter.testCommand(targetDir);
+  const result = await exec(command, args, targetDir);
+  return { output: run.output, testsPassed: result.code === 0 };
 }
 
 export async function runGen(options: GenOptions): Promise<GenResult> {
@@ -353,6 +465,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
   const adapter = getAdapter(target);
   const targetDir = join(paths.srcDir, target);
   const attributionDir = join(paths.hlDir, 'attribution');
+  const mlDir = join(paths.hlDir, 'ml');
   await mkdir(targetDir, { recursive: true });
 
   const filter: SnapshotFilter = makeFilter(
@@ -406,14 +519,32 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
 
     await unlockFiles(root, taskBuilder.unlock);
 
+    const priorHashAtGen = map.prompts[rel]?.targets[target]?.promptHashAtGen;
+    const promptChanged = priorHashAtGen !== undefined && priorHashAtGen !== promptHash;
+
     const before = await snapshotHashes(targetDir, filter);
-    const success = await runAttempts(adapter, targetDir, model, agent, exec, taskBuilder.build, log);
-    if (!success) {
+    const attemptResult = await runAttempts(adapter, targetDir, model, agent, exec, taskBuilder.build, log);
+    if (!attemptResult.ok) {
       throw new Error(`code generation failed for module '${module}' (${target}) after ${MAX_ATTEMPTS} attempts.`);
     }
+    let agentOutput = attemptResult.output;
 
-    const after = await snapshotHashes(targetDir, filter);
-    const changed = diffSnapshots(before, after);
+    let after = await snapshotHashes(targetDir, filter);
+    let changed = diffSnapshots(before, after);
+
+    if (promptChanged && changed.length === 0) {
+      const retry = await retryForChange(adapter, targetDir, model, agent, exec, taskBuilder.build(null), log);
+      agentOutput = retry.output;
+      after = await snapshotHashes(targetDir, filter);
+      changed = diffSnapshots(before, after);
+      if (changed.length > 0 && !retry.testsPassed) {
+        throw new Error(
+          `code generation failed for module '${module}' (${target}): the change-required retry produced edits but its tests did not pass.`,
+        );
+      }
+    }
+
+    const noOpCase = promptChanged && changed.length === 0;
 
     const attributedRel = new Set(changed.map((abs) => toPosix(relative(root, abs))));
     for (const priorPath of map.prompts[rel]?.targets[target]?.files ?? []) {
@@ -434,12 +565,20 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     const numberedBody = numberLines(promptBodyLines(raw).lines);
     await deriveIr(llm, paths.irDir, module, body, numberedFiles.text, log);
 
+    const changeSummary = changed.length === 0 || numberedFiles.text.trim() === '' ? 'NO CHANGES' : numberedFiles.text;
+
     if (numberedFiles.text.trim() === '') {
+      const { entries: emptyMlEntries, error: emptyMlError } = await tryDeriveMl(
+        llm, module, target, numberedBody, changeSummary, agentOutput, log,
+      );
+      if (noOpCase) await enforceNoOp(emptyMlEntries, emptyMlError, mlDir, module, target, map, paths.mapPath, log);
       await lockAttributed(attributed);
       recordAttribution(map, { rel, module, promptHash, target, declaredTargets: frontmatter.targets, files });
       await writePriorBody(paths.promptsAtGenDir, module, body);
+      await writeMl(mlDir, module, target, emptyMlEntries);
       log?.(`  attributed ${files.length} file(s) to ${module}`);
       log?.('  attribution: no source files to map; span attribution skipped');
+      log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
       generated.push(module);
       continue;
     }
@@ -464,14 +603,22 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
       );
     }
 
+    const { entries: mlEntries, error: mlError } = await tryDeriveMl(
+      llm, module, target, numberedBody, changeSummary, agentOutput, log,
+    );
+    if (noOpCase) await enforceNoOp(mlEntries, mlError, mlDir, module, target, map, paths.mapPath, log);
+
     await lockAttributed(attributed);
     recordAttribution(map, { rel, module, promptHash, target, declaredTargets: frontmatter.targets, files });
     await writePriorBody(paths.promptsAtGenDir, module, body);
     const outPath = join(attributionDir, `${module}.yaml`);
     await mkdir(attributionDir, { recursive: true });
     await writeFile(outPath, stringifyYaml(attribution), 'utf8');
+    await writeMl(mlDir, module, target, mlEntries);
     log?.(`  attributed ${files.length} file(s) to ${module}`);
     log?.(`  attribution: ${attribution.entries.length} mapping(s) -> ${toPosix(relative(root, outPath))}`);
+    if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty .ml written): ${errorMessage(mlError)}`);
+    else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
 
     generated.push(module);
   }

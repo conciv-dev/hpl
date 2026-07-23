@@ -376,6 +376,132 @@ describe('runGen incremental mode', () => {
   });
 });
 
+const NOOP_ML =
+  '```yaml\n- promptLines: [1, 1]\n  kind: no-op\n  message: "requirement already satisfied"\n  reasoning: "the existing code already implements this"\n```';
+const NOTE_ONLY_ML =
+  '```yaml\n- promptLines: [1, 1]\n  kind: note\n  message: "nothing to add"\n  reasoning: "x"\n```';
+const EMPTY_ML = '```yaml\n[]\n```';
+const BAD_ML = '```yaml\n- promptLines: nope\n  kind: mystery\n  message: "x"\n```';
+
+function noopAgent(tasks: string[]): AgentRunner {
+  return {
+    run: vi.fn(async (request: { task: string }) => {
+      tasks.push(request.task);
+      return { output: 'I made no source changes.', code: 0 };
+    }),
+  };
+}
+
+function mlLlm(mlResponses: string[]): LlmClient {
+  let i = 0;
+  return {
+    complete: vi.fn(async ({ system }: { system: string }) => {
+      if (system.includes('intermediate representation')) return IR_YAML;
+      if (system.includes('MACHINE LAYER')) {
+        const response = mlResponses[Math.min(i, mlResponses.length - 1)];
+        i += 1;
+        return response;
+      }
+      return VALID_ATTR;
+    }),
+  };
+}
+
+describe('runGen no-op rule (the silent-success bug fix)', () => {
+  it('changed prompt + empty diff + valid no-op note → success WITH ml entry, module stays clean', async () => {
+    await seedPriorGen();
+    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+    const tasks: string[] = [];
+    const agent = noopAgent(tasks);
+
+    const result = await runGen({
+      root,
+      target: 'typescript',
+      agent,
+      llm: mlLlm([NOOP_ML]),
+      model: 'm',
+      exec: PASSING_EXEC,
+    });
+
+    expect(result.generated).toEqual(['greeting']);
+    expect(agent.run).toHaveBeenCalledTimes(2);
+    expect(tasks[1]).toContain('CRITICAL');
+
+    const map = await readMap(join(root, '.hl', 'map.json'));
+    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    expect(entry.promptHashAtGen).toBe(contentHash(NEW_PROMPT));
+
+    const ml = await readFile(join(root, '.hl', 'ml', 'greeting.ml'), 'utf8');
+    expect(ml).toContain('kind: no-op');
+    expect(ml).toContain('requirement already satisfied');
+  });
+
+  it('changed prompt + empty diff + no no-op entry → gen FAILS and module stays stale', async () => {
+    await seedPriorGen();
+    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+
+    await expect(
+      runGen({
+        root,
+        target: 'typescript',
+        agent: noopAgent([]),
+        llm: mlLlm([NOTE_ONLY_ML]),
+        model: 'm',
+        exec: PASSING_EXEC,
+      }),
+    ).rejects.toThrow(/made no source edits/);
+
+    const map = await readMap(join(root, '.hl', 'map.json'));
+    const entry = map.prompts['examples/greeting.hl'].targets.typescript;
+    expect(entry.promptHashAtGen).toBe(contentHash(PROMPT));
+    expect(entry.promptHashAtGen).not.toBe(contentHash(NEW_PROMPT));
+    const ml = await readFile(join(root, '.hl', 'ml', 'greeting.ml'), 'utf8');
+    expect(ml).toContain('kind: note');
+  });
+
+  it('changed prompt + empty diff + failed ml derivation → gen FAILS and stays stale', async () => {
+    await seedPriorGen();
+    await writeFile(join(root, 'examples', 'greeting.hl'), NEW_PROMPT, 'utf8');
+
+    await expect(
+      runGen({
+        root,
+        target: 'typescript',
+        agent: noopAgent([]),
+        llm: mlLlm([BAD_ML]),
+        model: 'm',
+        exec: PASSING_EXEC,
+      }),
+    ).rejects.toThrow(/machine-layer derivation failed/);
+
+    const map = await readMap(join(root, '.hl', 'map.json'));
+    expect(map.prompts['examples/greeting.hl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
+  });
+
+  it('unchanged prompt + --force + empty diff → old idempotent success, no no-op required', async () => {
+    await seedPriorGen();
+    const tasks: string[] = [];
+    const agent = noopAgent(tasks);
+
+    const result = await runGen({
+      root,
+      target: 'typescript',
+      agent,
+      llm: mlLlm([EMPTY_ML]),
+      model: 'm',
+      force: true,
+      exec: PASSING_EXEC,
+    });
+
+    expect(result.generated).toEqual(['greeting']);
+    expect(agent.run).toHaveBeenCalledTimes(1);
+    expect(tasks.some((task) => task.includes('CRITICAL'))).toBe(false);
+    const map = await readMap(join(root, '.hl', 'map.json'));
+    expect(map.prompts['examples/greeting.hl'].targets.typescript.promptHashAtGen).toBe(contentHash(PROMPT));
+    expect(existsSync(join(root, '.hl', 'ml', 'greeting.ml'))).toBe(true);
+  });
+});
+
 describe('runGen module scoping', () => {
   it('processes only the named module and leaves others untouched', async () => {
     const OTHER = `---

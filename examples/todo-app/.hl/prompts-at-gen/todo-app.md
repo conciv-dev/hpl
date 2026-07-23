@@ -1,8 +1,3 @@
----
-module: todo-app
-deps: []
-targets: [react]
----
 # Todo App
 
 A single-page todo list application.

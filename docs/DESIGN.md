@@ -86,6 +86,34 @@ Ownership is 1:N; sharing happens at interface level. Regen blast radius = the o
 - **reverse navigation**: from generated src, "Go to prompt" jumps to the causing prompt sentence(s); multiple contributing prompts → peek list (find-usages style); CodeLens above each function names its owning prompt span
 - built on `map.json` + `.hl/attribution/*.yaml`
 
+## The Machine Layer (`.ml`)
+
+Every prompt module has a hidden-but-referencable machine counterpart,
+`.hl/ml/<module>.ml` — the LLM's side of the dialogue, regenerated on every
+compile. Entries carry `promptLines`, a `kind`, a human-facing `message`, the
+model's `reasoning`, and optionally a suggested prompt rewording.
+
+- `ambiguity` → red squiggle on the exact prompt words, like a syntax error.
+  Hover shows what was unclear, what the model assumed, and a suggested fix.
+- `assumption` → warning squiggle: a decision the prompt didn't specify.
+- `note` → hover-visible reasoning about why the code is shaped as it is.
+- `no-op` → warning: the prompt changed but the agent made no code change; the
+  entry must explain why. A changed prompt with an empty diff and no no-op
+  explanation FAILS the gen — silent "clean" without implementing the change is
+  forbidden.
+
+The compile is a dialogue: the human writes English, the machine answers in the
+margin, and ambiguity is a first-class compile diagnostic.
+
+### Extensions
+
+Dual scheme on both sides of the dialogue: human files are `.hl` canonically
+with person-emoji aliases (`.🧑`, `.🧓`, … — curated single-codepoint list,
+configurable in lock.json; ZWJ sequences excluded for filesystem safety);
+machine files are `.ml` canonically with the `.🤖` alias. Both spellings are
+byte-identical formats and fully equivalent to all tooling — discovery, LSP,
+grammar, and the VS Code extension register every alias.
+
 ## Two-Way Editing (Reconciliation)
 
 Direct src editing is supported, but only as a staging area for prompt changes — never as a fork. It works because the generated baseline is always committed, so the delta is a deterministic diff, not a reconstruction.

@@ -3,12 +3,36 @@ target: react
 entries:
   - promptLines:
       - 5
+      - 5
+    file: src/TodoInput.tsx
+    lines:
+      - 15
+      - 15
+    note: trims whitespace from input
+  - promptLines:
+      - 5
+      - 5
+    file: src/TodoInput.tsx
+    lines:
+      - 16
+      - 18
+    note: ignores empty input
+  - promptLines:
+      - 5
       - 7
     file: src/TodoInput.tsx
     lines:
       - 11
       - 21
-    note: Enter key handler adds trimmed todo, ignores empty, clears input
+    note: Enter key handler adds trimmed todo and clears input
+  - promptLines:
+      - 6
+      - 7
+    file: src/TodoInput.tsx
+    lines:
+      - 19
+      - 20
+    note: adds todo then resets input value
   - promptLines:
       - 5
       - 7
@@ -16,55 +40,47 @@ entries:
     lines:
       - 32
       - 34
-    note: handleAdd appends new todo
+    note: handleAdd appends new todo to list
   - promptLines:
       - 5
       - 7
-    file: src/App.test.tsx
+    file: src/App.tsx
     lines:
-      - 16
-      - 24
-    note: "test: add on Enter, trim whitespace, clear input"
+      - 9
+      - 13
+    note: creates todo object from trimmed text
   - promptLines:
-      - 5
-      - 7
-    file: src/App.test.tsx
+      - 8
+      - 8
+    file: src/TodoItem.tsx
     lines:
-      - 26
-      - 33
-    note: "test: ignores empty/whitespace-only input"
+      - 12
+      - 17
+    note: checkbox toggles todo done state
+  - promptLines:
+      - 8
+      - 8
+    file: src/App.tsx
+    lines:
+      - 36
+      - 40
+    note: handleToggle flips done flag for matching todo
   - promptLines:
       - 8
       - 9
     file: src/TodoItem.tsx
     lines:
-      - 12
       - 18
-    note: checkbox toggles done, strikethrough class applied to text
+      - 18
+    note: applies done class for strikethrough styling
   - promptLines:
-      - 8
       - 9
-    file: src/App.tsx
-    lines:
-      - 36
-      - 40
-    note: handleToggle flips done state
-  - promptLines:
-      - 8
       - 9
     file: src/index.css
     lines:
       - 76
       - 79
-    note: line-through style for done todo text
-  - promptLines:
-      - 8
-      - 9
-    file: src/App.test.tsx
-    lines:
-      - 35
-      - 53
-    note: "test: toggles done state and strikethrough class"
+    note: strikethrough style for done todo text
   - promptLines:
       - 10
       - 10
@@ -82,21 +98,13 @@ entries:
       - 44
     note: handleDelete filters todo out of list
   - promptLines:
-      - 10
-      - 10
-    file: src/App.test.tsx
-    lines:
-      - 55
-      - 65
-    note: "test: deletes a todo"
-  - promptLines:
       - 11
       - 12
     file: src/FilterControl.tsx
     lines:
       - 8
       - 29
-    note: filter buttons for All/Active/Completed with active class indicator
+    note: filter buttons for All/Active/Completed with active indication
   - promptLines:
       - 11
       - 12
@@ -104,39 +112,15 @@ entries:
     lines:
       - 15
       - 23
-    note: filterTodos applies selected filter
+    note: filterTodos applies active filter selection
   - promptLines:
       - 11
       - 12
     file: src/App.tsx
     lines:
-      - 25
+      - 26
       - 30
-    note: filter state and derived visibleTodos
-  - promptLines:
-      - 11
-      - 12
-    file: src/index.css
-    lines:
-      - 43
-      - 56
-    note: styling for filter buttons and active indicator
-  - promptLines:
-      - 11
-      - 12
-    file: src/App.test.tsx
-    lines:
-      - 67
-      - 95
-    note: "test: filters todos and indicates active filter"
-  - promptLines:
-      - 11
-      - 12
-    file: src/types.ts
-    lines:
-      - 7
-      - 7
-    note: Filter type definition
+    note: filter state and derived visible todos
   - promptLines:
       - 13
       - 14
@@ -144,7 +128,7 @@ entries:
     lines:
       - 30
       - 30
-    note: remainingCount computed from non-done todos
+    note: computes remaining active todo count
   - promptLines:
       - 13
       - 14
@@ -152,23 +136,7 @@ entries:
     lines:
       - 52
       - 52
-    note: remaining count rendered as 'N items left'
-  - promptLines:
-      - 13
-      - 14
-    file: src/index.css
-    lines:
-      - 81
-      - 86
-    note: styling for remaining-count text
-  - promptLines:
-      - 13
-      - 14
-    file: src/App.test.tsx
-    lines:
-      - 97
-      - 109
-    note: "test: remaining-items counter updates"
+    note: renders remaining-items counter text
   - promptLines:
       - 15
       - 15
@@ -176,20 +144,4 @@ entries:
     lines:
       - 1
       - 87
-    note: overall clean minimal styling
-  - promptLines:
-      - 1
-      - 3
-    file: src/App.tsx
-    lines:
-      - 46
-      - 54
-    note: single-page app root layout with title
-  - promptLines:
-      - 1
-      - 3
-    file: index.html
-    lines:
-      - 1
-      - 12
-    note: single-page app HTML shell
+    note: minimal clean styling for whole app
