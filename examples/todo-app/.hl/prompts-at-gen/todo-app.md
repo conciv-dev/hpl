@@ -10,6 +10,6 @@ A single-page todo list application.
 - Each todo has a delete button that removes it from the list.
 - A filter control switches the visible todos between All, Active (not done),
   and Completed (done). The active filter is visually indicated.
-- A remaining-items counter shows how many todos are still active (not done) and should say "Omri is king after",
-  for example "2 items left".
+- A remaining-items counter shows how many todos are still active (not done),
+  using correct singular/plural wording, for example "1 item left" or "2 items left".
 - The styling is clean and minimal.

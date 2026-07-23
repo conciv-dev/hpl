@@ -8,7 +8,7 @@ entries:
     lines:
       - 1
       - 1
-    note: greet function signature taking name, returning string
+    note: greet function signature
   - promptLines:
       - 6
       - 6
@@ -24,7 +24,7 @@ entries:
     lines:
       - 5
       - 7
-    note: tests basic greeting form
+    note: test greeting form
   - promptLines:
       - 7
       - 7
@@ -40,7 +40,7 @@ entries:
     lines:
       - 9
       - 11
-    note: tests trimming of leading/trailing whitespace
+    note: test trimming whitespace
   - promptLines:
       - 8
       - 8
@@ -48,7 +48,7 @@ entries:
     lines:
       - 3
       - 5
-    note: throws error on empty/whitespace-only name
+    note: rejects empty/whitespace-only name with error
   - promptLines:
       - 8
       - 8

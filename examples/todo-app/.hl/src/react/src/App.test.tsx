@@ -105,6 +105,9 @@ describe("App", () => {
     expect(screen.getByText("2 items left")).toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "Toggle Task one" }));
-    expect(screen.getByText("1 items left")).toBeInTheDocument();
+    expect(screen.getByText("1 item left")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Toggle Task two" }));
+    expect(screen.getByText("0 items left")).toBeInTheDocument();
   });
 });

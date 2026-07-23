@@ -15,6 +15,8 @@ import { contentHash } from '../core/hash.js';
 import { diffBodyLines, incrementalUnlockList, selectIntersectingEntries } from '../core/incremental.js';
 import { validateIr } from '../core/ir-schema.js';
 import type { LlmClient } from '../core/llm.js';
+import { appendJournalEntry, filePatch, nextGenNumber, readJournal } from '../core/journal.js';
+import type { JournalEntry, JournalFile } from '../core/journal.js';
 import { isPromptGenStale, readMap, recordAttribution, recordUnattributed, writeMap } from '../core/map.js';
 import type { HlMap } from '../core/map.js';
 import { parseMlEntries, validateMl } from '../core/ml-schema.js';
@@ -35,7 +37,7 @@ import {
   buildMlDerivationUser,
 } from '../core/prompts.js';
 import type { DepSummary } from '../core/prompts.js';
-import { diffSnapshots, makeFilter, snapshotHashes } from '../core/snapshot.js';
+import { diffSnapshots, makeFilter, snapshotContents, snapshotHashes } from '../core/snapshot.js';
 import type { SnapshotFilter } from '../core/snapshot.js';
 import { getAdapter } from '../targets/registry.js';
 import type { TargetAdapter } from '../targets/types.js';
@@ -60,6 +62,7 @@ export interface GenOptions {
   module?: string;
   log?: (message: string) => void;
   exec?: ExecFn;
+  now?: () => string;
 }
 
 export interface GenResult {
@@ -125,6 +128,39 @@ async function buildNumberedFiles(
     count += 1;
   }
   return { text: blocks.join('\n\n'), labels };
+}
+
+async function buildJournalFiles(
+  root: string,
+  changed: string[],
+  before: Map<string, string>,
+  after: Map<string, string>,
+  priorContents: Map<string, string>,
+  journaledPaths: Set<string>,
+): Promise<JournalFile[]> {
+  const files: JournalFile[] = [];
+  for (const abs of changed) {
+    let newContent: string;
+    try {
+      newContent = await readFile(abs, 'utf8');
+    } catch {
+      continue;
+    }
+    const relPath = toPosix(relative(root, abs));
+    const priorForPatch = journaledPaths.has(relPath) ? priorContents.get(abs) ?? null : null;
+    files.push({
+      path: relPath,
+      patch: filePatch(priorForPatch, newContent),
+      hashBefore: before.get(abs) ?? null,
+      hashAfter: after.get(abs) ?? contentHash(newContent),
+    });
+  }
+  return files;
+}
+
+function computePromptDiff(priorBody: string | null, body: string): string {
+  if (priorBody === null || priorBody === body) return '';
+  return diffBodyLines(priorBody, body).unified;
 }
 
 const YAML_STRICTNESS =
@@ -476,6 +512,13 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
   const map = await readMap(paths.mapPath);
   const promptFiles = await findPromptFiles(root);
   const summaries = await collectSummaries(root, promptFiles);
+  const now = options.now ?? ((): string => new Date().toISOString());
+  const existingJournal = await readJournal(paths.journalPath, log);
+  let nextGen = nextGenNumber(existingJournal);
+  const journaledPaths = new Set<string>();
+  for (const entry of existingJournal) {
+    for (const file of entry.files) journaledPaths.add(file.path);
+  }
 
   const generated: string[] = [];
   const skipped: string[] = [];
@@ -523,6 +566,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     const promptChanged = priorHashAtGen !== undefined && priorHashAtGen !== promptHash;
 
     const before = await snapshotHashes(targetDir, filter);
+    const priorContents = await snapshotContents(targetDir, filter);
     const attemptResult = await runAttempts(adapter, targetDir, model, agent, exec, taskBuilder.build, log);
     if (!attemptResult.ok) {
       throw new Error(`code generation failed for module '${module}' (${target}) after ${MAX_ATTEMPTS} attempts.`);
@@ -545,6 +589,25 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     }
 
     const noOpCase = promptChanged && changed.length === 0;
+
+    const journalFiles = await buildJournalFiles(root, changed, before, after, priorContents, journaledPaths);
+    const promptDiff = computePromptDiff(await loadPriorBody(paths.promptsAtGenDir, module), body);
+    const recordJournal = async (): Promise<void> => {
+      const entry: JournalEntry = {
+        gen: nextGen,
+        timestamp: now(),
+        module,
+        target,
+        promptHash,
+        promptDiff,
+        mode: taskBuilder.mode,
+        files: journalFiles,
+      };
+      await appendJournalEntry(paths.journalPath, entry);
+      for (const file of journalFiles) journaledPaths.add(file.path);
+      log?.(`  journal: gen #${nextGen} recorded (${journalFiles.length} file patch(es)) -> ${toPosix(relative(root, paths.journalPath))}`);
+      nextGen += 1;
+    };
 
     const attributedRel = new Set(changed.map((abs) => toPosix(relative(root, abs))));
     for (const priorPath of map.prompts[rel]?.targets[target]?.files ?? []) {
@@ -579,6 +642,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
       log?.(`  attributed ${files.length} file(s) to ${module}`);
       log?.('  attribution: no source files to map; span attribution skipped');
       log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
+      await recordJournal();
       generated.push(module);
       continue;
     }
@@ -620,6 +684,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty .ml written): ${errorMessage(mlError)}`);
     else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.ml`)))}`);
 
+    await recordJournal();
     generated.push(module);
   }
 

@@ -54,6 +54,25 @@ export async function snapshotHashes(dir: string, filter: SnapshotFilter): Promi
   return result;
 }
 
+export async function snapshotContents(dir: string, filter: SnapshotFilter): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  async function walk(current: string): Promise<void> {
+    const entries = await readDirSafe(current);
+    for (const entry of entries) {
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (filter.excludeDirs.has(entry.name)) continue;
+        await walk(full);
+      } else if (entry.isFile()) {
+        if (isExcludedFile(entry.name, filter)) continue;
+        result.set(full, await readFile(full, 'utf8'));
+      }
+    }
+  }
+  await walk(dir);
+  return result;
+}
+
 export function diffSnapshots(before: Map<string, string>, after: Map<string, string>): string[] {
   const changed: string[] = [];
   for (const [path, hash] of after) {

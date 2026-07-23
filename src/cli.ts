@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { createClaudeAgentRunner, requireClaudeAgent } from './core/agent.js';
 import type { AgentRunner } from './core/agent.js';
+import { runBlame } from './commands/blame.js';
 import { runBuild } from './commands/build.js';
 import { runGen } from './commands/gen.js';
 import { runInit } from './commands/init.js';
@@ -69,8 +70,28 @@ program
       full: opts.full ?? false,
       module: opts.module,
       log: (m) => console.log(m),
+      now: () => new Date().toISOString(),
     });
     console.log(`generated ${result.generated.length}, skipped ${result.skipped.length}`);
+  });
+
+program
+  .command('blame')
+  .description('git-blame-style line history for a generated file: which gen produced each line, when, and why')
+  .argument('[file]', 'a generated file under .hl/src/<target>/')
+  .option('-l, --line <n>', 'blame only a single 1-based line', (v) => Number.parseInt(v, 10))
+  .option('-g, --gen <n>', 'print the summary of a single gen journal entry', (v) => Number.parseInt(v, 10))
+  .option('-v, --verbose', 'also show the prompt edit that caused each line')
+  .action(async (file: string | undefined, opts: { line?: number; gen?: number; verbose?: boolean }) => {
+    const { exitCode } = await runBlame({
+      root: process.cwd(),
+      file,
+      line: opts.line,
+      gen: opts.gen,
+      verbose: opts.verbose ?? false,
+      log: (m) => console.log(m),
+    });
+    process.exitCode = exitCode;
   });
 
 program

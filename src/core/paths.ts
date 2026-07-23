@@ -11,6 +11,7 @@ export interface HlPaths {
   mapPath: string;
   lockPath: string;
   genLockPath: string;
+  journalPath: string;
   promptsAtGenDir: string;
   examplesDir: string;
 }
@@ -25,6 +26,7 @@ export function resolvePaths(root: string): HlPaths {
     mapPath: join(hlDir, 'map.json'),
     lockPath: join(hlDir, 'lock.json'),
     genLockPath: join(hlDir, 'gen.lock'),
+    journalPath: join(hlDir, 'journal.jsonl'),
     promptsAtGenDir: join(hlDir, 'prompts-at-gen'),
     examplesDir: join(root, 'examples'),
   };

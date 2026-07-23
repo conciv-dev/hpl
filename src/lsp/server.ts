@@ -25,6 +25,9 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { validateAttribution } from '../core/attribution-schema.js';
 import { entriesAtBodyLine } from '../core/attribution-schema.js';
 import type { Attribution, AttributionEntry } from '../core/attribution-schema.js';
+import { blameFile, firstPromptDiffLine } from '../core/blame.js';
+import type { BlameLine } from '../core/blame.js';
+import { fileHistory, readJournal } from '../core/journal.js';
 import { mlEntriesAtBodyLine, validateMl } from '../core/ml-schema.js';
 import type { Ml } from '../core/ml-schema.js';
 import { mlDiagnostics, mlHoverMarkdown } from './ml.js';
@@ -304,10 +307,45 @@ function fileLevelPromptFallback(ctx: GeneratedContext): Location[] {
   return locations;
 }
 
+interface MechanicalContext {
+  blamed: BlameLine[];
+  promptDiffByGen: Map<number, string>;
+}
+
+async function loadMechanical(root: string, info: GeneratedPathInfo): Promise<MechanicalContext | null> {
+  const entries = await readJournal(join(root, '.hl', 'journal.jsonl'));
+  if (entries.length === 0) return null;
+  const relPath = `.hl/src/${info.target}/${info.targetRelPath}`;
+  const history = fileHistory(entries, relPath);
+  if (history.length === 0) return null;
+  const abs = join(root, relPath);
+  if (!existsSync(abs)) return null;
+  const content = await readFile(abs, 'utf8');
+  return {
+    blamed: blameFile(history, content),
+    promptDiffByGen: new Map(history.map((entry) => [entry.gen, entry.promptDiff])),
+  };
+}
+
+function mechanicalLabel(mechanical: MechanicalContext, line1: number): string | null {
+  const blamed = mechanical.blamed.find((entry) => entry.line === line1);
+  if (blamed === undefined) return null;
+  const first = firstPromptDiffLine(mechanical.promptDiffByGen.get(blamed.gen) ?? '');
+  const date = blamed.timestamp.slice(0, 10);
+  const edit = first === '' ? 'initial generation' : `prompt edit: ${first}`;
+  return `caused by gen #${blamed.gen} · ${date} · ${edit}`;
+}
+
 async function reverseHover(ctx: GeneratedContext, line: number): Promise<Hover | null> {
   const matches = reverseMatches(ctx.sources, ctx.info.target, ctx.info.targetRelPath, line + 1);
-  if (matches.length === 0) return null;
+  const mechanical = await loadMechanical(ctx.root, ctx.info);
+  const mechLabel = mechanical !== null ? mechanicalLabel(mechanical, line + 1) : null;
+  if (matches.length === 0 && mechLabel === null) return null;
   const blocks: string[] = [];
+  if (mechLabel !== null) {
+    blocks.push(`**${mechLabel}**`);
+    blocks.push('');
+  }
   for (const match of dedupeMatches(matches)) {
     const abs = join(ctx.root, match.promptFile);
     if (!existsSync(abs)) continue;
@@ -358,13 +396,16 @@ async function reverseCodeLenses(ctx: GeneratedContext, currentText: string): Pr
   if (matches.length === 0) return [];
   const record = ctx.map.files[ctx.relFull];
   const drifted = isFileDrifted(record?.hash, contentHash(currentText));
+  const mechanical = await loadMechanical(ctx.root, ctx.info);
   const sorted = [...matches].sort((a, b) => a.codeLines[0] - b.codeLines[0]);
   const lenses: CodeLens[] = [];
   let driftApplied = false;
   for (const match of sorted) {
     const location = await promptLocation(ctx.root, match);
     if (location === null) continue;
-    const base = codeLensTitle(basename(match.promptFile), location.range.start.line + 1, match.note);
+    const semantic = codeLensTitle(basename(match.promptFile), location.range.start.line + 1, match.note);
+    const mechLabel = mechanical !== null ? mechanicalLabel(mechanical, match.codeLines[0]) : null;
+    const base = mechLabel !== null ? `${mechLabel}   ${semantic}` : semantic;
     const title = drifted && !driftApplied ? `${DRIFT_LENS_PREFIX}   ${base}` : base;
     if (drifted) driftApplied = true;
     const anchor = match.codeLines[0] - 1;

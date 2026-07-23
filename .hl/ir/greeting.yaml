@@ -5,9 +5,9 @@ functions:
   - name: greet
     signature: "greet(name: string) -> string"
     behavior: >
-      Trims leading and trailing whitespace from name. If trimmed name is empty,
-      throws an error. Otherwise returns greeting string in form "Hello,
-      <trimmed name>!".
+      Trims leading and trailing whitespace from name. If trimmed name is empty
+      (empty or whitespace-only input), throws an error. Otherwise returns
+      "Hello, <trimmed-name>!".
 tests:
   - name: returns a friendly greeting
     given: name = "Alice"

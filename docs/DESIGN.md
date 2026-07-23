@@ -86,6 +86,40 @@ Ownership is 1:N; sharing happens at interface level. Regen blast radius = the o
 - **reverse navigation**: from generated src, "Go to prompt" jumps to the causing prompt sentence(s); multiple contributing prompts → peek list (find-usages style); CodeLens above each function names its owning prompt span
 - built on `map.json` + `.hl/attribution/*.yaml`
 
+## Prompt Blame (mechanical line history)
+
+Layered *under* the semantic attribution is a mechanical, git-blame-style record
+of how each line of generated code came to be. Every successful `hl gen` for a
+module appends one JSON line to an append-only journal, `.hl/journal.jsonl`:
+
+- `gen` (monotonic int), `timestamp` (taken from a clock injected at the CLI
+  entry, never from library code), `module`, `target`, `promptHash`, and `mode`
+  (`full` | `incremental`).
+- `promptDiff` — the unified diff of the prior→current prompt body (empty string
+  for the first gen or an unchanged prompt).
+- `files` — for every changed file: a unified `patch`, plus `hashBefore`
+  (`null` when the file did not yet exist) and `hashAfter`. A file's **first**
+  appearance in the journal is recorded as a creation patch so blame can always
+  replay from an empty file. Prior contents are snapshotted before the agent runs
+  and the journal keeps a patch only for the files that actually changed. Reads
+  are Zod-validated and corrupt lines are skipped with a warning.
+
+`hl blame <file>` reconstructs line ancestry by replaying that file's journal
+patches oldest→newest, tracking which gen last touched each current line — the
+same algorithm class as `git blame` (untouched lines keep the oldest gen; a line
+moved down by an insertion above keeps its gen; a modified line moves to the
+editing gen). `--line N` scopes to one line; `--verbose` adds the prompt edit
+(the "why"); `hl blame --gen N` prints a single gen's summary (module, prompt
+diff, files touched). The pure blame algorithm lives in `src/core/blame.ts`; the
+journal format and I/O in `src/core/journal.ts`.
+
+In the editor the mechanical layer surfaces alongside the semantic one: the
+generated-file hover and the reverse-navigation CodeLens gain a line
+`caused by gen #N · <date> · prompt edit: <first line of the diff hunk>` (or
+`initial generation`), shown **first**, with the semantic "implements sentence…"
+content kept beneath it — computed via the blame core against the journal.
+Pre-journal repos (no `.hl/journal.jsonl`) simply omit the mechanical line.
+
 ## The Machine Layer (`.ml`)
 
 Every prompt module has a hidden-but-referencable machine counterpart,

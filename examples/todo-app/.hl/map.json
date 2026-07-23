@@ -3,13 +3,13 @@
   "prompts": {
     "todo-app.hl": {
       "module": "todo-app",
-      "promptHash": "849a039746b56b16a4298580241703a29a3625d032354d3551afc3ea8f8dbde9",
+      "promptHash": "276f70a10af4325db370ff530ea72a32bc047d4962883e96a4ee3eea21959068",
       "declaredTargets": [
         "react"
       ],
       "targets": {
         "react": {
-          "promptHashAtGen": "849a039746b56b16a4298580241703a29a3625d032354d3551afc3ea8f8dbde9",
+          "promptHashAtGen": "276f70a10af4325db370ff530ea72a32bc047d4962883e96a4ee3eea21959068",
           "files": [
             ".hl/src/react/index.html",
             ".hl/src/react/package.json",
@@ -48,14 +48,14 @@
     },
     ".hl/src/react/src/App.test.tsx": {
       "target": "react",
-      "hash": "9a060cf02c9cf4c38c828a5bff1e108efa0a4ff682960669f1460b116a3d71e2",
+      "hash": "f42a8223ebb11c2797cc1b9c0083c44f285006116aa228f9fd5cddc5db4c45eb",
       "prompts": [
         "todo-app.hl"
       ]
     },
     ".hl/src/react/src/App.tsx": {
       "target": "react",
-      "hash": "eb5f07bc2909806b958e65d6357f9339a711676a3c077598ad4a4b81f40ec052",
+      "hash": "a26cc92d84e64cdc42482613c44fba9896bea6f42bcfd4e2b109c6eeb78ba00d",
       "prompts": [
         "todo-app.hl"
       ]

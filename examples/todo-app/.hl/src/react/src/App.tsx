@@ -49,7 +49,9 @@ export function App() {
       <TodoInput onAdd={handleAdd} />
       <FilterControl filter={filter} onFilterChange={setFilter} />
       <TodoList todos={visibleTodos} onToggle={handleToggle} onDelete={handleDelete} />
-      <p className="remaining-count">{remainingCount} items left</p>
+      <p className="remaining-count">
+        {remainingCount} {remainingCount === 1 ? "item" : "items"} left
+      </p>
     </div>
   );
 }
