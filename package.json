@@ -1,34 +1,23 @@
 {
-  "name": "human-language",
+  "name": "@hpl/monorepo",
   "version": "0.1.0",
-  "description": "Prompts are the source of truth: compile prompt files into a contract-level IR and per-target code.",
+  "private": true,
+  "description": "Prompts are the source of truth: a coding agent generates and locks per-target code, attributed line by line.",
   "type": "module",
-  "bin": {
-    "hl": "dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "hl": "node dist/cli.js"
-  },
   "license": "MIT",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.113.0",
-    "commander": "^15.0.0",
-    "vscode-languageserver": "^9.0.1",
-    "vscode-languageserver-textdocument": "^1.0.12",
-    "yaml": "^2.9.0",
-    "zod": "^4.4.3"
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run build typecheck test"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
+    "turbo": "^2.5.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

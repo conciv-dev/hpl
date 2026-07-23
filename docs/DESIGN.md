@@ -22,6 +22,28 @@ IR (.hl/ir/*.yaml)              ← extracted contract layer: signatures + test
 
 The AI is not constrained to a pipeline. `hl gen` snapshots content hashes, hands the prompt to an agent (claude CLI, agentic mode, cwd = the target src tree — it may scaffold, run package managers, edit many files), then diffs the tree. Changed files are attributed to the driving prompt in `map.json` — the many-to-many mapping is recorded from observed reality, not planned upfront. Tests gate; on green, files lock. The IR is derived from the resulting code as a reviewable contract, not authored as an intermediate build step.
 
+## Repo Layout
+
+A pnpm + turborepo monorepo (Node >= 22, pnpm pinned via the root `packageManager`).
+
+```
+packages/core   @hpl/core — the library: prompts, IR, attribution, journal/blame,
+                target adapters, and the LLM/agent backends (src/core/ + src/targets/,
+                re-exported from a single index barrel)
+packages/cli    @hpl/cli  — the `hl` binary (init/gen/status/test/blame); depends on
+                @hpl/core via workspace:*
+packages/lsp    @hpl/lsp  — the language server (hover, go-to-def, reverse nav,
+                gen-on-save); depends on @hpl/core
+apps/vscode     the VS Code extension; its esbuild step bundles the server from
+                @hpl/lsp's source into a self-contained dist/server.js. Unpublished.
+examples/       greeting.hl and todo-app — real .hl projects carrying their own
+                committed .hl/ state; not workspace packages.
+```
+
+turbo tasks: `build` (`dependsOn ^build`, outputs `dist/**`), `typecheck`
+(`^build`), `test` (`^build` + `build`). `@hpl/cli` and `@hpl/lsp` import
+`@hpl/core` by package specifier, never by relative cross-package path.
+
 Agent decisions that go beyond the prompt (framework choice, added dependency) are captured in the gen report; `hl reconcile` proposes prompt amendments so prompts stay truthful — the tool never silently rewrites the user's words.
 
 ### Layer 1 — Prompt files
@@ -110,8 +132,9 @@ same algorithm class as `git blame` (untouched lines keep the oldest gen; a line
 moved down by an insertion above keeps its gen; a modified line moves to the
 editing gen). `--line N` scopes to one line; `--verbose` adds the prompt edit
 (the "why"); `hl blame --gen N` prints a single gen's summary (module, prompt
-diff, files touched). The pure blame algorithm lives in `src/core/blame.ts`; the
-journal format and I/O in `src/core/journal.ts`.
+diff, files touched). The pure blame algorithm lives in
+`packages/core/src/core/blame.ts`; the journal format and I/O in
+`packages/core/src/core/journal.ts`.
 
 In the editor the mechanical layer surfaces alongside the semantic one: the
 generated-file hover and the reverse-navigation CodeLens gain a line

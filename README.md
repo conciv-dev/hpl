@@ -243,18 +243,43 @@ The body below the frontmatter is the prose contract passed to the model.
 
 ## Target adapters
 
-Each target is a **config object** under `src/targets/` declaring idiom guidance
-for the coding agent, the tools the agent may use, the test-run command, and the
-paths excluded from attribution (`node_modules`, `dist`, lockfiles,
-`*.tsbuildinfo`, …). Adding a language is a config-only change — register a new
-adapter in `src/targets/registry.ts`. `typescript` (vitest) and `react`
+Each target is a **config object** under `packages/core/src/targets/` declaring
+idiom guidance for the coding agent, the tools the agent may use, the test-run
+command, and the paths excluded from attribution (`node_modules`, `dist`,
+lockfiles, `*.tsbuildinfo`, …). Adding a language is a config-only change —
+register a new adapter in `packages/core/src/targets/registry.ts`. `typescript`
+(vitest) and `react`
 (Vite + React + TypeScript, vitest + @testing-library/react + jsdom) ship today.
 
 ## Development
 
+This is a pnpm + [turborepo](https://turborepo.dev) monorepo. Node >= 22 and
+[corepack](https://nodejs.org/api/corepack.html) are required; the pnpm version
+is pinned via the root `packageManager` field.
+
 ```bash
-npm install
-npm run typecheck
-npm run build
-npm test          # the tool's own unit tests (both LLM backends are mocked)
+corepack pnpm install     # install all workspace packages
+corepack pnpm build       # turbo run build   — @hpl/core → @hpl/cli/@hpl/lsp → vscode
+corepack pnpm typecheck   # turbo run typecheck
+corepack pnpm test        # turbo run test    — the tool's own unit tests (LLM backends mocked)
+corepack pnpm check       # build + typecheck + test in one turbo run
+```
+
+To use the `hl` CLI globally from the local build:
+
+```bash
+corepack pnpm build
+# link the built CLI onto your PATH (pnpm 11's global bin dir must be on PATH; or
+# symlink packages/cli/dist/cli.js into a PATH directory)
+ln -s "$PWD/packages/cli/dist/cli.js" ~/.local/bin/hl
+```
+
+### Repo layout
+
+```
+packages/core   @hpl/core — prompts, IR, attribution, journal/blame, targets, LLM/agent backends
+packages/cli    @hpl/cli  — the `hl` command (bin), depends on @hpl/core
+packages/lsp    @hpl/lsp  — the language server, depends on @hpl/core
+apps/vscode     the VS Code extension (bundles the LSP server from @hpl/lsp; unpublished)
+examples/       greeting.hl + todo-app — real .hl projects, not workspace packages
 ```
