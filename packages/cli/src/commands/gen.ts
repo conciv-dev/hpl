@@ -23,7 +23,8 @@ import { parseMlEntries, validateMl } from '@napl/core';
 import type { MlEntry } from '@napl/core';
 import { extractYaml } from '@napl/core';
 import { resolvePaths } from '@napl/core';
-import { findPromptFiles } from '@napl/core';
+import { findPromptFiles, machineExtensionForPrompt } from '@napl/core';
+import { loadPromptAliases } from '@napl/core';
 import {
   ATTRIBUTION_SYSTEM,
   IR_DERIVATION_SYSTEM,
@@ -235,10 +236,16 @@ async function deriveMl(
   );
 }
 
-async function writeMl(mlDir: string, module: string, target: string, entries: MlEntry[]): Promise<void> {
+async function writeMl(
+  mlDir: string,
+  module: string,
+  target: string,
+  entries: MlEntry[],
+  machineExt: string,
+): Promise<void> {
   await mkdir(mlDir, { recursive: true });
   const ml = validateMl({ module, target, entries });
-  await writeFile(join(mlDir, `${module}.mapl`), stringifyYaml(ml), 'utf8');
+  await writeFile(join(mlDir, `${module}${machineExt}`), stringifyYaml(ml), 'utf8');
 }
 
 async function tryDeriveMl(
@@ -266,6 +273,7 @@ async function enforceNoOp(
   target: string,
   map: NaplMap,
   mapPath: string,
+  machineExt: string,
   log?: (message: string) => void,
 ): Promise<void> {
   const hasNoOp = error === null && entries.some((entry) => entry.kind === 'no-op');
@@ -273,7 +281,7 @@ async function enforceNoOp(
     log?.('  no-op: prompt changed but the agent produced no edits; the machine layer recorded a no-op note (module stays clean, squiggle surfaces)');
     return;
   }
-  if (entries.length > 0) await writeMl(mlDir, module, target, entries);
+  if (entries.length > 0) await writeMl(mlDir, module, target, entries, machineExt);
   await writeMap(mapPath, map);
   const reason =
     error !== null
@@ -510,7 +518,8 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     adapter.attributionExcludeSuffixes,
   );
   const map = await readMap(paths.mapPath);
-  const promptFiles = await findPromptFiles(root);
+  const promptAliases = await loadPromptAliases(paths.lockPath);
+  const promptFiles = await findPromptFiles(root, promptAliases);
   const summaries = await collectSummaries(root, promptFiles);
   const now = options.now ?? ((): string => new Date().toISOString());
   const existingJournal = await readJournal(paths.journalPath, log);
@@ -532,6 +541,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     const module = frontmatter.module;
     if (options.module !== undefined && module !== options.module) continue;
 
+    const machineExt = machineExtensionForPrompt(file);
     const promptHash = contentHash(raw);
     if (!isPromptGenStale(map.prompts[rel], target, promptHash, force)) {
       skipped.push(module);
@@ -634,14 +644,14 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
       const { entries: emptyMlEntries, error: emptyMlError } = await tryDeriveMl(
         llm, module, target, numberedBody, changeSummary, agentOutput, log,
       );
-      if (noOpCase) await enforceNoOp(emptyMlEntries, emptyMlError, mlDir, module, target, map, paths.mapPath, log);
+      if (noOpCase) await enforceNoOp(emptyMlEntries, emptyMlError, mlDir, module, target, map, paths.mapPath, machineExt, log);
       await lockAttributed(attributed);
       recordAttribution(map, { rel, module, promptHash, target, declaredTargets: frontmatter.targets, files });
       await writePriorBody(paths.promptsAtGenDir, module, body);
-      await writeMl(mlDir, module, target, emptyMlEntries);
+      await writeMl(mlDir, module, target, emptyMlEntries, machineExt);
       log?.(`  attributed ${files.length} file(s) to ${module}`);
       log?.('  attribution: no source files to map; span attribution skipped');
-      log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.mapl`)))}`);
+      log?.(`  machine layer: ${emptyMlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}${machineExt}`)))}`);
       await recordJournal();
       generated.push(module);
       continue;
@@ -670,7 +680,7 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     const { entries: mlEntries, error: mlError } = await tryDeriveMl(
       llm, module, target, numberedBody, changeSummary, agentOutput, log,
     );
-    if (noOpCase) await enforceNoOp(mlEntries, mlError, mlDir, module, target, map, paths.mapPath, log);
+    if (noOpCase) await enforceNoOp(mlEntries, mlError, mlDir, module, target, map, paths.mapPath, machineExt, log);
 
     await lockAttributed(attributed);
     recordAttribution(map, { rel, module, promptHash, target, declaredTargets: frontmatter.targets, files });
@@ -678,11 +688,11 @@ async function runGenLocked(options: GenOptions, paths: ReturnType<typeof resolv
     const outPath = join(attributionDir, `${module}.yaml`);
     await mkdir(attributionDir, { recursive: true });
     await writeFile(outPath, stringifyYaml(attribution), 'utf8');
-    await writeMl(mlDir, module, target, mlEntries);
+    await writeMl(mlDir, module, target, mlEntries, machineExt);
     log?.(`  attributed ${files.length} file(s) to ${module}`);
     log?.(`  attribution: ${attribution.entries.length} mapping(s) -> ${toPosix(relative(root, outPath))}`);
-    if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty .mapl written): ${errorMessage(mlError)}`);
-    else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}.mapl`)))}`);
+    if (mlError !== null) log?.(`  warn: machine-layer derivation failed (non-fatal, empty ${machineExt} written): ${errorMessage(mlError)}`);
+    else log?.(`  machine layer: ${mlEntries.length} entr(ies) -> ${toPosix(relative(root, join(mlDir, `${module}${machineExt}`)))}`);
 
     await recordJournal();
     generated.push(module);

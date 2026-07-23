@@ -4,6 +4,7 @@ import { readMap } from '@napl/core';
 import { classifyPrompt } from '@napl/core';
 import type { FileStatus, StatusEntry } from '@napl/core';
 import { findPromptFiles, resolvePaths } from '@napl/core';
+import { loadPromptAliases } from '@napl/core';
 
 export type { FileStatus, StatusEntry };
 
@@ -21,7 +22,8 @@ export async function runStatus(options: StatusOptions): Promise<StatusResult> {
   const { root, log } = options;
   const paths = resolvePaths(root);
   const map = await readMap(paths.mapPath);
-  const promptFiles = await findPromptFiles(root);
+  const promptAliases = await loadPromptAliases(paths.lockPath);
+  const promptFiles = await findPromptFiles(root, promptAliases);
 
   const entries: StatusEntry[] = [];
   let anyError = false;

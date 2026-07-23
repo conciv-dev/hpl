@@ -29,6 +29,7 @@ import { blameFile, firstPromptDiffLine } from '@napl/core';
 import type { BlameLine } from '@napl/core';
 import { fileHistory, readJournal } from '@napl/core';
 import { mlEntriesAtBodyLine, validateMl } from '@napl/core';
+import { machineExtensions } from '@napl/core';
 import type { Ml } from '@napl/core';
 import { mlDiagnostics, mlHoverMarkdown } from './ml.js';
 import { bodyLineForDocLine, promptBodyLines } from '@napl/core';
@@ -117,14 +118,17 @@ async function loadAttribution(root: string, module: string): Promise<Attributio
 }
 
 async function loadMl(root: string, module: string): Promise<Ml | null> {
-  const path = join(root, '.napl', 'mapl', `${module}.mapl`);
-  if (!existsSync(path)) return null;
-  try {
-    const raw = await readFile(path, 'utf8');
-    return validateMl(parseDocument(raw).toJSON());
-  } catch {
-    return null;
+  for (const ext of machineExtensions()) {
+    const path = join(root, '.napl', 'mapl', `${module}${ext}`);
+    if (!existsSync(path)) continue;
+    try {
+      const raw = await readFile(path, 'utf8');
+      return validateMl(parseDocument(raw).toJSON());
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
 function attributionFileAbs(root: string, attribution: Attribution, entry: AttributionEntry): string {

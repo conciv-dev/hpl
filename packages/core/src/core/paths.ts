@@ -2,6 +2,30 @@ import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const PROMPT_EXTENSION = '.napl';
+export const MACHINE_EXTENSION = '.mapl';
+export const MACHINE_ALIAS = '.🤖';
+
+export const DEFAULT_PROMPT_ALIASES: readonly string[] = ['.🧑', '.🧓', '.👤', '.👨', '.👩', '.🧒'];
+
+export function promptExtensions(aliases?: readonly string[]): string[] {
+  return [PROMPT_EXTENSION, ...(aliases ?? DEFAULT_PROMPT_ALIASES)];
+}
+
+export function machineExtensions(): string[] {
+  return [MACHINE_EXTENSION, MACHINE_ALIAS];
+}
+
+export function isPromptFile(path: string, aliases?: readonly string[]): boolean {
+  return promptExtensions(aliases).some((ext) => path.endsWith(ext));
+}
+
+export function isMachineFile(path: string): boolean {
+  return machineExtensions().some((ext) => path.endsWith(ext));
+}
+
+export function machineExtensionForPrompt(promptPath: string): string {
+  return promptPath.endsWith(PROMPT_EXTENSION) ? MACHINE_EXTENSION : MACHINE_ALIAS;
+}
 
 export interface NaplPaths {
   root: string;
@@ -34,7 +58,7 @@ export function resolvePaths(root: string): NaplPaths {
 
 const IGNORED_DIRS = new Set(['node_modules', '.napl', '.git']);
 
-export async function findPromptFiles(root: string): Promise<string[]> {
+export async function findPromptFiles(root: string, aliases?: readonly string[]): Promise<string[]> {
   const results: string[] = [];
   async function walk(dir: string): Promise<void> {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -43,7 +67,7 @@ export async function findPromptFiles(root: string): Promise<string[]> {
       if (entry.isDirectory()) {
         if (IGNORED_DIRS.has(entry.name)) continue;
         await walk(full);
-      } else if (entry.isFile() && entry.name.endsWith(PROMPT_EXTENSION)) {
+      } else if (entry.isFile() && isPromptFile(entry.name, aliases)) {
         results.push(full);
       }
     }

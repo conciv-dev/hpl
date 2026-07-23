@@ -36,8 +36,8 @@ packages/lsp    @napl/lsp  — the language server (hover, go-to-def, reverse na
                 gen-on-save); depends on @napl/core
 apps/vscode     the VS Code extension; its esbuild step bundles the server from
                 @napl/lsp's source into a self-contained dist/server.js. Unpublished.
-examples/       greeting.napl and todo-app — real .napl projects carrying their own
-                committed .napl/ state; not workspace packages.
+examples/       greeting.🧑 and todo-app — real projects carrying their own
+                committed .napl/ state (emoji + canonical spellings); not workspace packages.
 ```
 
 turbo tasks: `build` (`dependsOn ^build`, outputs `dist/**`), `typecheck`
@@ -164,12 +164,22 @@ margin, and ambiguity is a first-class compile diagnostic.
 
 ### Extensions
 
-Dual scheme on both sides of the dialogue: human files are `.napl` canonically
-with person-emoji aliases (`.🧑`, `.🧓`, … — curated single-codepoint list,
-configurable in lock.json; ZWJ sequences excluded for filesystem safety);
-machine files are `.mapl` canonically with the `.🤖` alias. Both spellings are
-byte-identical formats and fully equivalent to all tooling — discovery, LSP,
-grammar, and the VS Code extension register every alias.
+Dual scheme on both sides of the dialogue, shipped: human files are `.napl`
+canonically with person-emoji aliases (`.🧑`, `.🧓`, `.👤`, `.👨`, `.👩`, `.🧒`
+— a curated single-codepoint list, overridable via a `promptAliases` array in
+`.napl/lock.json`; ZWJ sequences excluded for filesystem safety); machine files
+are `.mapl` canonically with the `.🤖` alias. Both spellings are byte-identical
+formats and fully equivalent to all tooling — discovery
+(`packages/core/src/core/paths.ts`: `isPromptFile`, `promptExtensions`,
+`machineExtensions`), the LSP, the grammar, and the VS Code extension register
+every alias.
+
+**The mirror rule.** A module's prompt may use any alias; the module name and
+all derived state (`.napl/` layouts, `map.json` prompt paths, the journal) record
+the actual filename. The machine file `napl gen` writes stays canonical `.mapl`
+unless the prompt file uses an emoji alias, in which case it is written as `.🤖`
+— the machine mirrors the human's choice of spelling. Reading always accepts both
+spellings on both sides.
 
 ## Two-Way Editing (Reconciliation)
 

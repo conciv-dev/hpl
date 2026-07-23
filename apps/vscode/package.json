@@ -24,7 +24,13 @@
           "napl"
         ],
         "extensions": [
-          ".napl"
+          ".napl",
+          ".🧑",
+          ".🧓",
+          ".👤",
+          ".👨",
+          ".👩",
+          ".🧒"
         ],
         "configuration": "./language-configuration.json"
       }

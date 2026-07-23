@@ -502,6 +502,55 @@ describe('runGen no-op rule (the silent-success bug fix)', () => {
   });
 });
 
+const EMOJI_PROMPT = `---
+module: greeting
+deps: []
+targets: [typescript]
+tests: []
+---
+Greet a person by name.
+`;
+
+describe('runGen machine-file mirror rule', () => {
+  it('writes the machine file as .🤖 when the prompt uses an emoji alias, not .mapl', async () => {
+    await rm(join(root, 'examples', 'greeting.napl'), { force: true });
+    await writeFile(join(root, 'examples', 'greeting.🧑'), EMOJI_PROMPT, 'utf8');
+
+    const result = await runGen({
+      root,
+      target: 'typescript',
+      agent: writingAgent(),
+      llm: attrLlm([VALID_ATTR]),
+      model: 'm',
+      exec: PASSING_EXEC,
+    });
+
+    expect(result.generated).toEqual(['greeting']);
+    expect(existsSync(join(root, '.napl', 'mapl', 'greeting.🤖'))).toBe(true);
+    expect(existsSync(join(root, '.napl', 'mapl', 'greeting.mapl'))).toBe(false);
+
+    const map = await readMap(join(root, '.napl', 'map.json'));
+    expect(map.prompts['examples/greeting.🧑'].targets.typescript.files).toEqual([
+      '.napl/src/typescript/greeting.ts',
+    ]);
+  });
+
+  it('keeps the canonical .mapl machine file for a canonical .napl prompt', async () => {
+    const result = await runGen({
+      root,
+      target: 'typescript',
+      agent: writingAgent(),
+      llm: attrLlm([VALID_ATTR]),
+      model: 'm',
+      exec: PASSING_EXEC,
+    });
+
+    expect(result.generated).toEqual(['greeting']);
+    expect(existsSync(join(root, '.napl', 'mapl', 'greeting.mapl'))).toBe(true);
+    expect(existsSync(join(root, '.napl', 'mapl', 'greeting.🤖'))).toBe(false);
+  });
+});
+
 describe('runGen module scoping', () => {
   it('processes only the named module and leaves others untouched', async () => {
     const OTHER = `---

@@ -96,14 +96,38 @@ VS Code extension:
 
 | Side | Canonical | Emoji aliases | The voice |
 | ---- | --------- | ------------- | --------- |
-| **The human speaks** | `.napl` | `.🧑` *(coming)* | what you write |
-| **The machine answers** | `.mapl` | `.🤖` *(coming)* | its margin notes |
+| **The human speaks** | `.napl` | `.🧑` `.🧓` `.👤` `.👨` `.👩` `.🧒` | what you write |
+| **The machine answers** | `.mapl` | `.🤖` | its margin notes |
 
-So `todo-app.🧑` is what you write and `todo-app.🤖` is the machine's reply — the
-ambiguities, assumptions, and reasoning from the latest compile. The emoji
-aliases are a designed, curated single-codepoint list (no ZWJ sequences, kept
-filesystem-safe) landing in an upcoming slice; the canonical `.napl` and `.mapl`
-spellings work today.
+So `greeting.🧑` is what you write and `greeting.🤖` is the machine's reply — the
+ambiguities, assumptions, and reasoning from the latest compile. The living
+example in this repo, [`examples/greeting.🧑`](examples/greeting.🧑), is spelled
+with the person emoji; [`examples/todo-app/`](examples/todo-app/) stays canonical
+`.napl` — both idioms are first-class.
+
+The human aliases are a designed, curated single-codepoint list (`.🧑` `.🧓`
+`.👤` `.👨` `.👩` `.🧒`) — single-codepoint is deliberate, and ZWJ sequences
+(like `.👨‍💻`) are rejected so filenames stay filesystem-safe. Override the list
+in `.napl/lock.json` with a `promptAliases` array (each entry starts with `.`,
+one or two code points after the dot, no ZWJ):
+
+```json
+{
+  "model": "claude-sonnet-5",
+  "promptAliases": [".🧑", ".🧓"]
+}
+```
+
+**The mirror rule.** A prompt may use any alias; the module name and all derived
+state (the `.napl/` layout, `map.json` paths, the journal) simply record the
+actual filename. `napl gen` writes the machine file as canonical `.mapl` for a
+canonical `.napl` prompt, and mirrors the choice — writing `.🤖` — when the
+prompt uses an emoji alias. Reading always accepts both spellings.
+
+**Filesystem note.** Emoji filenames require a UTF-8 filesystem, which every
+modern OS provides (APFS, ext4, NTFS, Btrfs). The curated aliases are single
+Unicode code points on purpose — no zero-width-joiner (ZWJ) multi-person
+sequences — so the names round-trip cleanly across tools and shells.
 
 ## Why this isn't just "AI writes code"
 
@@ -284,5 +308,5 @@ packages/core   @napl/core — prompts, IR, attribution, journal/blame, targets,
 packages/cli    @napl/cli  — the `napl` command (bin), depends on @napl/core
 packages/lsp    @napl/lsp  — the language server, depends on @napl/core
 apps/vscode     the VS Code extension (bundles the LSP server from @napl/lsp; unpublished)
-examples/       greeting.napl + todo-app — real .napl projects, not workspace packages
+examples/       greeting.🧑 + todo-app — real projects (emoji + canonical spellings), not workspace packages
 ```
