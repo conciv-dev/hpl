@@ -1,0 +1,17 @@
+{
+  "name": "napl-wasm",
+  "type": "module",
+  "description": "wasm-bindgen bindings over napl-core for the NAPL doc site playground.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "napl_wasm_bg.wasm",
+    "napl_wasm.js",
+    "napl_wasm.d.ts"
+  ],
+  "main": "napl_wasm.js",
+  "types": "napl_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

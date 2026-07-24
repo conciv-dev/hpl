@@ -1,0 +1,29 @@
+{
+  "name": "@napl/wasm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./pkg": {
+      "types": "./pkg/napl_wasm.d.ts",
+      "import": "./pkg/napl_wasm.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "pkg"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,24 @@
+[package]
+name = "napl-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "wasm-bindgen bindings over napl-core for the NAPL doc site playground."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+napl-core = { path = "../crates/napl-core" }
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = "s"
+
+[workspace]

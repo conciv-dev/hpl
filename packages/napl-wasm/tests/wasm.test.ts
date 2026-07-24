@@ -1,0 +1,108 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { beforeAll, describe, expect, it } from 'vitest';
+import {
+  attributionAtFileLine,
+  attributionAtPromptLine,
+  bodyLineMap,
+  blameReplay,
+  driftDetect,
+  initNaplWasm,
+  maplParse,
+  parseFrontmatterDiagnostics,
+  scanDocument,
+  type BlameLine,
+} from '../index.js';
+
+const repoFile = (path: string): string =>
+  fileURLToPath(new URL(`../../../${path}`, import.meta.url));
+
+const read = (path: string): Promise<string> => readFile(repoFile(path), 'utf8');
+
+beforeAll(async () => {
+  await initNaplWasm();
+});
+
+describe('@napl/wasm bindings over real selfhost fixtures', () => {
+  it('reports no frontmatter diagnostics for a valid prompt', async () => {
+    const content = await read('selfhost/body_lines.napl');
+    expect(parseFrontmatterDiagnostics(content)).toEqual([]);
+  });
+
+  it('surfaces an error diagnostic for a document without frontmatter', () => {
+    const diagnostics = parseFrontmatterDiagnostics('no frontmatter here');
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0].severity).toBe('error');
+  });
+
+  it('scans module value and regions from a real prompt', async () => {
+    const content = await read('selfhost/body_lines.napl');
+    const scan = scanDocument(content);
+    expect(scan.frontmatter.present).toBe(true);
+    expect(scan.body.present).toBe(true);
+    expect(scan.module_value?.value).toBe('body_lines');
+  });
+
+  it('maps document body lines', async () => {
+    const content = await read('selfhost/body_lines.napl');
+    const map = bodyLineMap(content);
+    expect(map.body_start_line).toBeGreaterThan(0);
+    expect(map.lines.length).toBeGreaterThan(0);
+  });
+
+  it('parses a real .mapl document into severity-tagged entries', async () => {
+    const content = await read('selfhost/.napl/mapl/body_lines.mapl');
+    const entries = maplParse(content);
+    expect(entries.length).toBeGreaterThan(0);
+    const assumption = entries.find((entry) => entry.kind === 'assumption');
+    const note = entries.find((entry) => entry.kind === 'note');
+    expect(assumption?.severity).toBe('warning');
+    expect(note?.severity).toBe('info');
+    expect(entries.every((entry) => entry.prompt_lines.start >= 1)).toBe(true);
+  });
+
+  it('looks up attribution in both directions', async () => {
+    const attribution = await read('selfhost/.napl/attribution/blame_render.yaml');
+    const forward = attributionAtPromptLine(attribution, 38);
+    expect(forward.length).toBeGreaterThan(0);
+    expect(forward[0].file).toBe('blame_render/src/lib.rs');
+
+    const reverse = attributionAtFileLine(
+      attribution,
+      forward[0].file,
+      forward[0].lines.start,
+    );
+    expect(reverse.some((entry) => entry.prompt_lines.start === 38)).toBe(true);
+  });
+
+  it('replays blame from a real journal', async () => {
+    const journal = await read('selfhost/.napl/journal.jsonl');
+    const path = '.napl/src/rust/schemas_journal/src/lib.rs';
+    const lines = blameReplay(journal, path) as BlameLine[];
+    expect(Array.isArray(lines)).toBe(true);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((line) => Number.isInteger(line.gen))).toBe(true);
+
+    const single = blameReplay(journal, path, 1) as BlameLine | null;
+    expect(single?.line).toBe(1);
+  });
+
+  it('detects drift against recorded map hashes', async () => {
+    const mapJson = await read('selfhost/.napl/map.json');
+    const cleanPath = '.napl/src/rust/extensions/Cargo.toml';
+    const cleanContent = await read(`selfhost/${cleanPath}`);
+    const contents = {
+      [cleanPath]: cleanContent,
+      '.napl/src/rust/extensions/src/lib.rs': 'edited by hand\n',
+    };
+    const drift = driftDetect(mapJson, JSON.stringify(contents));
+    const clean = drift.find((file) => file.file === cleanPath);
+    const edited = drift.find(
+      (file) => file.file === '.napl/src/rust/extensions/src/lib.rs',
+    );
+    const missing = drift.find((file) => file.status === 'missing');
+    expect(clean?.status).toBe('clean');
+    expect(edited?.status).toBe('edited');
+    expect(missing).toBeDefined();
+  });
+});

@@ -7,3 +7,4 @@ dist/
 # Release binaries dropped into platform packages at publish time
 npm/binary-*/napl
 npm/binary-*/napl.exe
+rust/napl-wasm/target/
