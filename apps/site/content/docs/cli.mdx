@@ -1,0 +1,191 @@
+---
+title: CLI
+description: Every napl command — flags, exit codes, and what each writes to .napl/.
+---
+
+The toolchain is a single native binary, `napl`. Every user-facing error prints to stderr as
+`napl: {message}` with exit code `1`. This page documents every command exhaustively; the
+formats they read and write are in the [file formats reference](/docs/file-formats).
+
+## Install
+
+One binary, three channels. Prebuilt for macOS (arm64, x64), Linux glibc (x64, arm64), and
+Windows x64; elsewhere, build with cargo.
+
+```bash
+npm i -g napl-lang        # prebuilt binary via optionalDependencies
+npx napl-lang init        # or run once, without installing
+```
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/conciv-dev/napl/main/install.sh | sh
+```
+
+Installs into `~/.local/bin`, or `$NAPL_INSTALL`.
+
+```bash
+cargo install --git https://github.com/conciv-dev/napl napl-cli
+```
+
+## `napl init`
+
+Creates the project scaffold. Idempotent — existing files are reported, not overwritten.
+
+```text
+Usage: napl init
+```
+
+Writes: `.napl/` (with `map.json`, `journal.jsonl`, `src/`, `ir/`, `attribution/`, `mapl/`),
+`.napl/lock.json` (pins the model and the `claude-cli` backend), an example prompt, and the
+guard rails — an `AGENTS.md` + `CLAUDE.md` in each generated tree, a `.claude/settings.json`
+denying edit tools on `.napl/src/**` (merge-updated, never clobbered), and a `pre-commit` hook
+running `napl status` (never overwrites an existing hook).
+
+## `napl gen`
+
+Runs the gen loop — snapshot, agent, test gate, attribution gate, lock — for each prompt whose
+content hash changed for the target. Blocks first on any [drift](/docs/drift). Requires
+`claude` on `PATH` and, if a non-claude agent preset is set, that agent's CLI too (see
+[agent engines](/docs/running#agent-engines-and-adapters)).
+
+```text
+Usage: napl gen [OPTIONS] <TARGET>
+
+Arguments:
+  <TARGET>  Target language (e.g. typescript, react)
+
+Options:
+  -f, --force            Regenerate every prompt even when the prompt has not changed
+      --full             Force from-scratch generation instead of automatic incremental mode
+  -m, --module <MODULE>  Scope the run to a single module by name
+```
+
+| Flag           | Effect                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| `-f, --force`  | Regenerate every prompt regardless of changes. Also the way to discard a drifted edit — the prompt wins. |
+| `--full`       | From-scratch generation instead of automatic incremental mode.                                    |
+| `-m, --module` | Scope the run to one module by name.                                                              |
+
+Gen is incremental by default: only changed prompts regenerate, and the agent receives just
+the prompt diff and the attribution entries for the changed lines. A full scaffold happens
+only when no prior gen exists. **Writes:** generated files under `src/<target>/` (locked
+`0444` on success), plus `map.json`, `attribution/<m>.yaml`, `mapl/<m>.mapl`, `ir/<m>.yaml`
+(best-effort), and one `journal.jsonl` line. On attribution failure the files are left
+unlocked and the module is flagged `unattributed`. Exit `1` on drift, unattributed failure, or
+an undeclared sibling dependency.
+
+## `napl status`
+
+Reports per-prompt state. The CI gate — exits non-zero the moment code and prompt disagree.
+
+```text
+Usage: napl status
+```
+
+| State          | Meaning                                              | Exit |
+| -------------- | ---------------------------------------------------- | ---- |
+| `clean`        | Prompt unchanged since last gen, locked files intact | 0    |
+| `prompt-stale` | Prompt changed; regen pending                        | 0    |
+| `DRIFT`        | A locked file was edited by hand                     | 1    |
+| `unattributed` | Generated files exist but attribution failed         | 1    |
+
+Reads `map.json` and the recorded hashes; needs no agent and no network. The `pre-commit` hook
+from `napl init` runs it and blocks the commit on drift (escape hatch: `git commit --no-verify`).
+
+## `napl blame`
+
+Git-blame-style line history for a generated file, replayed from `journal.jsonl`. Every
+successful gen appends one line — gen number, timestamp, prompt diff, per-file patch — and
+`blame` replays those patches to find, for each current line, the gen that last touched it.
+
+```text
+Usage: napl blame [OPTIONS] [FILE]
+
+Arguments:
+  [FILE]  A generated file under .napl/src/<target>/
+
+Options:
+  -l, --line <LINE>  Blame only a single 1-based line
+  -g, --gen <GEN>    Print the summary of a single gen journal entry
+  -v, --verbose      Also show the prompt edit that caused each line
+```
+
+```bash
+napl blame .napl/src/react/greeting.tsx              # per line: the gen that last touched it
+napl blame .napl/src/react/greeting.tsx --line 19 -v # one line, plus the prompt edit behind it
+napl blame --gen 12                                  # one gen: module, prompt diff, files
+```
+
+Same algorithm class as `git blame`: untouched lines keep the oldest gen, lines shifted by
+insertions keep theirs, modified lines move to the editing gen. Read-only.
+
+## `napl reconcile`
+
+The sanctioned path for a deliberate edit to generated code. Takes the delta between a drifted
+file and its recorded baseline and asks the model to propose a prompt amendment — including
+test-case updates when behavior changed — and never silently rewrites your words.
+
+```text
+Usage: napl reconcile [OPTIONS] <TARGET>
+
+Arguments:
+  <TARGET>  Target language (e.g. typescript, react)
+
+Options:
+  -m, --module <MODULE>  Scope the run to a single module by name
+```
+
+After you accept, the module is left stale; the next `napl gen` must reproduce the patched
+behavior, proven by tests. If both the src and the prompt changed since the last gen, that is
+a three-way conflict — surfaced explicitly, never silently merged. Requires the `claude-cli`
+backend.
+
+## `napl watch`
+
+Watches prompt files and auto-runs an incremental gen for the changed module on save. The same
+test and attribution gates apply on every run.
+
+```text
+Usage: napl watch [OPTIONS] <TARGET>
+
+Arguments:
+  <TARGET>  Target language (e.g. typescript, react)
+
+Options:
+  -m, --module <MODULE>      Scope the run to a single module by name
+      --debounce <DEBOUNCE>  Debounce window in milliseconds [default: 400]
+      --once                 Process the currently-pending changes once, then exit
+```
+
+`--once` drains pending changes and exits (CI-friendly); without it, watch stays resident.
+
+## `napl test`
+
+Runs the target's own test command (`vitest run`, `cargo test`, …) against the
+already-generated code in `.napl/src/<target>/`. No agent runs; nothing regenerates.
+
+```text
+Usage: napl test [TARGET]
+
+Arguments:
+  [TARGET]  Target language [default: typescript]
+```
+
+## `napl build`
+
+Deprecated. Prints a notice and exits `0` — gen now works directly from prompts, with no
+separate IR build step.
+
+## `napl lsp`
+
+Starts the language server over stdio. You rarely run it by hand — editor extensions spawn it.
+It provides hover from a prompt sentence to the generated lines that implement it,
+go-to-definition into `.napl/src/` and reverse navigation from code back to the causing
+sentence, machine-layer diagnostics, and prompt blame on hover.
+
+```text
+Usage: napl lsp
+```
+
+The VS Code extension bundles the server and registers every `.napl`/`.mapl` spelling and their
+[emoji aliases](/docs/file-formats#emoji-aliases).

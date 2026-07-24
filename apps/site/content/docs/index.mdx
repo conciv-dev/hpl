@@ -9,34 +9,58 @@ You don't write code. You write what you mean, in English, in a `.napl` file:
 
 <NaplExample module="greeting" filename="greeting.napl" />
 
-The example is live — the prompt tab is editable with the CLI's own validator squiggling errors as you type, and the code tab is what `napl gen typescript` generated from it. Try deleting the `module:` line. When you run it for real, the agent:
+The example above is live. The prompt on the left is editable, with the CLI's own
+validator squiggling errors as you type; the code on the right is what
+`napl gen typescript` actually produced from it. Try deleting the `module:` line and
+watch the validator object before any CLI ever runs.
 
-- scaffolds the project and writes real TypeScript, iterating until the declared tests pass,
-- maps every sentence to the exact lines that implement it (hover a sentence above) — if it can't, the build fails,
-- locks the result read-only. Edit generated code by hand and `napl status` fails your CI.
+## What the toolchain does that a chat window doesn't
 
-The English stays the source of truth. The code is a build artifact: inspectable, tested, traceable, never hand-edited.
+Anyone can ask a model for code. The problem is everything _after_: the chat scrolls
+away, the code stays, and nobody remembers why any line exists. NAPL inverts that. When
+you run `napl gen <target>`, a coding agent:
+
+- **writes a real project** and iterates until the tests you declared pass — the tests
+  are data in the prompt's frontmatter, not an afterthought;
+- **maps every sentence to the exact lines that implement it.** Hover a sentence in the
+  example above to see them. If the agent can't prove that mapping, the build _fails_ —
+  attribution is a hard gate, not a nicety;
+- **locks the result read-only.** Edit the generated code by hand and `napl status`
+  reports drift and exits non-zero, so your CI catches it.
+
+The English stays the source of truth. The code becomes a build artifact: inspectable,
+tested, traceable — never hand-edited. To change behavior, you change the prompt.
+
+## The compile is a dialogue
+
+Gen doesn't only emit code. The model writes back into the margin of your prompt — a
+`.mapl` file per module — flagging where your words were unclear (**ambiguity**, a red
+squiggle), what it decided that you left open (**assumption**), and why the code came
+out as it did (**note**). A prompt change that produces no code change must say why, or
+the gen fails: silence is forbidden. Ambiguity becomes a first-class compile diagnostic,
+the way a type error is.
 
 <Cards>
   <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="Install, write a prompt, generate tested code. Five commands."
+    description="Install, write a prompt, generate tested code — five commands."
   />
   <Card
-    title="Thinking in NAPL"
-    href="/docs/thinking"
-    description="The whole model in one page: source, artifact, drift, dialogue."
+    title="Writing prompts that hold"
+    href="/docs/writing-prompts"
+    description="Spec vs prose, tests as a gate, and which sentences are load-bearing."
   />
   <Card
     title="Self-host"
     href="/docs/selfhost"
-    description="NAPL regenerating its own Rust toolchain from prompts."
+    description="NAPL regenerating its own Rust toolchain from prompts — to a fixed point."
   />
 </Cards>
 
-No API key: the coding agent is your existing [Claude Code](https://claude.ai/code) login. `napl gen` checks that `claude` is on your `PATH` before doing anything.
-
 <Callout>
-  Status: wild experiment — a bet that English can be a real programming language if the toolchain enforces the discipline compilers used to. Expect sharp edges.
+  Status: wild experiment — a bet that English can be a real programming language if the
+  toolchain enforces the discipline compilers used to. The voice here is honest and
+  experimental; expect sharp edges, and see [Running it for real](/docs/running) for
+  what the coding agent actually needs on your machine.
 </Callout>

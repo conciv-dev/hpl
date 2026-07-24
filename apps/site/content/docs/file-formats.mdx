@@ -1,0 +1,130 @@
+---
+title: File formats
+description: The complete reference for .napl prompts, the .mapl reply, the emoji aliases, and the .napl/ state directory.
+---
+
+This page is the exhaustive reference for every file NAPL reads and writes: the `.napl`
+prompt you author, the `.mapl` reply the toolchain generates, the emoji spellings of both,
+and the `.napl/` directory that holds the derived state. For the narrative behind these,
+see [Writing prompts that hold](/docs/writing-prompts) and [Drift, moves & reconcile](/docs/drift).
+
+## The `.napl` prompt
+
+A prompt is YAML frontmatter (machine-facing metadata) followed by markdown prose (the
+contract handed to the coding agent). Edit the example below and the validator runs as you
+type — break the YAML or misspell a field and the squiggle appears.
+
+<NaplExample
+  filename="auth/session.napl"
+  code={`---
+module: auth/session
+deps: [auth/tokens]
+targets: [typescript]
+tests:
+  - name: expired token rejected
+    given: { token: expired }
+    expect: { error: SESSION_EXPIRED }
+---
+Manage user sessions. Sessions expire after 30 minutes of inactivity.
+Refreshing a session extends it. An expired token is rejected with
+SESSION_EXPIRED, never silently renewed.
+`}
+/>
+
+### Frontmatter fields
+
+| Field     | Type       | Required | Description                                                                                          |
+| --------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `module`  | `string`   | yes      | The module's identity — a name, which may be path-like (`auth/session`). Not a file path.            |
+| `deps`    | `string[]` | no       | Dependency module names. Surfaced to the agent as `Declared dependencies: …` and enforced at gen.    |
+| `targets` | `string[]` | no       | Target languages to generate for, e.g. `typescript`, `react`, `rust`.                                |
+| `tests`   | `Test[]`   | no       | `given`/`expect` cases as data. They gate every generation.                                          |
+| `crate`   | `string`   | no       | Rust target only: modules sharing a `crate` value share one member crate with a toolchain-owned manifest. |
+
+Each `tests` entry is `{ name, given, expect }`, all data. Behavior that can't be expressed
+as a `given`/`expect` pair belongs in the prose contract, not the frontmatter.
+
+`deps` declares the _where_ of a dependency; the imperative to _use_ it rather than
+reimplement it lives in the prose (see [load-bearing sentences](/docs/writing-prompts#deletable-sentences-and-load-bearing-sentences)).
+
+## The `.mapl` reply
+
+`napl gen` writes a `.mapl` file per module — the machine layer's answer, regenerated on
+every compile. Its top level is `{ module, target, entries }`; each entry records the prompt
+lines it refers to and one of four kinds.
+
+```mapl title="greeting.mapl"
+- promptLines: [12, 14]
+  kind: assumption
+  message: Return type left unspecified
+  reasoning: >
+    The prose does not name the return type. Chose a plain string.
+```
+
+### Entry fields
+
+| Field         | Type              | Description                                                          |
+| ------------- | ----------------- | -------------------------------------------------------------------- |
+| `promptLines` | `LineRange`       | The 1-based body line(s) the entry refers to (scalar `n` or `[a,b]`).|
+| `kind`        | see below         | One of `ambiguity`, `assumption`, `no-op`, `note`.                   |
+| `message`     | `string`          | Required, non-empty — the one-line summary.                          |
+| `reasoning`   | `string`          | Optional prose reasoning (defaults empty).                           |
+| `suggestion`  | `string \| null`  | Optional suggested rewording, chiefly for `ambiguity`.               |
+
+### Kinds and severities
+
+The kind maps to an editor diagnostic severity — this is how ambiguity becomes a first-class
+compile diagnostic:
+
+| Kind         | Severity      | Meaning                                                                            |
+| ------------ | ------------- | ---------------------------------------------------------------------------------- |
+| `ambiguity`  | error         | Your words were unclear. Red squiggle on the exact words, usually with a rewording.|
+| `assumption` | warning       | A decision your prose left open; the model chose one.                              |
+| `no-op`      | warning       | The prompt changed but the code didn't — the entry must say why, or the gen fails. |
+| `note`       | information    | Hover-visible reasoning about why the code is shaped this way.                     |
+
+## Emoji aliases
+
+Each side of the dialogue has a canonical extension and emoji aliases. Both spellings in a
+pair are byte-identical to every tool — discovery, LSP, grammar, the VS Code extension:
+
+| Side    | Canonical | Aliases                             | Voice            |
+| ------- | --------- | ----------------------------------- | ---------------- |
+| Human   | `.napl`   | `.🧑` `.🧓` `.👤` `.👨` `.👩` `.🧒` | what you write   |
+| Machine | `.mapl`   | `.🤖`                               | its margin notes |
+
+The human aliases are a curated single-code-point list on purpose. ZWJ sequences (like
+`.👨‍💻`) are rejected so filenames stay filesystem-safe and round-trip cleanly across tools
+and shells. Override the human list in `lock.json`:
+
+```json title=".napl/lock.json"
+{
+  "model": "claude-sonnet-5",
+  "promptAliases": [".🧑", ".🧓"]
+}
+```
+
+Each override entry starts with `.`, carries one or two code points after the dot, and may
+not contain a ZWJ. **The mirror rule:** `napl gen` writes `.mapl` for a `.napl` prompt and
+`.🤖` for an emoji-spelled one — it mirrors your choice. Reading accepts both spellings on
+both sides.
+
+## The `.napl/` directory
+
+Committed by design — the durable record of every gen, and what lets `napl status` verify the
+prompt/code connection in CI without regenerating.
+
+| Path                        | Contents                                                             |
+| --------------------------- | -------------------------------------------------------------------- |
+| `src/<target>/`             | Generated code, per target. Locked `0444` after tests pass.          |
+| `map.json`                  | Per-module attribution of generated files and locked content hashes. |
+| `lock.json`                 | Pinned model id, backend, agent preset, alias overrides.             |
+| `ir/<module>.yaml`          | Derived contracts: signatures, types, tests. Best-effort.            |
+| `attribution/<module>.yaml` | Prompt-line to code-line span mappings. A hard gate at gen.          |
+| `mapl/<module>.mapl`        | The machine layer's reply.                                           |
+| `journal.jsonl`             | Append-only gen history: prompt diff and per-file patch per gen.     |
+
+Build artifacts (`node_modules`, `dist`, lockfiles, `*.tsbuildinfo`, Rust `target/`) are
+excluded from attribution and never locked.
+
+Next: the [CLI reference](/docs/cli) for every command that reads and writes these files.

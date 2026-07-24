@@ -1,4 +1,0 @@
-{
-  "title": "CLI",
-  "pages": ["install", "init", "gen", "status", "blame", "test", "reconcile", "watch", "lsp"]
-}

@@ -1,9 +1,19 @@
 ---
 title: Quickstart
-description: Install the binary, write one prompt, generate tested TypeScript, and see the attribution.
+description: Install the binary, write one prompt, generate tested TypeScript, and see the attribution — in five commands.
 ---
 
-You need the [Claude Code](https://claude.ai/code) CLI (`claude`) on your `PATH` — `napl gen` reuses your existing login, no API key.
+This page takes you from nothing to generated, tested, attributed code. It should take a
+few minutes; the only prerequisite is one CLI on your `PATH`.
+
+<Callout>
+  You need the [Claude Code](https://claude.ai/code) CLI (`claude`) on your `PATH`. Your
+  coding agent is configurable — codex or a custom command work too — but `claude`
+  anchors the attribution, IR, and machine-layer derivations regardless of which agent
+  writes the code, so `napl gen` checks for it before doing anything. No API key either
+  way; it reuses your Claude Code login. [Running it for real](/docs/running#agent-engines-and-adapters)
+  explains the adapter model in full.
+</Callout>
 
 <Steps>
 
@@ -15,7 +25,7 @@ You need the [Claude Code](https://claude.ai/code) CLI (`claude`) on your `PATH`
 npm i -g napl-lang
 ```
 
-One native `napl` binary. Other channels: [Install](/docs/cli/install).
+One native `napl` binary. Other channels (curl, cargo) are in the [CLI reference](/docs/cli#install).
 
 </Step>
 
@@ -27,7 +37,9 @@ One native `napl` binary. Other channels: [Install](/docs/cli/install).
 napl init
 ```
 
-Writes `.napl/`, `lock.json`, an example prompt, and the guard rails that keep generated code honest.
+Writes `.napl/`, `lock.json` (pins the model and the `claude-cli` backend), an example
+prompt, and the guard rails that keep generated code honest — a `pre-commit` hook and
+deny rules that stop AI agents from hand-editing generated files.
 
 </Step>
 
@@ -37,7 +49,9 @@ Writes `.napl/`, `lock.json`, an example prompt, and the guard rails that keep g
 
 <NaplExample module="greeting" filename="greeting.napl" />
 
-Markdown prose plus YAML frontmatter; the tests are data, and they gate the build. This example is editable — delete the `tests:` key and watch the validator object before you ever run the CLI. The second tab is the code it generated.
+Markdown prose plus YAML frontmatter. The prose is the contract; the `tests:` are data,
+and they gate the build. This example is editable — delete the `tests:` key and watch the
+validator object before you ever run the CLI. The right-hand tab is the code it generated.
 
 </Step>
 
@@ -49,7 +63,10 @@ Markdown prose plus YAML frontmatter; the tests are data, and they gate the buil
 napl gen typescript
 ```
 
-A coding agent writes a real project under `.napl/src/typescript/`, runs its tests until green, maps each sentence to the lines implementing it, and locks the files read-only.
+A coding agent writes a real project under `.napl/src/typescript/`, runs its tests until
+green, maps each sentence to the lines implementing it, and locks the files read-only. If
+it can't prove the mapping in three attempts, the gen fails loudly rather than shipping
+unattributed code.
 
 </Step>
 
@@ -62,10 +79,13 @@ napl status
 napl blame .napl/src/typescript/greeting.ts
 ```
 
-`status` reports `clean`. `blame` shows, per line, the gen and prompt edit that caused it. In VS Code, hover a sentence in `greeting.napl` to see the generated lines that implement it.
+`status` reports `clean`. `blame` shows, per line, the gen and prompt edit that caused it.
+In VS Code, hover a sentence in `greeting.napl` to see the generated lines that implement
+it, or Cmd+click to jump straight into them.
 
 </Step>
 
 </Steps>
 
-Next: [Thinking in NAPL](/docs/thinking) — what happens when you edit the prompt, the code, or neither.
+Next: [Writing prompts that hold](/docs/writing-prompts) — how to write a prompt the
+toolchain can hold you to, and which sentences carry real weight.

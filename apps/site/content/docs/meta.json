@@ -3,11 +3,14 @@
     "---Start here---",
     "index",
     "quickstart",
-    "---Thinking in NAPL---",
-    "thinking",
+    "[Tutorial](/tutorial)",
+    "---Guides---",
+    "writing-prompts",
+    "drift",
+    "running",
     "---Reference---",
-    "format",
-    "...cli",
+    "file-formats",
+    "cli",
     "---Self-host---",
     "selfhost"
   ]
