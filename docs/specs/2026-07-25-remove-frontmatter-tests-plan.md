@@ -1,61 +1,84 @@
 # Removing tests from frontmatter: the prompt is the prompt
 
-Date: 2026-07-25. Status: DRAFT FOR DISCUSSION, planned only, nothing scheduled. Authored on the maintainer's directive: frontmatter `tests:` is the next leaky abstraction on the removal list, same family as the removed `src:` paths. No implementation, no prompt edits, no schema changes until this plan is approved and sequenced.
+Date: 2026-07-25. Status: DRAFT rev 2, after one adversarial review round (gpt-5.6-sol: 2 critical, 5 high, 5 medium, verdict rethink; every finding addressed below). Planned only, nothing scheduled, no implementation until approved and sequenced.
 
 ## The problem
 
-Frontmatter was meant to carry identity and wiring: `module`, `targets`, `deps`. `tests:` snuck behavior into it, and behavior data rots into implementation shape. The evidence is any mature selfhost prompt: `reconcile_derive` carries given/expect blocks full of `reason: edited`, `current: null`, `diff: "PRERECORDED DIFF"`, `reconcile_files: []`. That is not a specification a human writes to another human; it is a serialized unit test wearing YAML. Three concrete failures:
+Frontmatter was meant to carry identity and wiring: `module`, `targets`, `deps`. `tests:` snuck behavior into it, and behavior data rots into implementation shape. The evidence is any mature selfhost prompt: `reconcile_derive` carries given/expect blocks full of `reason: edited`, `current: null`, `reconcile_files: []`. That is a serialized unit test wearing YAML, not a specification a human writes to another human. Three concrete failures:
 
-1. Leak. The given/expect vocabulary mirrors internal types (editable sets, reconcile file records, diff fallbacks). Prompts become coupled to the implementation's data shapes, which is exactly what killed `src:` paths.
-2. Duplication. The prose must state the behavior anyway (it is the spec); the tests restate it as data. Two sources of truth in one file, and the data half wins fights it should not win.
-3. Authorship distortion. Humans write worse prose when a test block will carry the load. The prompt drifts from specification toward test fixture, and reading it cold (the whole point of NAPL) gets harder, not easier.
+1. Leak. The given/expect vocabulary mirrors internal types. Prompts couple to the implementation's data shapes, which is exactly what killed `src:` paths.
+2. Duplication. The prose must state the behavior anyway; the tests restate it as data. Two sources of truth in one file.
+3. Authorship distortion. Humans write worse prose when a test block carries the load. The prompt drifts from specification toward test fixture.
 
-The principle: the prompt is the prompt. Prose specifies behavior completely. Everything derived from it belongs to the machine layer, not the source.
+The principle: the prompt is the prompt. Prose specifies behavior completely. Everything derived from it belongs to the machine layer.
 
 ## What tests: does today, honestly
 
-- Drives the gen test gate: the agent iterates until every case passes or the gen fails loudly after MAX_ATTEMPTS. This is a load-bearing gate, not decoration.
-- Pins data-shaped behavior byte-exactly (a given input maps to an expected output or error), which prose does imprecisely.
-- Travels with the prompt, so regens are held to stable behavior across time and across agents.
+- Drives the gen test gate: the agent iterates until the cases pass or the gen fails after MAX_ATTEMPTS. Load-bearing.
+- Pins data-shaped behavior exactly, which prose does imprecisely.
+- Constrains the code-writing agent INDEPENDENTLY: the cases exist before the agent runs and the agent cannot weaken them. This third property was under-weighted in rev 1 and is the crux of the review's first critical: any design where the code-writing agent also authors the checks is a self-grading loop.
 
-Any replacement must preserve all three properties. The gate cannot weaken.
+## The design: derive, sanction, freeze, gate
 
-## Options considered
+Prose is the sole human-authored source. The test corpus becomes machine state under an explicit independence and sanctioning protocol.
 
-A. Tests move to prose worked examples only. The agent writes whatever tests it likes; the gate becomes "the agent's own tests pass." Rejected: property 2 dies (nothing pins exact values) and property 3 dies (each regen invents new tests; stability across agents is gone).
+### Phase 1: derivation (independent of code)
 
-B. Tests move to a sibling source file (`<module>.tests.yaml`). Rejected: this relocates the leak without fixing it. Two source files per module, the second still implementation-shaped, still human-maintained. The `src:` removal did not move the paths to a sibling file; it deleted the abstraction.
+At gen time, BEFORE any implementation exists in context, a derivation step produces the proposed corpus from the prompt prose alone: a separate agent invocation with its own context containing the prompt body and the corpus schema, never the current or generated implementation, never the code-writing conversation. The derivation is attempt-budgeted separately and validated structurally (schema, deterministic ordering, canonical serialization). Separate model optional; separate context and this ordering are mandatory.
 
-C. Tests become machine-derived, human-sanctioned state. The prose is the sole source. At gen time the toolchain has the agent derive an executable test corpus FROM the prose, records it in `.napl/tests/<module>.yaml` (machine-owned state, like ir and mapl), runs it as the test gate, and reports the derivation in the mapl reply. Sanctioning rides the existing disciplines: the derived corpus is journaled, diffs of it surface like patches, an expected-no-op prompt edit that changes the derived corpus is a halt (the no-op rule already polices exactly this shape of surprise), and drift in derived tests against unchanged prose is a compile error, the same posture as attribution. Recommended.
+### Phase 2: sanctioning (human authority, not a journal entry)
 
-Option C preserves the three properties: the gate still runs real tests; exact values are still pinned (in state, journaled, diffable, byte-stable across no-op regens); stability across regens is enforced by the no-op rule instead of by YAML in the prompt. And it fixes the three failures: nothing implementation-shaped lives in source; prose is the single source of truth; prompts read as specifications again.
+A derived corpus is a PROPOSAL. It becomes authoritative only through explicit acceptance:
 
-The philosophical payoff is real: today a human writes tests to check the machine. After this, the human writes meaning and the machine proposes the checks, which the toolchain holds stable and the human can inspect in the margin. That is the mapl model applied to testing, and it is more NAPL than what we have.
+- First derivation for a module: gen halts with the proposed corpus rendered for review (cases, prompt-line provenance per case); the human accepts or rejects (`napl gen` interactive prompt, or `--accept-tests` for scripted flows that still record the acceptance in the journal as a human decision).
+- Any later derivation that differs from the sanctioned corpus is a classified diff: gen surfaces added/removed/changed cases with their prompt-line provenance and requires the same explicit acceptance. This applies to EVERY regen class, expected-no-op and expected-change alike; rev 1's reliance on the no-op rule alone was wrong because most edits are expected-change and corpus drift would ride along unpoliced.
+- A fresh derivation NEVER auto-replaces the sanctioned corpus, regardless of which agent or model produced it. Provenance (model and backend identity, prompt hash, derivation schema version, toolchain version) is stored in the corpus document.
 
-## Design sketch (C), to be specified fully before any slice
+Pipeline: proposed corpus, then reviewed and accepted corpus, then immutable gate input.
 
-- Frontmatter schema drops `tests:` entirely; presence is a parse error with a migration message (deny-unknown-fields posture, no deprecation shim, pre-1.0).
-- Prose gains a convention, not new syntax: behavior stated with worked examples where exactness matters. The existing pinned-strings discipline (error bytes, thresholds) already does this in the shell prompts; it generalizes.
-- New machine state `.napl/tests/<module>.yaml`: the derived corpus, versioned schema, byte-pinned serialization, one file per module, written by gen, never hand-edited (locked like generated sources).
-- Gen pipeline: derive corpus from prose (attempt-scoped, shares MAX_ATTEMPTS), run corpus, iterate agent until green, journal the corpus alongside patches. A prompt edit classified expected-no-op must produce a byte-identical corpus or halt.
-- mapl gains a `tests` section per gen: what was derived, from which prompt lines (line-range anchors, same as attribution granularity). Ambiguous prose that yields an unstable corpus surfaces as an ambiguity entry, which is the language telling the author to write a better sentence, which is the point.
-- `napl test` (or cmd_test's successor) runs the recorded corpus without a gen, for humans and CI.
-- The tutorial and docs teach prose-first speccing; the "tests are data, and they gate" page inverts to "the machine derives the tests, and they gate."
+### Phase 3: freeze and gate (independence preserved)
 
-## Blast radius (why this is a major version of the language, not a cleanup)
+The sanctioned corpus is immutable for the duration of code attempts: the code-writing agent receives it read-only as part of its task, exactly as it receives frontmatter tests today, and iterates until the cases pass. The agent cannot modify the corpus mid-attempt; a gen in which the corpus file changed between sanction and gate is a hard failure. This preserves today's independence property with a stronger provenance trail than YAML in the prompt ever had.
 
-- Schema: schemas_lock untouched; the prompt/frontmatter schema module and its strict parser change, with the parse-error migration path.
-- Toolchain: the gen loop's test gate, cmd_test, journal entries, mapl schema, status. All prompted modules by then; every edit is a prompt edit plus regen under the classification discipline.
-- Corpus: every conformance scenario whose fixture prompts carry `tests:` changes bytes; scenarios asserting test-gate behavior are re-specified around derivation. This is the sole-spec surface, so this is where the real review lives.
-- Selfhost: roughly 50 prompts carry `tests:` today. Migration is mechanical per module (delete block, ensure the prose already pins what the block pinned, expected-change regen, derived corpus must reproduce the old cases or the gap is a prose bug to fix), but it is 50 regen cycles of careful reading.
-- Site: tutorial lessons 2 and 4 teach frontmatter tests and must be rewritten; docs writing-prompts and file-formats pages likewise.
-- Interaction with the AST/docs plan: that plan already dropped frontmatter-tests-as-Examples, which ages well here. But its scenarios and its Slice C lock-schema work assume today's frontmatter; whichever ships second rebases on the first. Recommendation: this ships AFTER the AST/docs feature, as prompt-only feature number three, because the AST parser and the docs surface make derived-test provenance displayable, and because two concurrent frontmatter-adjacent migrations is how state files get hurt.
+### Execution model (what "runs" means)
+
+The corpus is target-neutral given/expect data, same execution contract as today's frontmatter tests: the code-writing agent materializes each case as a native test in the generated workspace, and a toolchain validator enforces one-to-one correspondence between sanctioned cases and materialized native tests (case id embedded in the test name, checked mechanically like the attribution gate). `napl test` then runs the materialized native tests directly: no inference, no network, deterministic, target-specific execution through the existing cargo/vitest harnesses. Sanctioned-case failures are distinguished from unrelated project test failures by the case-id naming contract, with distinct exit classes and byte-pinned diagnostics for conformance. Stale, absent, corrupt, or newer-schema corpus files are hard status errors with pinned messages.
+
+### Storage
+
+`.napl/tests/<module>/<target>.yaml`, target-scoped from day one (adopting the attribution v2 lesson; one file per module would recreate the multi-target clobber bug). Versioned schema, byte-pinned serialization, locked like generated sources, journaled. The corpus joins the same atomic generation transaction as source, map, attribution, mapl, and journal: staged, committed under the durable-commit protocol the AST/docs design defines, rolled back preserving the previously sanctioned corpus. This is machine state that participates in correctness and gets the same recovery rigor.
+
+### Amendment (narrow, visible, not a sibling corpus)
+
+Prose-first correction remains the primary lever: a missing case is a prose bug. But rev 1's absolute "no amendment channel" was too brittle for the real cases (a systematically missed stated case, a permanently pinned security regression, a target-specific representation prose cannot carry). The mechanism: a human may PIN an individual case into the sanctioned corpus through the same acceptance flow, with mandatory prompt-line provenance and a reason string; pinned cases are marked, surfaced by `napl status` as standing debt, and re-validated against derivation on every gen (a derivation that starts producing the pinned case clears the pin). No free-form sibling test files, ever.
+
+### mapl and ambiguity
+
+The mapl reply gains a `tests` section per gen: cases derived, prompt-line anchors, diffs against the prior sanctioned corpus, pins outstanding. A derivation that is unstable across attempts for unchanged prose surfaces as an ambiguity entry on the offending sentences: the language telling the author to write a better sentence.
+
+## Blast radius (a major version, not a cleanup)
+
+- Frontmatter schema drops `tests:`; presence is a parse error with a migration message. This flip is the LAST step, not the first.
+- Toolchain: derivation step, sanctioning flow, correspondence validator, corpus state and recovery, cmd_test successor, journal and mapl schema, status. All prompted modules by then; every change is a prompt edit plus classified regen.
+- Conformance: new scenarios for derivation, sanctioning, diff-acceptance, correspondence enforcement, pin lifecycle, corrupt-state refusals, and the frontmatter-to-gate connection itself (the review found today's corpus does not even pin that link explicitly; add those scenarios regardless of this plan's fate).
+- Selfhost: roughly 50 prompts carry `tests:`. Migration is NOT mechanical (the review is right): each module's prose must be audited to carry what its block pinned before the block can go.
+- Site: tutorial lessons 2 and 4 and two docs pages rewritten. The tutorial must teach the full loop, not hide it: how prose produces exact cases, how to inspect the proposed corpus, how to reject a wrong derivation, why a prose edit changed cases, how to express boundary examples in prose without recreating YAML as awkward sentences.
+
+## Migration: phased validation, single release boundary
+
+1. Shadow phase: derivation runs alongside existing frontmatter tests, module by module; the EXISTING blocks act as the validation oracle (the derived corpus must cover every existing case or the gap is triaged as prose bug versus derivation bug). Nothing is removed; a comparison report accumulates.
+2. Sanction phase: per module, once shadow comparison is clean, the derived corpus is sanctioned and the frontmatter block deleted in the same classified regen.
+3. Flip phase: when all modules are migrated, the strict schema change lands (tests: becomes a parse error) with the conformance re-spec in the same slice. One release boundary at the end, validation module-by-module before it, never a mixed-mode corpus for months.
+
+## Sequencing
+
+After rust-final and after the AST/docs feature ships, as prompt-only feature three. Confirmed reasons: derived-test provenance display needs the AST sentence layer and docs surface, and the corpus transaction needs the durable-commit machinery AST/docs D2 builds. The plan adopts that design's target scoping and recovery lessons wholesale.
 
 ## Open questions for the maintainer
 
-1. Sequencing confirmation: after rust-final and after AST/docs, as prompt-only feature three?
-2. Does the derived corpus accept human amendments at all (a sanctioned-additions file), or is the only lever the prose? Recommendation: prose only; an amendment channel recreates the leak with extra steps.
-3. Should derivation stability across DIFFERENT agents (claude vs codex preset) gate anything in v1, or is per-project agent pinning (already in lock.json) enough? Recommendation: lock pinning is enough.
-4. Migration mode: one big wave, or module-by-module opportunistically as prompts are next touched? Recommendation: one planned wave, because a mixed-mode corpus splits the conformance spec in two for months.
+1. Sanctioning UX: interactive accept inside `napl gen`, a separate `napl tests review` command, or both? Recommendation: both, the command being what CI and reviewers use.
+2. Should the shadow phase's comparison report block at less than 100 percent existing-case coverage, or is a triaged allowlist acceptable during migration? Recommendation: 100 percent or triaged-with-reason, no silent gaps.
+3. Derivation backend: pinned to the project's lock.json agent, with provenance recorded and any backend change treated as a corpus-diff event to re-review. Confirm.
+4. Does the pin mechanism cap (a maximum pinned-case count per module before status escalates from note to warning)? Recommendation: yes, small, pins are debt.
 
-When approved, this draft graduates to a full design (grammar of the derived-corpus file, exact gate semantics, scenario list) and enters the standing review chain before any slice is cut.
+When approved, this graduates to a full design (corpus schema grammar, derivation task contract, correspondence validator rules, scenario list) and re-enters the review chain before any slice is cut.
