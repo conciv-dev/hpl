@@ -1,8 +1,9 @@
 import {Link} from '@tanstack/react-router'
 import {HomeLayout} from 'fumadocs-ui/layouts/home'
+import {CodeBlock} from 'fumadocs-ui/components/codeblock'
 import {baseOptions} from '@/lib/layout.shared'
 
-const PROMPT_EXAMPLE = `---
+export const PROMPT_EXAMPLE = `---
 module: greeting
 targets: [typescript]
 tests:
@@ -32,7 +33,7 @@ const PILLARS = [
   },
 ]
 
-export function LandingPage() {
+export function LandingPage({sampleHtml}: {sampleHtml: string}) {
   return (
     <HomeLayout {...baseOptions()}>
       <main className="flex flex-col items-center px-6 py-20 gap-16">
@@ -65,10 +66,10 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="w-full max-w-2xl">
-          <pre className="overflow-x-auto rounded-lg border border-fd-border bg-fd-card p-5 text-sm leading-relaxed">
-            <code className="font-mono">{PROMPT_EXAMPLE}</code>
-          </pre>
+        <section className="w-full max-w-2xl text-left">
+          <CodeBlock title="greeting.napl" className="my-0 [&_pre]:px-4">
+            <div dangerouslySetInnerHTML={{__html: sampleHtml}} />
+          </CodeBlock>
           <p className="mt-3 text-center text-sm text-fd-muted-foreground">
             <code className="font-mono">napl gen typescript</code> hands this to a coding agent, then proves the
             connection.
