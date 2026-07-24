@@ -26,7 +26,7 @@ The docs teach by description; a language earns belief by being felt. svelte.dev
   - `files/` — starting prompt state (usually one `.napl`; later lessons add a second module).
   - `solution/` — the passing state. Same filenames.
   - `session.json` — recorded real generation for reference replay (present when engine mode ≠ `none`).
-- Build step `scripts/build-tutorial.mjs` (sibling of `build-fixtures.mjs`, reuses its RecordedSession machinery): validates every manifest against a zod schema, checks that `solution/` actually passes its own `check:` list by running the wasm core in node, orders lessons, emits `src/lib/tutorial-index.ts` (typed) + per-lesson JSON under `src/fixtures/tutorial/`. A lesson whose solution fails its own checks fails the build — the tutorial cannot ship self-contradictory.
+- Build step `scripts/build-tutorial.ts` (sibling of build-fixtures, which converts to `.ts` in the same round — all repo scripts are TypeScript, run through Node's native type stripping; reuses its RecordedSession machinery): validates every manifest against a zod schema, checks that `solution/` actually passes its own `check:` list by running the wasm core in node, orders lessons, emits `src/lib/tutorial-index.ts` (typed) + per-lesson JSON under `src/fixtures/tutorial/`. A lesson whose solution fails its own checks fails the build — the tutorial cannot ship self-contradictory.
 - All lesson pages prerender (they are static content; interactivity hydrates client-side like the playground).
 
 ## Screen anatomy
@@ -70,10 +70,10 @@ Pure function, runs in the browser, no LLM involvement:
 
 ```ts
 type CheckInput = {
-  files: Record<string, string>          // current editor state
-  diagnostics: Diagnostic[]              // napl-wasm output for the prompt file
-  frontmatter: Frontmatter | null        // napl-wasm parse
-  mapl: MaplEntry[]                      // from the last completed generation (replay or live)
+  files: Record<string, string> // current editor state
+  diagnostics: Diagnostic[] // napl-wasm output for the prompt file
+  frontmatter: Frontmatter | null // napl-wasm parse
+  mapl: MaplEntry[] // from the last completed generation (replay or live)
   lastRun: {engine: 'replay' | 'live'; completed: boolean} | null
 }
 type CheckResult = {id: string; label: string; pass: boolean}
@@ -81,44 +81,33 @@ type CheckResult = {id: string; label: string; pass: boolean}
 
 Check kinds (v1, closed set, each a small pure function):
 
-| kind | args | passes when |
-| --- | --- | --- |
-| `no-diagnostic` | `code?`, `severity?` | no matching diagnostic remains |
-| `has-diagnostic` | `code`, | the diagnostic IS present (lessons that teach reading errors) |
-| `frontmatter-key` | `key`, `present` \| `equals` \| `contains` | frontmatter satisfies it |
-| `test-count` | `min` | frontmatter `tests:` has ≥ min entries |
-| `prompt-contains` | `pattern` (regex), `target` file | body matches (used sparingly; each use needs a comment in the manifest justifying why a structural check can't express it) |
-| `generation-ran` | `engine?` | a run completed this lesson (either engine unless pinned) |
-| `mapl-entry` | `kind` | last run's machine layer contains an entry of that kind |
-| `edited-since-solve` | — | guard so Solve alone doesn't complete "write it yourself" lessons |
+| kind                 | args                                       | passes when                                                                                                                |
+| -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `no-diagnostic`      | `code?`, `severity?`                       | no matching diagnostic remains                                                                                             |
+| `has-diagnostic`     | `code`,                                    | the diagnostic IS present (lessons that teach reading errors)                                                              |
+| `frontmatter-key`    | `key`, `present` \| `equals` \| `contains` | frontmatter satisfies it                                                                                                   |
+| `test-count`         | `min`                                      | frontmatter `tests:` has ≥ min entries                                                                                     |
+| `prompt-contains`    | `pattern` (regex), `target` file           | body matches (used sparingly; each use needs a comment in the manifest justifying why a structural check can't express it) |
+| `generation-ran`     | `engine?`                                  | a run completed this lesson (either engine unless pinned)                                                                  |
+| `mapl-entry`         | `kind`                                     | last run's machine layer contains an entry of that kind                                                                    |
+| `edited-since-solve` | —                                          | guard so Solve alone doesn't complete "write it yourself" lessons                                                          |
 
 The checker is unit-tested exhaustively in `@napl/editor` tests (it lives beside the playground code it reads from). Adding a check kind is a code change, not a content change — deliberate: the closed set keeps lessons honest and testable.
 
 ## Curriculum — all 16 lessons
 
 **Part 1 — First prompt** (engine mode: none)
+
 1. `what-is-a-prompt` — read a complete .napl; objective: none (reading lesson; complete on visit).
 2. `frontmatter` — broken YAML given; fix it. Checks: `no-diagnostic(frontmatter-invalid)`.
 3. `name-your-module` — missing `module:`; add it. Checks: `frontmatter-key(module, present)`, `no-diagnostic`.
 4. `the-body-is-the-spec` — body says one thing, title another; make the body say what the lesson asks (write a sentence). Checks: `prompt-contains` (justified: free-writing lesson), `no-diagnostic`.
 
-**Part 2 — Tests and generation** (engine mode: replay for 5–6, live from 7)
-5. `declare-a-test` — add a given/expect to `tests:`. Checks: `test-count(min: 1)`, `no-diagnostic`.
-6. `watch-it-generate` — press Generate, watch the recorded session; hover attribution. Checks: `generation-ran(replay)`.
-7. `generate-for-real` — load a model (picker walkthrough in prose), run the agent step on YOUR prompt. Checks: `generation-ran(live)`. Prose sets expectations: this is the agent step; gates run in the CLI.
-8. `same-prompt-different-code` — compare your model's output to the reference side-by-side; prose explains behavioral spec vs byte spec. Checks: `generation-ran`, completion-on-visit after run.
+**Part 2 — Tests and generation** (engine mode: replay for 5–6, live from 7) 5. `declare-a-test` — add a given/expect to `tests:`. Checks: `test-count(min: 1)`, `no-diagnostic`. 6. `watch-it-generate` — press Generate, watch the recorded session; hover attribution. Checks: `generation-ran(replay)`. 7. `generate-for-real` — load a model (picker walkthrough in prose), run the agent step on YOUR prompt. Checks: `generation-ran(live)`. Prose sets expectations: this is the agent step; gates run in the CLI. 8. `same-prompt-different-code` — compare your model's output to the reference side-by-side; prose explains behavioral spec vs byte spec. Checks: `generation-ran`, completion-on-visit after run.
 
-**Part 3 — The dialogue** (engine mode: replay — mapl content comes from recorded sessions)
-9. `machine-says` — read a mapl file; prose maps kinds to severities. Reading lesson, complete on visit.
-10. `ambiguity` — prompt with a genuinely vague sentence; recorded session flags ambiguity; rewrite the sentence until the (re-checked, wasm-side) vague pattern is gone. Checks: `mapl-entry(ambiguity)` seen, then `prompt-contains` for the disambiguated form.
-11. `assumption` — make the recorded assumption explicit in the prompt. Checks: `prompt-contains` (justified), `no-diagnostic`.
-12. `the-no-op-rule` — edit prose cosmetically, replay shows a no-op entry with reasoning; prose explains why silence is forbidden. Checks: `generation-ran`, `mapl-entry(no-op)`.
+**Part 3 — The dialogue** (engine mode: replay — mapl content comes from recorded sessions) 9. `machine-says` — read a mapl file; prose maps kinds to severities. Reading lesson, complete on visit. 10. `ambiguity` — prompt with a genuinely vague sentence; recorded session flags ambiguity; rewrite the sentence until the (re-checked, wasm-side) vague pattern is gone. Checks: `mapl-entry(ambiguity)` seen, then `prompt-contains` for the disambiguated form. 11. `assumption` — make the recorded assumption explicit in the prompt. Checks: `prompt-contains` (justified), `no-diagnostic`. 12. `the-no-op-rule` — edit prose cosmetically, replay shows a no-op entry with reasoning; prose explains why silence is forbidden. Checks: `generation-ran`, `mapl-entry(no-op)`.
 
-**Part 4 — Discipline** (engine mode: replay)
-13. `drift` — generated tab is hand-editable in this lesson only; edit it, watch the drift diagnostic fire. Checks: `has-diagnostic(drift)`.
-14. `reconcile` — walk the three resolutions on the drifted state (replayed reconcile session); prose explains journal provenance. Checks: `generation-ran(replay)`.
-15. `deps-and-the-gate` — two modules; second declares `deps:`; prose tells the enforcement story (including the real incremental regression as a war story). Checks: `frontmatter-key(deps, contains: …)`, `no-diagnostic`.
-16. `where-the-cli-begins` — closing lesson: what the browser could not show (test gate, locks, watch); install pointer; complete on visit.
+**Part 4 — Discipline** (engine mode: replay) 13. `drift` — generated tab is hand-editable in this lesson only; edit it, watch the drift diagnostic fire. Checks: `has-diagnostic(drift)`. 14. `reconcile` — walk the three resolutions on the drifted state (replayed reconcile session); prose explains journal provenance. Checks: `generation-ran(replay)`. 15. `deps-and-the-gate` — two modules; second declares `deps:`; prose tells the enforcement story (including the real incremental regression as a war story). Checks: `frontmatter-key(deps, contains: …)`, `no-diagnostic`. 16. `where-the-cli-begins` — closing lesson: what the browser could not show (test gate, locks, watch); install pointer; complete on visit.
 
 Every lesson's TypeScript target keeps outputs small and cargo out of the picture. Lessons 10–12's "recorded session reacting to your edit" is scripted: the manifest pins which session state maps to which check state — the prose is written so this never claims to be live.
 
@@ -144,12 +133,12 @@ Implements the existing `GenEngine` interface (`run(task, files): AsyncIterable<
 
 ## Model catalog and picker
 
-| model | size | default when | note |
-| --- | --- | --- | --- |
-| SmolLM2-360M-Instruct | ~250MB | wasm-only browsers | lightest useful |
-| Qwen2.5-Coder-0.5B-Instruct | ~350MB | WebGPU present | code-tuned, the intended default |
-| Qwen3-0.6B | ~400MB | — | newest, picker option |
-| Llama-3.2-1B-Instruct | ~800MB | — | labeled "heavy" |
+| model                       | size   | default when       | note                             |
+| --------------------------- | ------ | ------------------ | -------------------------------- |
+| SmolLM2-360M-Instruct       | ~250MB | wasm-only browsers | lightest useful                  |
+| Qwen2.5-Coder-0.5B-Instruct | ~350MB | WebGPU present     | code-tuned, the intended default |
+| Qwen3-0.6B                  | ~400MB | —                  | newest, picker option            |
+| Llama-3.2-1B-Instruct       | ~800MB | —                  | labeled "heavy"                  |
 
 - Picker lives in the playground toolbar (engine chip: "Replay" by default → "Qwen2.5-Coder · GPU" once loaded). States: `none → downloading(pct) → ready → error(retry)`.
 - Metered-connection guard before any download (aidx `use-metered-connection` port): on metered connections the picker asks explicitly, showing the size.
@@ -167,7 +156,7 @@ Implements the existing `GenEngine` interface (`run(task, files): AsyncIterable<
 
 1. Live output is labeled "agent step — gates run in the CLI" wherever it renders.
 2. No fabricated attribution/mapl for live output: those panes show the reference session's data with a "from the recorded generation" tag, or nothing.
-3. Objectives never gate on live-generated code content. `generation-ran(live)` gates on the *act*, not the artifact.
+3. Objectives never gate on live-generated code content. `generation-ran(live)` gates on the _act_, not the artifact.
 4. The reference solution is always the recorded real session; live output renders beside it, divergence is surfaced, lesson 8 teaches why that's the point.
 
 ## WebContainers — the test gate, in v1 (user decision 2026-07-24)
@@ -200,16 +189,16 @@ WebContainers (StackBlitz, what svelte.dev's tutorial runs on) provides the one 
 
 ## Phasing (ALL v1 — user decision 2026-07-24: nothing deferred. Phases are build order, not scope tiers; every phase ships before the tutorial is called done)
 
-1. **Shell + lesson engine + part 1** — routes, rail, ObjectiveBar, checker (unit-tested), build-tutorial.mjs with solution-must-pass enforcement, lessons 1–4 (engine mode none). e2e: complete lesson 2 by typing the fix; solve path; progress persists across reload.
+1. **Shell + lesson engine + part 1** — routes, rail, ObjectiveBar, checker (unit-tested), build-tutorial.ts with solution-must-pass enforcement, lessons 1–4 (engine mode none). e2e: complete lesson 2 by typing the fix; solve path; progress persists across reload.
 2. **TransformersEngine + picker** — worker, catalog, guard, GenEngine wiring into PlaygroundShell globally. e2e with a mocked worker (fixture responses; CI never downloads models); manual verification with a real model before commit.
 3. **WebContainers test gate** — COOP/COEP on dev/e2e/deploy configs, lazy boot, prebuilt snapshot, run-tests affordance + results panel mapped to frontmatter tests, recorded-output fallback. e2e: mocked container in CI, real boot verified manually before commit.
-4. **Parts 2–4 + session fixtures** — 12 lessons, recorded sessions built via build-tutorial.mjs. e2e: replay lesson, live lesson against mocked worker, test-run lesson, mapl objective flow.
+4. **Parts 2–4 + session fixtures** — 12 lessons, recorded sessions built via build-tutorial.ts. e2e: replay lesson, live lesson against mocked worker, test-run lesson, mapl objective flow.
 5. **Docs consolidation + landing round** — canvasui sprinkle, button relabel, /selfhost mobile stacking (clears the deferred audit finding). Full-site screenshot pass, impeccable-audit sweep on the tutorial.
 
 ## Testing summary
 
 - Checker: exhaustive unit tests (every kind × pass/fail).
-- build-tutorial.mjs: solution-passes-own-checks is a build gate; idempotence (run twice, hash-compare) like build-fixtures.
+- build-tutorial.ts: solution-passes-own-checks is a build gate; idempotence (run twice, hash-compare) like build-fixtures.
 - e2e additions (~8 specs): lesson completion by edit, solve, reset, progress persistence, replay generation, live generation (mocked worker), engine picker states, prompt-too-large state.
 - All existing site gates remain (typecheck, unit, e2e, build, screenshot pass at 2 widths × 2 themes).
 
