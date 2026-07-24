@@ -1424,9 +1424,8 @@ which does not affect the swapped source or any gate.
 Four of the five planned batch-3 shells self-hosted, each generated from a
 behavior-prose prompt in `selfhost/cli/`, each swapped in behind unchanged call
 sites, conformance **48/48 byte-identical** after every swap. `healing_io` (the
-`heal_moved_files` LCS-verdict shell) is **not** yet started — its prompt is
-unauthored and it needs a structural decision first (extract the pure LCS verdict
-into its own crate), so it is left for the next run.
+`heal_moved_files` LCS-verdict shell) was deferred for a structural decision first
+(extract the pure LCS verdict into its own crate) and landed in **batch 4** below.
 
 | Generated crate  | Replaces (napl-cli surface)                                 | Deps                                                                                 |
 | ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -1464,3 +1463,43 @@ equivalence **231/231** (unchanged — all four are I/O shells with no pure
 equivalence surface) · `cargo test --workspace` **247/247** · clippy **clean** ·
 `napl status` **45/45 clean** · generated tree drift-clean. Escape-hatch list still
 **empty**.
+
+### Batch 4 — healing, split into a pure verdict and its shell (DONE)
+
+`healing.rs` was the batch-3 straggler: `heal_moved_files` wraps a genuinely pure
+move-match decision (an LCS line-similarity verdict) in a filesystem walk and a
+journal write. The decided split self-hosts it as **two** modules, both converged
+on **attempt 1 of 3**, swapped in behind the unchanged public surface, conformance
+**48/48 byte-identical** after the swap.
+
+| Generated crate | Replaces (napl-cli surface)                       | Deps                                                                                                                                        |
+| --------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `healing_core`  | the pure move-match verdict (pure straggler)      | `text_diff`                                                                                                                                 |
+| `healing_io`    | `healing::heal_moved_files`                       | `healing_core`, `hash`, `schemas_journal`, `schemas_map`, `targets`, `snapshot_io`, `snapshot_filter`, `driftdetect_replay`, `fsutil_io`, `paths_core`, `state_io` |
+
+- **`healing_core`** is pure: `lcs_len(a, b)` and `move_verdict(old_path, target,
+  old_hash, baseline, candidates, claimed) -> MoveVerdict` classify a lost file as
+  `Clean`, `Drifted`, `NoMatch`, or `Ambiguous`. The exact-hash pass runs before the
+  line-similarity pass; each pass reports `Ambiguous` with a byte-exact message when
+  more than one candidate qualifies (scenario `35` pins the identical-content form).
+  It depends only on `text_diff::to_lines` for the byte-exact line split the
+  50-percent similarity threshold needs, rather than reimplementing it. Its
+  hand-written eight-case equivalence corpus pins the verdicts against the
+  hand-written `healing.rs` and is the shell wave's first pure-verdict corpus.
+- **`healing_io`** owns the I/O: it finds the tracked files missing from disk,
+  collects the untracked candidate pool per target (adapter exclusions through
+  `snapshot_filter` + `snapshot_io`), reconstructs each lost file's baseline through
+  `driftdetect_replay`, asks `healing_core` for the verdict, then rewrites the map and
+  appends one `move` journal entry per heal through `state_io`, relocking a clean move
+  at its new path through `fsutil_io`. The clock crosses the seam as an injected
+  `now: &dyn Fn() -> String` (the `process_run` precedent), so no hand-written type
+  enters the generated crate: the `healing.rs` shell is a thin `map_err(CliError::new)`
+  wrapper passing `&crate::clock::now`. Because the shell no longer consumes
+  `crate::driftdetect::reconstruct_file_content`, that re-export moved into
+  `driftdetect.rs`'s own tests module.
+
+Gate results (post-batch-4): conformance **48/48 byte-identical** (heal scenarios
+`28`/`29`/`35` byte-identical) · equivalence **239/239** (231 + `healing_core` 8) ·
+`cargo test --workspace` **247/247** · clippy **clean** · `napl status` **47/47
+clean** · generated-tree `cargo test` all-ok (`healing_core` 19, `healing_io` 10) ·
+both crates locked `0444`. Escape-hatch list still **empty**.

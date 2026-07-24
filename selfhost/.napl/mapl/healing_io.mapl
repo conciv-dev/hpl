@@ -1,0 +1,55 @@
+module: healing_io
+target: rust
+entries:
+  - promptLines:
+      - 12
+      - 14
+    kind: ambiguity
+    message: '"must match the hand-written `healing.rs` byte for byte" names a file not present in this crate or listed as a dep.'
+    reasoning: The prompt pins behavior against a hand-written `healing.rs` (same walk order, same journal bytes, same error text) but line 31 forbids depending on any hand-written crate, and no path to `healing.rs` is given. The agent could not diff against it; it satisfied the constraint indirectly by following the stage-by-stage spec and asserting exact journal/error bytes in its own tests. Byte-equivalence with the real reference file is therefore unverified.
+    suggestion: State the reference path explicitly (e.g. "behavior must match `<path>/healing.rs`; read it for walk order, journal bytes, and error text, but do not depend on its crate").
+  - promptLines:
+      - 123
+      - 124
+    kind: ambiguity
+    message: Target set said to be "the `target` of every tracked file record" — unclear whether only missing files' targets matter.
+    reasoning: Stage 2 collects candidate pools for every target named by ANY tracked record, even targets with no missing file, which costs a full snapshot walk per target. Stage 3 only ever consults pools for the targets of missing files. Implemented literally (all tracked records' targets), matching the prose, since narrowing could change walk order/error surfacing (a snapshot error in an irrelevant target currently propagates).
+    suggestion: "Clarify: \"The target set is the `target` of every tracked file record (not just the missing ones), in sorted order\" — or narrow to missing files' targets if the extra walks are unintended."
+  - promptLines:
+      - 130
+      - 131
+    kind: assumption
+    message: Tracked-set membership test assumed to use the full sorted tracked set, including files that are missing.
+    reasoning: Step 2 says skip a candidate "if that relative path is in the tracked set". The tracked set from step 1 includes the missing files themselves, but those paths do not exist on disk so they cannot appear in a snapshot; the distinction is unobservable. Implemented with the full tracked set.
+  - promptLines:
+      - 160
+      - 168
+    kind: ambiguity
+    message: Ordering of read-record / read-disk / mutate is prescribed, but a mid-loop I/O failure leaves earlier heals already applied.
+    reasoning: Stage 4 propagates I/O errors from `read_to_string` and `set_mode` as `Err`, yet earlier heals in the loop have already mutated the map and appended journal entries. Unlike the `Ambiguous` case (line 146), no atomicity is required here, so the implementation leaves partial state on error. The caller "persists the mutated map" (line 111) — on `Err` it presumably does not, so map and journal can diverge.
+    suggestion: "State explicitly what happens on a stage-4 I/O error: whether partial heals stay applied, and whether the caller should still persist the map."
+  - promptLines:
+      - 160
+      - 162
+    kind: ambiguity
+    message: '"or `None` when the record is gone" — the record cannot be gone at this point in the described flow.'
+    reasoning: Heals are only recorded for files whose record was found in stage 3 (line 139), and stage 4 reads the record before any mutation, so the `None` branch is unreachable. Same for the module fallback to `new_path` when the record is absent. Implemented literally (`Option` handling with the stated fallbacks) since the fallbacks are cheap, but the dead branch suggests either a copied requirement or an intended flow where records can disappear between stages.
+    suggestion: Either drop the "record is gone" branches, or explain the case that makes them reachable.
+  - promptLines:
+      - 102
+      - 103
+    kind: note
+    message: '"matched by line similarity, not by an exact hash" describes `healing_core` internals this shell cannot observe.'
+    reasoning: This module only sees `MoveVerdict::Drifted`; the similarity mechanism is entirely inside `healing_core`. The parenthetical was treated as documentation (carried into the doc comment in spirit) with no behavioral consequence here.
+  - promptLines:
+      - 86
+      - 90
+    kind: note
+    message: "`deps:` frontmatter is referenced but is not part of the prompt body supplied."
+    reasoning: Line 89-90 forbids any dependency not declared in the prompt's `deps:` frontmatter, which was not included in the numbered body. `healing_io/Cargo.toml` was written to list exactly the crates named in the "Builds on other modules" section, with `schemas_ordered_map` as a dev-dependency. If the actual frontmatter differs, the manifest should be re-checked against it.
+  - promptLines:
+      - 111
+      - 112
+    kind: assumption
+    message: "`now` invoked once per journaled entry, at entry-construction time inside the apply loop."
+    reasoning: '"invoked once per journaled entry" fixes the count but not the moment. Called while building each `JournalEntry`, so N heals produce N calls in heal order; a non-constant clock therefore yields increasing timestamps rather than one shared timestamp.'

@@ -1,0 +1,50 @@
+module: healing_core
+target: rust
+entries:
+  - promptLines:
+      - 23
+      - 30
+    kind: assumption
+    message: Prompt says `text_diff` lives at `../text_diff` but never states how to declare the dependency; agent used a workspace path dependency.
+    reasoning: The prompt forbids reimplementing to_lines and forbids hand-written crates, but gives no Cargo dependency form. The agent wrote healing_core/Cargo.toml with a dependency on the sibling crate (path/workspace member) so `text_diff::to_lines` resolves. If the workspace expects a versioned or workspace-inherited dependency form, this may need adjusting.
+    suggestion: 'Add: "Declare `text_diff` as a path dependency (`text_diff = { path = \"../text_diff\" }`) in `healing_core/Cargo.toml`."'
+  - promptLines:
+      - 16
+      - 21
+    kind: ambiguity
+    message: '"Leave it alone" / "Touch nothing outside `healing_core/`" conflicts with the crate needing to be a workspace member.'
+    reasoning: A new member crate normally requires adding it to the root manifest's `members` list, which the prompt forbids editing. The agent assumed the root manifest already globs members (e.g. `members = ["*"]`) or auto-includes the directory, and reported the root untouched with `cargo test` clean from the root. If the root manifest used an explicit member list, this instruction would be unsatisfiable as written.
+    suggestion: 'State explicitly: "The root manifest already globs workspace members, so creating the directory is enough — do not edit the root manifest."'
+  - promptLines:
+      - 36
+      - 38
+    kind: assumption
+    message: '"memory proportional to the shorter dimension" is an unobservable implementation detail; agent added an argument swap to honor it.'
+    reasoning: The prompt itself notes only the returned length is observable, so this constraint cannot be tested. The agent swapped `a`/`b` so the rolling rows track the shorter slice, relying on LCS-length symmetry. This is invisible to callers but adds a branch; if the real intent was just "two-row table", the swap is unmotivated extra code.
+    suggestion: Either drop the shorter-dimension clause (say only "rolling two-row table") or state "swap the arguments so the rows track the shorter slice; LCS length is symmetric."
+  - promptLines:
+      - 44
+      - 50
+    kind: assumption
+    message: Similar pass compares candidate content to `baseline`, not to the lost file's current content; agent implemented `is_similar(baseline, candidate.content)`.
+    reasoning: The helper's parameters are named `before`/`current`, but the similar-pass spec (line 101-103) says "content is line-similar to `baseline`". The agent passed baseline as `before` and the candidate's content as `current`. Since the predicate is symmetric in effect (denom is the max, LCS is symmetric), argument order does not change the result — but the naming mismatch could confuse a future reader.
+    suggestion: "Name the helper parameters after the actual call site, e.g. `is_similar(baseline: &str, candidate_content: &str)`."
+  - promptLines:
+      - 115
+      - 117
+    kind: ambiguity
+    message: '"both are byte-load-bearing and the conformance suite pins the identical-content form" — unclear whether the similar-candidates form is pinned too.'
+    reasoning: Saying both are byte-load-bearing and then singling out only one as pinned by the conformance suite is contradictory-sounding. The agent treated both message templates as byte-exact and shares one `format!` with a substituted phrase, and covered both with tests. If the similar form is intentionally unpinned, the shared formatter is still safe but the emphasis in the prompt is misleading.
+    suggestion: 'Say: "Both messages are byte-exact; the conformance suite pins both forms." (Or drop the second clause entirely.)'
+  - promptLines:
+      - 89
+      - 90
+    kind: note
+    message: Exact pass filters by hash only; candidate `content` is never checked against the old content.
+    reasoning: '"Exact-content relocation" is decided purely by `hash == old_hash`, with `content` unused in that pass. This is consistent with the shell supplying trustworthy hashes, and the agent implemented it as written — flagging only so the reliance on hash fidelity is explicit.'
+  - promptLines:
+      - 46
+      - 48
+    kind: note
+    message: Empty baseline is line-similar to every empty-content candidate, and only those.
+    reasoning: With `denom == 0` returning similar, an empty baseline against an empty candidate yields Drifted; against any non-empty candidate `lcs_len` is 0 so it is not similar. The agent pinned this in a test (`an_empty_baseline_is_similar_only_to_empty_content`). Worth confirming that a Drifted verdict on a zero-byte file is the intended behavior rather than NoMatch.

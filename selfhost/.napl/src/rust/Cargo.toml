@@ -18,6 +18,8 @@ members = [
     "gen_prompt_diff",
     "guard",
     "hash",
+    "healing_core",
+    "healing_io",
     "incremental",
     "parse_output",
     "paths_core",

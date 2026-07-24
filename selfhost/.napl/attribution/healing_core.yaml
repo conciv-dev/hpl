@@ -1,0 +1,387 @@
+module: healing_core
+target: rust
+entries:
+  - promptLines:
+      - 25
+      - 30
+    file: healing_core/src/lib.rs
+    lines:
+      - 44
+      - 45
+    note: uses text_diff::to_lines for the line split
+  - promptLines:
+      - 32
+      - 33
+    file: healing_core/src/lib.rs
+    lines:
+      - 15
+      - 15
+    note: public lcs_len signature
+  - promptLines:
+      - 35
+      - 35
+    file: healing_core/src/lib.rs
+    lines:
+      - 16
+      - 18
+    note: empty slice returns 0
+  - promptLines:
+      - 36
+      - 37
+    file: healing_core/src/lib.rs
+    lines:
+      - 20
+      - 25
+    note: rolling two-row table sized to shorter dimension
+  - promptLines:
+      - 34
+      - 37
+    file: healing_core/src/lib.rs
+    lines:
+      - 27
+      - 38
+    note: LCS DP comparing lines by value, returns length
+  - promptLines:
+      - 38
+      - 38
+    file: healing_core/src/lib.rs
+    lines:
+      - 161
+      - 165
+    note: "test: identical three-line slices give 3"
+  - promptLines:
+      - 38
+      - 39
+    file: healing_core/src/lib.rs
+    lines:
+      - 167
+      - 171
+    note: "test: [a,b,c] vs [a,c] gives 2"
+  - promptLines:
+      - 39
+      - 39
+    file: healing_core/src/lib.rs
+    lines:
+      - 173
+      - 178
+    note: "test: empty slice gives 0"
+  - promptLines:
+      - 39
+      - 40
+    file: healing_core/src/lib.rs
+    lines:
+      - 180
+      - 183
+    note: "test: no shared line gives 0"
+  - promptLines:
+      - 44
+      - 46
+    file: healing_core/src/lib.rs
+    lines:
+      - 43
+      - 43
+    note: private line-similarity helper
+  - promptLines:
+      - 46
+      - 46
+    file: healing_core/src/lib.rs
+    lines:
+      - 44
+      - 45
+    note: splits before and current into lines
+  - promptLines:
+      - 47
+      - 47
+    file: healing_core/src/lib.rs
+    lines:
+      - 46
+      - 46
+    note: denom is larger line count
+  - promptLines:
+      - 48
+      - 48
+    file: healing_core/src/lib.rs
+    lines:
+      - 47
+      - 49
+    note: both empty -> similar
+  - promptLines:
+      - 49
+      - 50
+    file: healing_core/src/lib.rs
+    lines:
+      - 50
+      - 50
+    note: "integer 50% threshold: lcs*2 >= denom"
+  - promptLines:
+      - 48
+      - 48
+    file: healing_core/src/lib.rs
+    lines:
+      - 190
+      - 193
+    note: "test: empty contents similar"
+  - promptLines:
+      - 44
+      - 50
+    file: healing_core/src/lib.rs
+    lines:
+      - 195
+      - 201
+    note: "test: threshold is exactly half of longer file"
+  - promptLines:
+      - 27
+      - 30
+    file: healing_core/src/lib.rs
+    lines:
+      - 203
+      - 206
+    note: "test: carriage returns normalized like to_lines"
+  - promptLines:
+      - 54
+      - 60
+    file: healing_core/src/lib.rs
+    lines:
+      - 53
+      - 58
+    note: MoveCandidate struct with path, hash, content
+  - promptLines:
+      - 65
+      - 70
+    file: healing_core/src/lib.rs
+    lines:
+      - 61
+      - 73
+    note: MoveVerdict enum with four outcomes
+  - promptLines:
+      - 72
+      - 73
+    file: healing_core/src/lib.rs
+    lines:
+      - 63
+      - 64
+    note: Clean(new_path) exact relocation
+  - promptLines:
+      - 73
+      - 75
+    file: healing_core/src/lib.rs
+    lines:
+      - 65
+      - 67
+    note: Drifted(new_path) moved-and-drifted
+  - promptLines:
+      - 75
+      - 75
+    file: healing_core/src/lib.rs
+    lines:
+      - 68
+      - 69
+    note: NoMatch variant
+  - promptLines:
+      - 75
+      - 77
+    file: healing_core/src/lib.rs
+    lines:
+      - 70
+      - 72
+    note: Ambiguous(message) carries exact error text
+  - promptLines:
+      - 79
+      - 84
+    file: healing_core/src/lib.rs
+    lines:
+      - 77
+      - 84
+    note: move_verdict signature
+  - promptLines:
+      - 85
+      - 86
+    file: healing_core/src/lib.rs
+    lines:
+      - 85
+      - 89
+    note: filters out claimed candidates, preserving order
+  - promptLines:
+      - 89
+      - 90
+    file: healing_core/src/lib.rs
+    lines:
+      - 91
+      - 93
+    note: "exact pass: unclaimed candidates whose hash equals old_hash"
+  - promptLines:
+      - 92
+      - 94
+    file: healing_core/src/lib.rs
+    lines:
+      - 98
+      - 105
+    note: more than one exact match -> Ambiguous with identical-content phrase
+  - promptLines:
+      - 98
+      - 98
+    file: healing_core/src/lib.rs
+    lines:
+      - 96
+      - 96
+    note: exactly one exact match -> Clean
+  - promptLines:
+      - 99
+      - 99
+    file: healing_core/src/lib.rs
+    lines:
+      - 97
+      - 97
+    note: no exact match falls through to similar pass
+  - promptLines:
+      - 101
+      - 103
+    file: healing_core/src/lib.rs
+    lines:
+      - 108
+      - 110
+    note: "similar pass: unclaimed candidates line-similar to baseline"
+  - promptLines:
+      - 105
+      - 107
+    file: healing_core/src/lib.rs
+    lines:
+      - 115
+      - 120
+    note: more than one similar -> Ambiguous with similar-candidates phrase
+  - promptLines:
+      - 111
+      - 112
+    file: healing_core/src/lib.rs
+    lines:
+      - 113
+      - 113
+    note: exactly one similar -> Drifted
+  - promptLines:
+      - 113
+      - 113
+    file: healing_core/src/lib.rs
+    lines:
+      - 114
+      - 114
+    note: none similar -> NoMatch
+  - promptLines:
+      - 94
+      - 97
+    file: healing_core/src/lib.rs
+    lines:
+      - 124
+      - 139
+    note: builds ambiguous message, paths joined by ', ' in order, count included
+  - promptLines:
+      - 109
+      - 110
+    file: healing_core/src/lib.rs
+    lines:
+      - 130
+      - 134
+    note: list joined by comma-space in candidate order
+  - promptLines:
+      - 115
+      - 118
+    file: healing_core/src/lib.rs
+    lines:
+      - 102
+      - 102
+    note: "'have identical content' phrase"
+  - promptLines:
+      - 115
+      - 117
+    file: healing_core/src/lib.rs
+    lines:
+      - 118
+      - 118
+    note: "'are similar candidates' phrase"
+  - promptLines:
+      - 98
+      - 98
+    file: healing_core/src/lib.rs
+    lines:
+      - 208
+      - 225
+    note: "test: single exact hash match is Clean"
+  - promptLines:
+      - 117
+      - 118
+    file: healing_core/src/lib.rs
+    lines:
+      - 227
+      - 244
+    note: "test: exact match wins over similarity"
+  - promptLines:
+      - 92
+      - 97
+    file: healing_core/src/lib.rs
+    lines:
+      - 246
+      - 266
+    note: "test: duplicate exact matches ambiguous message text"
+  - promptLines:
+      - 111
+      - 112
+    file: healing_core/src/lib.rs
+    lines:
+      - 268
+      - 285
+    note: "test: single similar candidate is Drifted"
+  - promptLines:
+      - 105
+      - 110
+    file: healing_core/src/lib.rs
+    lines:
+      - 287
+      - 307
+    note: "test: duplicate similar candidates ambiguous message text"
+  - promptLines:
+      - 113
+      - 113
+    file: healing_core/src/lib.rs
+    lines:
+      - 309
+      - 331
+    note: "test: no candidate matches -> NoMatch"
+  - promptLines:
+      - 85
+      - 86
+    file: healing_core/src/lib.rs
+    lines:
+      - 333
+      - 350
+    note: "test: claimed candidates skipped in exact pass"
+  - promptLines:
+      - 101
+      - 102
+    file: healing_core/src/lib.rs
+    lines:
+      - 352
+      - 369
+    note: "test: claimed candidates skipped in similar pass"
+  - promptLines:
+      - 86
+      - 87
+    file: healing_core/src/lib.rs
+    lines:
+      - 371
+      - 389
+    note: "test: ambiguous list preserves candidate order"
+  - promptLines:
+      - 47
+      - 49
+    file: healing_core/src/lib.rs
+    lines:
+      - 391
+      - 405
+    note: "test: empty baseline similar only to empty content"
+  - promptLines:
+      - 10
+      - 10
+    file: healing_core/src/lib.rs
+    lines:
+      - 9
+      - 9
+    note: "pure module: only std BTreeSet imported, no I/O"

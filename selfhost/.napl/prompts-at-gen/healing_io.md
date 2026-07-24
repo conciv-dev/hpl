@@ -1,0 +1,179 @@
+# Generated-file healing: detecting moves and journaling them
+
+This module is the CLI's move-healing shell. A generated file the map tracks can
+vanish from its recorded path because a hand `mv`, or a rename in an editor,
+relocated it. Rather than reporting a false deletion plus an unattributed new
+file, the toolchain heals: it finds the untracked file that carries the moved
+content, rewrites the path in the map, journals a `move` entry, and relocks the
+file at its new path when the content is unchanged. This is an **I/O shell**: it
+walks the filesystem, reconstructs baselines, reads current contents and hashes,
+mutates the map in place, and appends to the journal. The pure move-match decision
+lives in a separate crate and is called, not reimplemented. This module declares
+no given/expect corpus; its behavior is pinned by the conformance suite (the
+healing scenarios) and must match the hand-written `healing.rs` byte for byte:
+same walk order, same journal entry bytes, same error text.
+
+Error-carrying operations return `Result<T, String>` where the `String` is the
+bare error message. The CLI shell that wraps this module maps that string into its
+own error type unchanged.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain. Leave it alone. Create this module as its own member crate
+in a subdirectory named `healing_io/`: `healing_io/Cargo.toml` (package name
+`healing_io`) and `healing_io/src/lib.rs`. Touch nothing outside `healing_io/`.
+Ensure `cargo test` passes from the workspace root before finishing.
+
+## Builds on other modules of this workspace
+
+Use each module's public API. Do not reimplement its types or logic, and do not
+depend on any hand-written crate.
+
+- **`healing_core`** (`../healing_core`): the pure verdict. `move_verdict(old_path:
+  &str, target: &str, old_hash: &str, baseline: &str, candidates: &[MoveCandidate],
+  claimed: &BTreeSet<String>) -> MoveVerdict` decides one lost file's fate.
+  `MoveCandidate` has public fields `path: String`, `hash: String`, `content:
+  String`. `MoveVerdict` is an enum with variants `Clean(String)` (exact-content
+  relocation, path unchanged content, relock it), `Drifted(String)` (moved and
+  content-changed), `NoMatch`, and `Ambiguous(String)` (the exact error text to
+  surface). The two `String`s in `Clean` and `Drifted` are the new path.
+- **`hash`** (`../hash`): `content_hash(content: &str) -> String` hashes the new
+  file's current content for the journal entry.
+- **`schemas_journal`** (`../schemas_journal`): `JournalEntry` is one journal
+  record, with public fields `gen: i64`, `timestamp: String`, `module: String`,
+  `target: String`, `prompt_hash: String`, `prompt_diff: String`, `mode:
+  JournalMode`, and `files: Vec<JournalFile>`. `JournalFile` has public fields
+  `path: String`, `patch: String`, `hash_before: Option<String>`, `hash_after:
+  String`. `JournalMode` is an enum with a `Move` variant. `next_gen_number(entries:
+  &[JournalEntry]) -> i64` returns the gen number the next entry should carry.
+- **`schemas_map`** (`../schemas_map`): `NaplMap` is the module map. Its `files`
+  field is an ordered map keyed by file path whose values (`FileRecord`) have
+  public fields `target: String`, `hash: String`, and `prompts: Vec<String>`. Its
+  `prompts` field is an ordered map whose values (`PromptRecord`) have a `targets`
+  ordered map whose values (`PromptTargetRecord`) have a `files: Vec<String>`
+  field. Access these through the ordered map's public methods (`get`, `get_mut`,
+  `remove`, `insert`, `iter`, `keys`).
+- **`targets`** (`../targets`): `get_adapter(name: &str) -> Result<TargetAdapter,
+  String>` resolves a target's adapter. `TargetAdapter` has public fields
+  `attribution_exclude_dirs`, `attribution_exclude_files`,
+  `attribution_exclude_root_files`, and `attribution_exclude_suffixes`, each a
+  `Vec<String>`, which define the snapshot exclusion rules for that target.
+- **`snapshot_filter`** (`../snapshot_filter`): `make_filter(exclude_dirs: &[String],
+  exclude_files: &[String], exclude_root_files: &[String], exclude_suffixes:
+  &[String]) -> SnapshotFilter` builds the walk filter from those four adapter
+  lists.
+- **`snapshot_io`** (`../snapshot_io`): `snapshot_hashes(dir: &Path, filter:
+  &SnapshotFilter) -> Result<BTreeMap<String, String>, String>` and
+  `snapshot_contents(dir: &Path, filter: &SnapshotFilter) -> Result<BTreeMap<String,
+  String>, String>` walk a target directory and return, keyed by absolute path, the
+  content hash and the raw content of every surviving file. Both maps are ordered
+  by absolute path.
+- **`driftdetect_replay`** (`../driftdetect_replay`): `reconstruct_file_content(
+  entries: &[JournalEntry], file_path: &str) -> Option<String>` replays the
+  journal's patches to rebuild a lost file's last-generated baseline (`None` when
+  the journal has no history for that path).
+- **`fsutil_io`** (`../fsutil_io`): `exists(path: &Path) -> bool` tests a path;
+  `set_mode(path: &Path, mode: u32) -> std::io::Result<()>` sets a file's mode; the
+  constant `READONLY_MODE` is the read-only mode a locked generated file carries.
+- **`paths_core`** (`../paths_core`): `NaplPaths` carries the resolved project
+  paths, with public fields `src_dir: PathBuf` (the generated-source root) and
+  `journal_path: PathBuf` (the journal file). `rel_to(root: &Path, path: &Path) ->
+  String` renders a path relative to `root` in posix form.
+- **`state_io`** (`../state_io`): `append_journal_entry(journal_path: &Path, entry:
+  &JournalEntry) -> Result<(), String>` appends one entry to the journal file.
+
+Constructing a `NaplMap` in this crate's tests uses the ordered map type from
+**`schemas_ordered_map`** (`../schemas_ordered_map`), which is therefore a
+test-only dependency. It is used solely by the tests, not by the runtime code, and
+no dependency may be introduced that is not declared in this prompt's `deps:`
+frontmatter.
+
+## The healed-move record
+
+    pub struct HealedMove {
+        pub old_path: String,
+        pub new_path: String,
+        pub target: String,
+        pub drifted: bool,
+    }
+
+One file the map tracked at `old_path`, healed to `new_path` under `target`.
+`drifted` is `true` when the content also changed (matched by line similarity, not
+by an exact hash).
+
+## `heal_moved_files(root, paths, map, journal, now) -> Result<Vec<HealedMove>, String>`
+
+`heal_moved_files(root: &std::path::Path, paths: &NaplPaths, map: &mut NaplMap,
+journal: &[JournalEntry], now: &dyn Fn() -> String) -> Result<Vec<HealedMove>,
+String>`. Heal every tracked file the map lost to a move, mutating `map` in place
+and appending one `move` journal entry per heal. Return the heals applied, empty
+when nothing moved. The caller persists the mutated map. `now` is the timestamp
+source, invoked once per journaled entry.
+
+Proceed in these stages, and keep every collection deterministic and ordered as
+described so the walk order is stable.
+
+**1. Find the missing tracked files.** The tracked set is every key of the map's
+`files`, in sorted order. A tracked file is missing when its path, resolved
+against `root`, does not exist (via `fsutil_io::exists`). Collect the missing
+files in sorted order. If none are missing, return an empty `Vec` immediately: no
+map mutation, no journal write.
+
+**2. Collect the untracked candidate pool per target.** The target set is the
+`target` of every tracked file record, in sorted order. For each target in order:
+resolve its adapter with `get_adapter`; if that fails, skip the target. Form the
+target directory by joining `paths.src_dir` with the target name; if it does not
+exist, skip the target. Build a `SnapshotFilter` from the adapter's four
+`attribution_exclude_*` lists with `make_filter`, then take `snapshot_hashes` and
+`snapshot_contents` of the target directory. Walk the hash map in order; for each
+absolute path and hash, compute its path relative to `root` with `rel_to`; skip it
+if that relative path is in the tracked set; otherwise it is an untracked
+candidate, a `MoveCandidate` whose `path` is the relative path, `hash` is the hash,
+and `content` is the matching entry from the contents map (the empty string when
+absent). Keep the candidates for each target in hash-map (sorted absolute path)
+order.
+
+**3. Decide each missing file.** Keep a claimed set of new paths already taken by
+an earlier heal, starting empty. For each missing file `old` in order: look up its
+file record in the map's `files`; skip it if absent. Its target is the record's
+`target` and its old hash is the record's `hash`. Its baseline is
+`reconstruct_file_content(journal, old)`, or the empty string when that is `None`.
+Its candidate pool is the untracked candidates collected for its target (an empty
+pool when the target had none). Call `move_verdict(old, target, old_hash, baseline,
+&candidates, &claimed)`:
+
+- `Ambiguous(message)`: return `Err(message)` at once. Do not mutate the map and do
+  not write any journal entry.
+- `Clean(new_path)`: add `new_path` to the claimed set and record a `HealedMove`
+  with this `old`, this `new_path`, this target, and `drifted` false.
+- `Drifted(new_path)`: add `new_path` to the claimed set and record a `HealedMove`
+  with this `old`, this `new_path`, this target, and `drifted` true.
+- `NoMatch`: record nothing and move on.
+
+If no heals were recorded, return an empty `Vec`.
+
+**4. Apply each heal to the map and the journal.** Start the gen counter at
+`next_gen_number(journal)`. For each recorded heal in order:
+
+- Before mutating the map, read the heal's old file record (by its `old_path`): its
+  module is that record's first prompt when it has one, otherwise the heal's
+  `new_path`; its hash-before is that record's `hash` as `Some`, or `None` when the
+  record is gone.
+- Read the new file's current content from disk (join `root` with `new_path`),
+  propagating any I/O error as its display string, and hash it with `content_hash`
+  for the hash-after.
+- Rewrite the map: remove the file record stored under `old_path` and, when it
+  existed, reinsert it under `new_path`; then, in every prompt's every target
+  record, replace any `files` entry equal to `old_path` with `new_path`.
+- If the heal is not drifted, set the new file's mode to `READONLY_MODE` with
+  `set_mode`, propagating any I/O error as its display string.
+- Build a `JournalEntry`: `gen` is the current counter; `timestamp` is `now()`;
+  `module` and `target` as above; `prompt_hash` and `prompt_diff` are empty;
+  `mode` is `JournalMode::Move`; `files` is a single `JournalFile` whose `path` is
+  `new_path`, whose `patch` is the exact string `moved {old_path} -> {new_path}`,
+  whose `hash_before` is the hash-before, and whose `hash_after` is the hash-after.
+- Append the entry to `paths.journal_path` with `append_journal_entry`, propagating
+  any error, then increment the gen counter.
+
+Return the recorded heals.

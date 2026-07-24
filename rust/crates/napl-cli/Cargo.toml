@@ -42,6 +42,7 @@ paths_walk = { path = "../../../selfhost/.napl/src/rust/paths_walk" }
 snapshot_io = { path = "../../../selfhost/.napl/src/rust/snapshot_io" }
 statusclass_io = { path = "../../../selfhost/.napl/src/rust/statusclass_io" }
 driftdetect_io = { path = "../../../selfhost/.napl/src/rust/driftdetect_io" }
+healing_io = { path = "../../../selfhost/.napl/src/rust/healing_io" }
 
 [lints]
 workspace = true

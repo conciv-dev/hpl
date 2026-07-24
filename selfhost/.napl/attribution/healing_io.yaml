@@ -1,0 +1,427 @@
+module: healing_io
+target: rust
+entries:
+  - promptLines:
+      - 3
+      - 14
+    file: healing_io/src/lib.rs
+    lines:
+      - 2
+      - 10
+    note: module doc describing move-healing shell
+  - promptLines:
+      - 94
+      - 99
+    file: healing_io/src/lib.rs
+    lines:
+      - 26
+      - 31
+    note: HealedMove record with old_path/new_path/target/drifted
+  - promptLines:
+      - 101
+      - 103
+    file: healing_io/src/lib.rs
+    lines:
+      - 24
+      - 25
+    note: "doc: drifted means content also changed"
+  - promptLines:
+      - 105
+      - 112
+    file: healing_io/src/lib.rs
+    lines:
+      - 38
+      - 44
+    note: heal_moved_files signature returning Result<Vec<HealedMove>, String>
+  - promptLines:
+      - 109
+      - 112
+    file: healing_io/src/lib.rs
+    lines:
+      - 33
+      - 37
+    note: "doc: mutates map, appends journal entry per heal, now invoked per entry"
+  - promptLines:
+      - 117
+      - 118
+    file: healing_io/src/lib.rs
+    lines:
+      - 45
+      - 45
+    note: tracked set = sorted keys of map.files
+  - promptLines:
+      - 118
+      - 120
+    file: healing_io/src/lib.rs
+    lines:
+      - 46
+      - 50
+    note: missing = tracked paths that don't exist under root
+  - promptLines:
+      - 120
+      - 121
+    file: healing_io/src/lib.rs
+    lines:
+      - 51
+      - 53
+    note: early return empty Vec when nothing missing
+  - promptLines:
+      - 123
+      - 135
+    file: healing_io/src/lib.rs
+    lines:
+      - 55
+      - 55
+    note: collect untracked candidate pool per target
+  - promptLines:
+      - 136
+      - 152
+    file: healing_io/src/lib.rs
+    lines:
+      - 56
+      - 56
+    note: decide verdict for each missing file
+  - promptLines:
+      - 154
+      - 154
+    file: healing_io/src/lib.rs
+    lines:
+      - 57
+      - 59
+    note: no heals recorded → empty Vec
+  - promptLines:
+      - 156
+      - 179
+    file: healing_io/src/lib.rs
+    lines:
+      - 61
+      - 62
+    note: apply heals to map/journal then return them
+  - promptLines:
+      - 123
+      - 124
+    file: healing_io/src/lib.rs
+    lines:
+      - 73
+      - 77
+    note: target set = sorted targets of tracked file records
+  - promptLines:
+      - 134
+      - 135
+    file: healing_io/src/lib.rs
+    lines:
+      - 65
+      - 72
+    note: pools keyed by target, sorted-absolute-path order
+  - promptLines:
+      - 125
+      - 125
+    file: healing_io/src/lib.rs
+    lines:
+      - 80
+      - 83
+    note: resolve adapter, skip target on failure
+  - promptLines:
+      - 125
+      - 127
+    file: healing_io/src/lib.rs
+    lines:
+      - 84
+      - 87
+    note: join src_dir with target name, skip if missing
+  - promptLines:
+      - 127
+      - 128
+    file: healing_io/src/lib.rs
+    lines:
+      - 89
+      - 94
+    note: build SnapshotFilter from adapter's four exclude lists
+  - promptLines:
+      - 128
+      - 129
+    file: healing_io/src/lib.rs
+    lines:
+      - 95
+      - 96
+    note: snapshot hashes and contents of target dir
+  - promptLines:
+      - 129
+      - 130
+    file: healing_io/src/lib.rs
+    lines:
+      - 99
+      - 100
+    note: walk hash map in order, relativize abs path via rel_to
+  - promptLines:
+      - 130
+      - 131
+    file: healing_io/src/lib.rs
+    lines:
+      - 101
+      - 103
+    note: skip paths already tracked
+  - promptLines:
+      - 131
+      - 134
+    file: healing_io/src/lib.rs
+    lines:
+      - 104
+      - 108
+    note: MoveCandidate from rel path, hash, content (empty when absent)
+  - promptLines:
+      - 134
+      - 135
+    file: healing_io/src/lib.rs
+    lines:
+      - 110
+      - 112
+    note: store pool under target
+  - promptLines:
+      - 136
+      - 138
+    file: healing_io/src/lib.rs
+    lines:
+      - 115
+      - 122
+    note: decide_heals threads claimed set across missing files
+  - promptLines:
+      - 136
+      - 137
+    file: healing_io/src/lib.rs
+    lines:
+      - 125
+      - 125
+    note: claimed set starts empty
+  - promptLines:
+      - 138
+      - 139
+    file: healing_io/src/lib.rs
+    lines:
+      - 128
+      - 131
+    note: iterate missing in order, skip when record absent
+  - promptLines:
+      - 140
+      - 141
+    file: healing_io/src/lib.rs
+    lines:
+      - 132
+      - 132
+    note: baseline via reconstruct_file_content, empty on None
+  - promptLines:
+      - 142
+      - 143
+    file: healing_io/src/lib.rs
+    lines:
+      - 123
+      - 123
+    note: empty pool constant for targets with no candidates
+  - promptLines:
+      - 142
+      - 143
+    file: healing_io/src/lib.rs
+    lines:
+      - 133
+      - 136
+    note: candidate pool for the record's target, empty fallback
+  - promptLines:
+      - 143
+      - 144
+    file: healing_io/src/lib.rs
+    lines:
+      - 138
+      - 138
+    note: call move_verdict with old, target, hash, baseline, pool, claimed
+  - promptLines:
+      - 146
+      - 147
+    file: healing_io/src/lib.rs
+    lines:
+      - 140
+      - 140
+    note: Ambiguous → return Err(message) immediately
+  - promptLines:
+      - 148
+      - 149
+    file: healing_io/src/lib.rs
+    lines:
+      - 141
+      - 141
+    note: Clean → drifted false
+  - promptLines:
+      - 150
+      - 151
+    file: healing_io/src/lib.rs
+    lines:
+      - 142
+      - 142
+    note: Drifted → drifted true
+  - promptLines:
+      - 152
+      - 152
+    file: healing_io/src/lib.rs
+    lines:
+      - 143
+      - 143
+    note: NoMatch → skip
+  - promptLines:
+      - 148
+      - 151
+    file: healing_io/src/lib.rs
+    lines:
+      - 146
+      - 152
+    note: claim new path and record the HealedMove
+  - promptLines:
+      - 156
+      - 157
+    file: healing_io/src/lib.rs
+    lines:
+      - 158
+      - 166
+    note: apply_heals starts gen counter at next_gen_number(journal)
+  - promptLines:
+      - 157
+      - 157
+    file: healing_io/src/lib.rs
+    lines:
+      - 168
+      - 168
+    note: iterate recorded heals in order
+  - promptLines:
+      - 159
+      - 161
+    file: healing_io/src/lib.rs
+    lines:
+      - 169
+      - 172
+    note: module = record's first prompt else new_path
+  - promptLines:
+      - 161
+      - 162
+    file: healing_io/src/lib.rs
+    lines:
+      - 173
+      - 173
+    note: hash_before = record hash as Some, None when gone
+  - promptLines:
+      - 163
+      - 165
+    file: healing_io/src/lib.rs
+    lines:
+      - 175
+      - 177
+    note: read new file content, propagate io error string, hash for hash_after
+  - promptLines:
+      - 166
+      - 168
+    file: healing_io/src/lib.rs
+    lines:
+      - 179
+      - 179
+    note: rewrite map paths
+  - promptLines:
+      - 169
+      - 170
+    file: healing_io/src/lib.rs
+    lines:
+      - 181
+      - 183
+    note: relock non-drifted file with READONLY_MODE
+  - promptLines:
+      - 171
+      - 175
+    file: healing_io/src/lib.rs
+    lines:
+      - 185
+      - 199
+    note: build move JournalEntry with empty prompt hash/diff and one JournalFile
+  - promptLines:
+      - 174
+      - 174
+    file: healing_io/src/lib.rs
+    lines:
+      - 195
+      - 195
+    note: patch string 'moved {old} -> {new}'
+  - promptLines:
+      - 176
+      - 177
+    file: healing_io/src/lib.rs
+    lines:
+      - 200
+      - 201
+    note: append entry to journal, then bump gen
+  - promptLines:
+      - 166
+      - 168
+    file: healing_io/src/lib.rs
+    lines:
+      - 206
+      - 211
+    note: remove old file record, reinsert under new path when present
+  - promptLines:
+      - 167
+      - 168
+    file: healing_io/src/lib.rs
+    lines:
+      - 213
+      - 229
+    note: repoint every prompt target record's files entry from old to new
+  - promptLines:
+      - 86
+      - 88
+    file: healing_io/src/lib.rs
+    lines:
+      - 236
+      - 236
+    note: test-only OrderedMap dependency for building NaplMap
+  - promptLines:
+      - 117
+      - 121
+    file: healing_io/src/lib.rs
+    lines:
+      - 328
+      - 339
+    note: "test: nothing missing → no heals, no journal"
+  - promptLines:
+      - 148
+      - 149
+    file: healing_io/src/lib.rs
+    lines:
+      - 341
+      - 403
+    note: "test: clean move rewrites map, relocks, journals entry bytes"
+  - promptLines:
+      - 150
+      - 151
+    file: healing_io/src/lib.rs
+    lines:
+      - 405
+      - 449
+    note: "test: drifted move heals path, stays writable, gen continues"
+  - promptLines:
+      - 152
+      - 154
+    file: healing_io/src/lib.rs
+    lines:
+      - 451
+      - 467
+    note: "test: NoMatch heals nothing"
+  - promptLines:
+      - 146
+      - 147
+    file: healing_io/src/lib.rs
+    lines:
+      - 469
+      - 489
+    note: "test: ambiguous errors without touching map or journal"
+  - promptLines:
+      - 136
+      - 137
+    file: healing_io/src/lib.rs
+    lines:
+      - 491
+      - 500
+    note: "test: two moves claim distinct candidates, gens in order"

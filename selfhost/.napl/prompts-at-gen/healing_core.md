@@ -1,0 +1,118 @@
+# The move-match verdict: healing decisions without any I/O
+
+When the module map records a generated file at a path that no longer exists on
+disk, a hand `mv` or an editor rename most likely relocated it. The toolchain
+heals rather than reporting a false deletion: it finds the untracked file that
+carries the moved content and rewrites the path in the map. This module is the
+**pure decision** at the heart of that heal. Given one lost file and the pool of
+untracked candidate files in its target, it decides whether the move is a clean
+relocation, a moved-and-drifted file, no move at all, or an ambiguous case that
+must be refused. It is pure: no filesystem, no process spawning, no environment.
+The I/O shell walks the filesystem, reconstructs baselines, reads hashes, and
+mutates the map and journal around this verdict.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain. Leave it alone. Create this module as its own member
+crate in a subdirectory named `healing_core/`: `healing_core/Cargo.toml` (package
+name `healing_core`) and `healing_core/src/lib.rs`. Touch nothing outside
+`healing_core/`. Ensure `cargo test` passes from the workspace root before
+finishing.
+
+## Builds on the `text_diff` module of this workspace
+
+- **`text_diff`** (`../text_diff`): exposes `to_lines(text: &str) -> Vec<String>`,
+  which splits text into lines by stripping a single trailing line terminator and
+  then splitting on newlines (normalizing away a carriage return on each line).
+  Use its public API for the line split. Do not reimplement its logic, and do not
+  depend on any hand-written crate. The similarity threshold is byte-sensitive, so
+  the line split must be exactly the one `to_lines` performs.
+
+## `lcs_len(a: &[String], b: &[String]) -> usize`
+
+The length of the longest common subsequence of two slices of lines, comparing
+lines by value. When either slice is empty the result is 0. This is the classic
+longest-common-subsequence length computed with a rolling two-row table so it uses
+memory proportional to the shorter dimension, but only the returned length is
+observable. Examples: two identical three-line slices give 3; `["a", "b", "c"]`
+against `["a", "c"]` gives 2; anything against an empty slice gives 0; two slices
+with no shared line give 0.
+
+## Line similarity (internal)
+
+A private helper decides whether two file contents are line-similar at a threshold
+of at least 50 percent: the longest common subsequence of their lines covers at
+least half of the longer file. Split both `before` and `current` into lines with
+`text_diff::to_lines`. Let `denom` be the larger of the two line counts. If
+`denom` is 0 (both are empty) the two are similar. Otherwise they are similar when
+`lcs_len(before_lines, current_lines) * 2 >= denom`. Keep this as integer
+arithmetic so the threshold is exact; do not convert to floating point.
+
+## The candidate and the verdict
+
+A candidate is one untracked file that might be where the lost file moved to:
+
+    pub struct MoveCandidate {
+        pub path: String,
+        pub hash: String,
+        pub content: String,
+    }
+
+`path` is the candidate's path (as the shell keys it), `hash` is its content hash,
+and `content` is its current bytes. The verdict is one of four outcomes:
+
+    pub enum MoveVerdict {
+        Clean(String),
+        Drifted(String),
+        NoMatch,
+        Ambiguous(String),
+    }
+
+`Clean(new_path)` is an exact-content relocation: the file moved unchanged and the
+shell relocks it. `Drifted(new_path)` is a moved-and-drifted file: the content
+also changed, so the shell heals the path and lets the normal drift machinery
+report the change. `NoMatch` means no candidate is the move. `Ambiguous(message)`
+means the move cannot be decided without guessing, and `message` is the exact
+error text the shell surfaces.
+
+## `move_verdict(old_path, target, old_hash, baseline, candidates, claimed) -> MoveVerdict`
+
+`move_verdict(old_path: &str, target: &str, old_hash: &str, baseline: &str,
+candidates: &[MoveCandidate], claimed: &std::collections::BTreeSet<String>) ->
+MoveVerdict`. Decide the fate of the lost file `old_path` (which belongs to
+`target`, had content hash `old_hash`, and whose last-generated baseline content
+is `baseline`) against the ordered `candidates` pool, ignoring any candidate whose
+`path` is in `claimed` (already taken by an earlier heal). Decide in two passes,
+exact first, and preserve the candidate order throughout.
+
+**Exact pass.** Collect, in order, every candidate whose `hash` equals `old_hash`
+and whose `path` is not in `claimed`.
+
+- If more than one qualifies, the move is `Ambiguous`. Its message is:
+
+      cannot heal moved file '{old_path}' ({target}): {count} untracked files have identical content ({list}). Rename or remove the duplicate so the move is unambiguous.
+
+  where `{count}` is the number of exact matches and `{list}` is their paths
+  joined by `, ` (a comma and a space) in candidate order.
+- If exactly one qualifies, the move is `Clean` carrying that candidate's `path`.
+- If none qualifies, fall through to the similar pass.
+
+**Similar pass.** Collect, in order, every candidate whose `path` is not in
+`claimed` and whose `content` is line-similar to `baseline` (per the helper
+above).
+
+- If more than one qualifies, the move is `Ambiguous`. Its message is:
+
+      cannot heal moved file '{old_path}' ({target}): {count} untracked files are similar candidates ({list}). Rename or remove the duplicate so the move is unambiguous.
+
+  where `{count}` is the number of similar matches and `{list}` is their paths
+  joined by `, ` in candidate order.
+- If exactly one qualifies, the move is `Drifted` carrying that candidate's
+  `path`.
+- If none qualifies, the move is `NoMatch`.
+
+The two messages differ only in the phrase `have identical content` versus `are
+similar candidates`; both are byte-load-bearing and the conformance suite pins the
+identical-content form. A clean exact match always wins over similarity: the
+similar pass runs only when the exact pass found nothing.

@@ -15,8 +15,6 @@ use napl_core::schemas::{JournalEntry, NaplMap};
 
 use crate::error::{CliError, CliResult};
 
-pub use driftdetect_replay::reconstruct_file_content;
-
 /// Detect drifted, attributed files for a target, mirroring `detectGenDrift`.
 pub fn detect_gen_drift(
     root: &Path,
@@ -33,6 +31,7 @@ pub fn detect_gen_drift(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use driftdetect_replay::reconstruct_file_content;
     use napl_core::schemas::{JournalFile, JournalMode};
 
     fn entry(gen: i64, patch: &str) -> JournalEntry {

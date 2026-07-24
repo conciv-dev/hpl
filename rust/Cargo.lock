@@ -472,6 +472,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "healing_core"
+version = "0.1.0"
+dependencies = [
+ "text_diff",
+]
+
+[[package]]
+name = "healing_io"
+version = "0.1.0"
+dependencies = [
+ "driftdetect_replay",
+ "fsutil_io",
+ "hash",
+ "healing_core",
+ "paths_core",
+ "schemas_journal",
+ "schemas_map",
+ "snapshot_filter",
+ "snapshot_io",
+ "state_io",
+ "targets",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -628,6 +652,7 @@ dependencies = [
  "gen_classify",
  "gen_mode",
  "gen_prompt_diff",
+ "healing_io",
  "napl-core",
  "napl-lsp",
  "notify",

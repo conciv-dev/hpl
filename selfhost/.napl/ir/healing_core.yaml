@@ -1,0 +1,76 @@
+module: healing_core
+deps:
+  - text_diff
+types:
+  - name: MoveCandidate
+    description: "One untracked file that might be the destination of a moved file. Fields: \"path\" (string, the candidate's path as keyed by the shell), \"hash\" (string, content hash), \"content\" (string, current bytes). All fields public."
+  - name: MoveVerdict
+    description: 'Four-way outcome of a move decision. Variants: "Clean(new_path)" — exact-content relocation, shell relocks at new_path; "Drifted(new_path)" — moved and content changed, shell heals path and lets drift machinery report; "NoMatch" — no candidate is the move; "Ambiguous(message)" — undecidable, message is the exact error text the shell surfaces. Comparable for equality and printable for debugging.'
+functions:
+  - name: lcs_len
+    signature: "lcs_len(a: list<string>, b: list<string>) -> nonnegative integer"
+    behavior: Returns the length of the longest common subsequence of two line sequences, comparing lines by value. Returns 0 when either sequence is empty. Result is symmetric in its arguments. Only the length is observable; the table representation is not part of the contract, though memory is proportional to the shorter dimension.
+  - name: is_similar (internal helper, not exported)
+    signature: "is_similar(before: string, current: string) -> boolean"
+    behavior: Splits both inputs into lines using text_diff::to_lines (single trailing terminator stripped, split on newlines, carriage return normalized away). Let denom be the larger line count. If denom is 0 both are considered similar. Otherwise similar iff lcs_len(before_lines, current_lines) * 2 >= denom. Exact integer arithmetic; no floating point. Threshold is at least 50 percent of the longer file.
+  - name: move_verdict
+    signature: "move_verdict(old_path: string, target: string, old_hash: string, baseline: string, candidates: ordered list<MoveCandidate>, claimed: sorted set<string>) -> MoveVerdict"
+    behavior: "Pure decision — no filesystem, process, or environment access. Decides the fate of lost file old_path (belonging to target, prior content hash old_hash, last-generated baseline content baseline) against the ordered candidates pool, skipping any candidate whose path is in claimed. Two passes, preserving candidate order. Exact pass: collect available candidates whose hash equals old_hash; exactly one gives Clean(that path); more than one gives Ambiguous with message \"cannot heal moved file '{old_path}' ({target}): {count} untracked files have identical content ({list}). Rename or remove the duplicate so the move is unambiguous.\" where list is the matched paths joined by \", \" in candidate order; none falls through. Similar pass: collect available candidates whose content is line-similar to baseline; exactly one gives Drifted(that path); more than one gives Ambiguous with the same message except the phrase \"are similar candidates\"; none gives NoMatch. An exact match always wins over similarity — the similar pass runs only when the exact pass found nothing. Message texts are byte-load-bearing."
+tests:
+  - name: lcs_of_identical_slices_is_the_length
+    given: Two identical three-line sequences ["a", "b", "c"].
+    expect: lcs_len returns 3.
+  - name: lcs_skips_missing_lines
+    given: '["a", "b", "c"] against ["a", "c"], and the reversed argument order.'
+    expect: lcs_len returns 2 in both directions.
+  - name: lcs_with_an_empty_slice_is_zero
+    given: '["a"] against empty, empty against ["a"], and empty against empty.'
+    expect: lcs_len returns 0 in every case.
+  - name: lcs_with_nothing_shared_is_zero
+    given: '["a", "b"] against ["x", "y", "z"] with no shared line.'
+    expect: lcs_len returns 0.
+  - name: lcs_respects_subsequence_order
+    given: '["a", "b", "c"] against ["c", "b", "a"].'
+    expect: lcs_len returns 1.
+  - name: empty_contents_are_similar
+    given: Both before and current are the empty string.
+    expect: The similarity helper reports similar.
+  - name: similarity_is_at_least_half_of_the_longer_file
+    given: '"a\nb\nc\nd\n" versus "a\nb\n" (2 shared of 4 lines, exactly half), and "a\nb\nc\nd\ne\n" versus "a\nb\n" (2 shared of 5, below half).'
+    expect: Similar in the first case, not similar in the second.
+  - name: similarity_ignores_carriage_returns_like_to_lines
+    given: '"a\r\nb\r\n" versus "a\nb\n".'
+    expect: Reported similar, since the line split normalizes carriage returns.
+  - name: a_single_exact_hash_match_is_clean
+    given: Candidates [("src/other.rs", "hash-other", "other"), ("src/moved.rs", "hash-old", "same")], old_hash "hash-old", baseline "same", no claimed paths.
+    expect: Clean("src/moved.rs").
+  - name: exact_match_wins_over_similarity
+    given: Candidates [("src/similar.rs", "hash-similar", "a\nb\nc\n"), ("src/exact.rs", "hash-old", "a\nb\nc\n")] where both are similar to the baseline but only one hash matches.
+    expect: Clean("src/exact.rs") — the exact pass short-circuits the similar pass.
+  - name: duplicate_exact_matches_are_ambiguous
+    given: Candidates [("src/b.rs", "hash-old", "same"), ("src/a.rs", "hash-old", "same")], old_path "src/old.rs", target "rust".
+    expect: "Ambiguous(\"cannot heal moved file 'src/old.rs' (rust): 2 untracked files have identical content (src/b.rs, src/a.rs). Rename or remove the duplicate so the move is unambiguous.\")."
+  - name: a_single_similar_candidate_is_drifted
+    given: Baseline "a\nb\nc\nd\n" and candidates [("src/far.rs", "hash-far", "x\ny\nz\nw\n"), ("src/near.rs", "hash-near", "a\nb\nc\nd2\n")], no hash matches.
+    expect: Drifted("src/near.rs").
+  - name: duplicate_similar_candidates_are_ambiguous
+    given: Baseline "a\nb\nc\nd\n" and two similar candidates [("src/one.rs", "h1", "a\nb\nc\nd1\n"), ("src/two.rs", "h2", "a\nb\nc\nd2\n")], no hash matches.
+    expect: "Ambiguous(\"cannot heal moved file 'src/old.rs' (rust): 2 untracked files are similar candidates (src/one.rs, src/two.rs). Rename or remove the duplicate so the move is unambiguous.\")."
+  - name: no_candidate_matches
+    given: Baseline "a\nb\nc\nd\n" and a single candidate ("src/far.rs", "hash-far", "x\ny\nz\nw\n") that neither hash-matches nor is similar.
+    expect: NoMatch.
+  - name: an_empty_pool_is_no_match
+    given: An empty candidate list.
+    expect: NoMatch.
+  - name: claimed_candidates_are_skipped_in_the_exact_pass
+    given: Two candidates both hashing to "hash-old", with "src/taken.rs" in the claimed set.
+    expect: Clean("src/free.rs") rather than Ambiguous.
+  - name: claimed_candidates_are_skipped_in_the_similar_pass
+    given: Two similar candidates with non-matching hashes, with "src/taken.rs" in the claimed set.
+    expect: Drifted("src/free.rs") rather than Ambiguous.
+  - name: the_ambiguous_list_preserves_candidate_order
+    given: Three exact-hash candidates in the order z.rs, m.rs, a.rs.
+    expect: The ambiguous message contains "3 untracked files have identical content (z.rs, m.rs, a.rs)" — candidate order, not sorted order.
+  - name: an_empty_baseline_is_similar_only_to_empty_content
+    given: Empty baseline and one candidate ("src/empty.rs", "h", "") with a non-matching hash.
+    expect: Drifted("src/empty.rs") — both line counts are 0, so they count as similar.

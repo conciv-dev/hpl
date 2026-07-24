@@ -1,0 +1,52 @@
+module: healing_io
+deps:
+  - healing_core
+  - hash
+  - schemas_journal
+  - schemas_map
+  - targets
+  - snapshot_filter
+  - snapshot_io
+  - driftdetect_replay
+  - fsutil_io
+  - paths_core
+  - state_io
+  - schemas_ordered_map
+types:
+  - name: HealedMove
+    description: "Record of one tracked file healed from a lost path to a found path. Fields: old_path (string, the path the map tracked), new_path (string, the untracked path that carried the content), target (string, the target the file belongs to), drifted (boolean, true when the content also changed and the match was by similarity rather than exact hash)."
+functions:
+  - name: heal_moved_files
+    signature: "heal_moved_files(root: Path, paths: NaplPaths, map: mutable NaplMap, journal: list of JournalEntry, now: function() -> string) -> Result<list of HealedMove, string>"
+    behavior: "Heals every tracked file the map lost to a move, mutating the map in place and appending one `move` journal entry per heal; returns the heals applied. Precondition: `map` is the module map to mutate; the caller persists it. `now` supplies the timestamp and is invoked exactly once per journaled entry. Errors are returned as the bare message string.\nStage 1 — missing set: the tracked set is every key of map.files in sorted order; a tracked file is missing when its path resolved against `root` does not exist. Missing files are processed in sorted order. If none are missing, returns an empty list with no map mutation and no journal write.\nStage 2 — candidate pools: the target set is the `target` of every tracked file record, in sorted order. Per target: resolve its adapter, skipping the target if resolution fails; form the target directory by joining paths.src_dir with the target name, skipping the target if it does not exist; build a snapshot filter from the adapter's four attribution_exclude_* lists; take the hash and content snapshots of that directory. Walking the hash snapshot in sorted-absolute-path order, each path is rendered relative to `root` in posix form; a relative path already in the tracked set is skipped, otherwise it becomes an untracked candidate with that relative path, its hash, and its content from the contents snapshot (empty string when absent). Candidate order per target is sorted-absolute-path order.\nStage 3 — verdicts: a claimed set of already-taken new paths starts empty. For each missing path in order: look up its file record, skipping when absent; its target and old hash come from the record; its baseline is the journal-replayed reconstruction of that path, or the empty string when the journal has no history; its pool is the candidates for its target, empty when the target has none. The pure move verdict is consulted with (old path, target, old hash, baseline, pool, claimed). Ambiguous returns the carried message as an error immediately, with no map mutation and no journal write. Clean records a non-drifted heal and claims the new path. Drifted records a drifted heal and claims the new path. NoMatch records nothing. If no heals were recorded, returns an empty list.\nStage 4 — apply: the gen counter starts at the journal's next gen number. For each heal in order, before mutating the map: the module is the old record's first prompt when it has one, otherwise the heal's new path; the hash-before is the old record's hash as present, or absent when the record is gone. The new file's current content is read from root joined with new_path (I/O errors propagate as their display string) and hashed for the hash-after. The map is rewritten: the file record under old_path is removed and, when it existed, reinserted under new_path; then every prompt's every target record has each `files` entry equal to old_path replaced with new_path. When the heal is not drifted, the new file's mode is set to the read-only mode (I/O errors propagate as their display string); a drifted heal is left writable. A journal entry is built with the current gen, the timestamp from `now()`, the module and target above, empty prompt_hash and prompt_diff, mode `Move`, and a single file entry whose path is new_path, whose patch is exactly \"moved {old_path} -> {new_path}\", with the hash-before and hash-after above. The entry is appended to paths.journal_path (errors propagate) and the gen counter increments. Postcondition: returns the recorded heals in processing order."
+tests:
+  - name: nothing_missing_heals_nothing
+    given: A project root where the single tracked rust file exists on disk at its recorded path with its recorded content hash.
+    expect: No heals are returned and no journal file is created.
+  - name: clean_move_rewrites_map_relocks_and_journals
+    given: A map tracking one rust file at path A with prompt "m.napl" and a prompt record listing A; A is absent from disk and an untracked file at path B holds exactly A's content; an empty journal.
+    expect: One non-drifted heal from A to B under target "rust"; the map no longer has A, has B with the unchanged content hash, and the prompt's rust target lists B; the file at B is set to the read-only mode; one journal entry with gen 1, the supplied timestamp, module "m.napl", target "rust", empty prompt_hash and prompt_diff, mode Move, and a single file entry at path B with patch "moved A -> B", hash_before the content hash, hash_after the same hash.
+  - name: drifted_move_heals_the_path_and_leaves_the_file_writable
+    given: A map tracking one rust file at path A whose recorded content is a four-line body; A is absent and untracked file B holds the same body with its last line changed; the journal carries a prior full entry for A at gen 7 whose patch reconstructs the old body.
+    expect: One drifted heal from A to B; the map tracks B; B stays writable (not relocked); one journal entry at gen 8 whose hash_after is the hash of B's current content and whose hash_before is the hash of the old body.
+  - name: no_matching_candidate_heals_nothing
+    given: A map tracking one rust file at path A whose content is absent from disk, and an untracked file B whose content is wholly unrelated.
+    expect: No heals; the map still tracks A; no journal file is created.
+  - name: ambiguous_move_errors_without_touching_map_or_journal
+    given: A map tracking one rust file at path A, absent from disk, while two untracked files B and C both hold exactly A's content.
+    expect: An error carrying the ambiguity message naming A, its target, the count of identical untracked files and their paths in order, exactly as produced by the pure verdict; the map still tracks A and no journal file is created.
+  - name: two_moves_claim_distinct_candidates_and_number_gens_in_order
+    given: A map tracking two rust files A/one.rs (prompt "one.napl") and A/two.rs (prompt "two.napl"), both absent; untracked files Z/one.rs and Z/two.rs hold their respective contents; an empty journal.
+    expect: Two heals in sorted missing-path order — A/one.rs to Z/one.rs then A/two.rs to Z/two.rs — and two journal entries at gens 1 and 2 with modules "one.napl" and "two.napl" respectively.
+  - name: a_tracked_candidate_is_never_a_move_target
+    given: A map tracking two rust files A and B with identical content, where only B exists on disk, so the sole file carrying A's content is itself tracked.
+    expect: No heals are returned.
+  - name: a_record_without_prompts_journals_the_new_path_as_its_module
+    given: A map tracking one rust file at A with an empty prompts list; A is absent and untracked file B holds A's content.
+    expect: The journaled entry's module is the new path B.
+  - name: an_unknown_target_is_skipped
+    given: A map tracking one file at A under a target with no adapter, absent from disk, while an untracked file under that target's directory holds its content.
+    expect: No heals are returned; the target contributes no candidate pool.
+  - name: an_excluded_file_is_not_a_candidate
+    given: A map tracking one rust file at A whose content also sits at the target root's Cargo.toml, which the rust adapter's exclusion rules drop from the snapshot; A is absent from disk.
+    expect: No heals are returned.

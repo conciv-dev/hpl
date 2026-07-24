@@ -721,6 +721,38 @@
           ]
         }
       }
+    },
+    "healing_core": {
+      "module": "healing_core",
+      "promptHash": "d0a978d55bd63feca520daaa2833d21b18cdbd0b2b54d958b3840ee1a8171635",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "d0a978d55bd63feca520daaa2833d21b18cdbd0b2b54d958b3840ee1a8171635",
+          "files": [
+            ".napl/src/rust/healing_core/Cargo.toml",
+            ".napl/src/rust/healing_core/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "healing_io": {
+      "module": "healing_io",
+      "promptHash": "00eb11c2c5a45571b7989bf093290764d065b79279c33edce212288048c99692",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "00eb11c2c5a45571b7989bf093290764d065b79279c33edce212288048c99692",
+          "files": [
+            ".napl/src/rust/healing_io/Cargo.toml",
+            ".napl/src/rust/healing_io/src/lib.rs"
+          ]
+        }
+      }
     }
   },
   "files": {
@@ -1353,6 +1385,34 @@
       "hash": "cd895caf8a7367cd031dd6bc56128f309d7ceb0fff6ed609ca58cc47b157e6df",
       "prompts": [
         "process_run"
+      ]
+    },
+    ".napl/src/rust/healing_core/Cargo.toml": {
+      "target": "rust",
+      "hash": "fff62cec01614e1171eb4ce33ffa10df5c768ffd55e2e60ed705f0a125e65a46",
+      "prompts": [
+        "healing_core"
+      ]
+    },
+    ".napl/src/rust/healing_core/src/lib.rs": {
+      "target": "rust",
+      "hash": "96adfd69a06492f0c67c91f1952a41d0d1c5b67e9fedc9a426ce42007ae526c3",
+      "prompts": [
+        "healing_core"
+      ]
+    },
+    ".napl/src/rust/healing_io/Cargo.toml": {
+      "target": "rust",
+      "hash": "c253c6f79170da4ce07e5486a37457e6d17070fb47c046a517ab3495a2b87473",
+      "prompts": [
+        "healing_io"
+      ]
+    },
+    ".napl/src/rust/healing_io/src/lib.rs": {
+      "target": "rust",
+      "hash": "e259ab118138ebba1cb45215ee1ab4da2b946e2329bb2a34712bd1c27ce6fc49",
+      "prompts": [
+        "healing_io"
       ]
     }
   }
