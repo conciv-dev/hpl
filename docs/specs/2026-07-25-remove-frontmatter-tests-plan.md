@@ -1,6 +1,6 @@
 # Removing tests from frontmatter: the prompt is the prompt
 
-Date: 2026-07-25. Status: DRAFT rev 2, after one adversarial review round (gpt-5.6-sol: 2 critical, 5 high, 5 medium, verdict rethink; every finding addressed below). Planned only, nothing scheduled, no implementation until approved and sequenced.
+Date: 2026-07-25. Status: DRAFT rev 3, after two adversarial review rounds (gpt-5.6-sol r1: 2 critical, 5 high, 5 medium, rethink; r2: 11 of 12 resolved, 1 high 1 medium 1 low remaining, sound with fixes; all applied below). Planned only, nothing scheduled, no implementation until approved and sequenced.
 
 ## The problem
 
@@ -42,7 +42,7 @@ The sanctioned corpus is immutable for the duration of code attempts: the code-w
 
 ### Execution model (what "runs" means)
 
-The corpus is target-neutral given/expect data, same execution contract as today's frontmatter tests: the code-writing agent materializes each case as a native test in the generated workspace, and a toolchain validator enforces one-to-one correspondence between sanctioned cases and materialized native tests (case id embedded in the test name, checked mechanically like the attribution gate). `napl test` then runs the materialized native tests directly: no inference, no network, deterministic, target-specific execution through the existing cargo/vitest harnesses. Sanctioned-case failures are distinguished from unrelated project test failures by the case-id naming contract, with distinct exit classes and byte-pinned diagnostics for conformance. Stale, absent, corrupt, or newer-schema corpus files are hard status errors with pinned messages.
+The corpus is given/expect data plus a per-target CALL BINDING derived and sanctioned with it: the entry function under test, the literal argument mapping, and the assertion form. From that, the TOOLCHAIN renders the native tests itself through a pinned per-target template: pure mechanical codegen, no agent anywhere in the projection. The code-writing agent never materializes tests; it receives the already-rendered tests read-only and makes them pass. This closes the r2 high finding properly: correspondence is not a name check on agent-written tests (a correctly named test could still weaken its body); the toolchain wrote the bodies, so case-to-test fidelity holds by construction, and the validator's only job is byte-comparing the rendered files against the template output. `napl test` runs the rendered tests directly: no inference, no network, deterministic, target-specific execution through the existing cargo/vitest harnesses. Rendered-case failures are distinguished from unrelated project test failures by the render boundary (separate test files owned by the toolchain), with distinct exit classes and byte-pinned diagnostics for conformance. Stale, absent, corrupt, or newer-schema corpus files are hard status errors with pinned messages. A binding the template cannot render (an API shape outside the template grammar) fails the derivation phase loudly, before sanctioning, and is either a prose bug or a template-grammar gap to triage.
 
 ### Storage
 
@@ -50,7 +50,7 @@ The corpus is target-neutral given/expect data, same execution contract as today
 
 ### Amendment (narrow, visible, not a sibling corpus)
 
-Prose-first correction remains the primary lever: a missing case is a prose bug. But rev 1's absolute "no amendment channel" was too brittle for the real cases (a systematically missed stated case, a permanently pinned security regression, a target-specific representation prose cannot carry). The mechanism: a human may PIN an individual case into the sanctioned corpus through the same acceptance flow, with mandatory prompt-line provenance and a reason string; pinned cases are marked, surfaced by `napl status` as standing debt, and re-validated against derivation on every gen (a derivation that starts producing the pinned case clears the pin). No free-form sibling test files, ever.
+Prose-first correction remains the primary lever: a missing case is a prose bug. But rev 1's absolute "no amendment channel" was too brittle for the real cases (a systematically missed stated case, a permanently pinned security regression, a target-specific representation prose cannot carry). The mechanism: a human may PIN an individual case into the sanctioned corpus through the same acceptance flow, with mandatory prompt-line provenance and a reason string; pinned cases are marked, surfaced by `napl status` as standing debt, and re-validated against derivation on every gen. When a derivation starts producing a pinned case naturally, the pin is NOT cleared automatically (that would be an unsanctioned corpus change); the clearing appears as a proposed metadata diff in the same acceptance flow. No free-form sibling test files, ever.
 
 ### mapl and ambiguity
 
@@ -76,7 +76,7 @@ After rust-final and after the AST/docs feature ships, as prompt-only feature th
 
 ## Open questions for the maintainer
 
-1. Sanctioning UX: interactive accept inside `napl gen`, a separate `napl tests review` command, or both? Recommendation: both, the command being what CI and reviewers use.
+1. Sanctioning UX: interactive accept inside `napl gen`, a separate `napl tests review` command, or both? Recommendation: both. CI never accepts: it inspects and FAILS on pending proposals or pins past the cap; acceptance is exclusively a human, local act.
 2. Should the shadow phase's comparison report block at less than 100 percent existing-case coverage, or is a triaged allowlist acceptable during migration? Recommendation: 100 percent or triaged-with-reason, no silent gaps.
 3. Derivation backend: pinned to the project's lock.json agent, with provenance recorded and any backend change treated as a corpus-diff event to re-review. Confirm.
 4. Does the pin mechanism cap (a maximum pinned-case count per module before status escalates from note to warning)? Recommendation: yes, small, pins are debt.
