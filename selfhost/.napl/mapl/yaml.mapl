@@ -1,0 +1,23 @@
+module: yaml
+target: rust
+entries:
+  - promptLines:
+      - 20
+      - 22
+    kind: ambiguity
+    message: "'any hand-written crate' is a vague, oddly-placed restriction"
+    reasoning: 'The instruction to not "depend on any hand-written crate" is unclear in scope — the crate itself is hand-written (this whole module is authored by a coding agent from a prompt), and no other hand-written crates are mentioned anywhere else in the spec. The agent reasonably interpreted this as "only depend on the four listed sibling schema crates plus serde_json, nothing else," which is what it did (Cargo.toml deps not shown but code only imports the four schemas_* crates and serde_json).
+'
+    suggestion: Depend only on the four sibling crates listed below and serde_json — no other crates.
+  - promptLines:
+      - 81
+      - 87
+    kind: note
+    message: Asymmetric .inf/.nan sign-stripping rule was implemented literally, not smoothed over
+    reasoning: "The spec deliberately distinguishes: `.inf` variants are checked against the sign-stripped body, while `.nan` variants are checked against the whole original string `s` (no sign stripping) — per line 82's exact wording \"the whole string is .nan/.NaN/.NAN\". The agent preserved this asymmetry exactly (is_core_float checks `body == \".inf\"` but `s == \".nan\"`), which is easy to miss/normalize away by mistake. Confirms this subtle distinction was intentional and honored.\n"
+  - promptLines:
+      - 54
+      - 56
+    kind: ambiguity
+    message: Parenthetical '(there are none in this branch)' reads like a stray internal note
+    reasoning: Line 55's aside about apostrophe-doubling is inert given the branch precondition (no apostrophe in this branch by construction), so it can never fire. It's not wrong, just an unusual bit of self-referential commentary embedded in a spec line rather than an example or requirement. The agent implemented the doubling logic anyway (`s.replace('\'', "''")`) as dead-but-harmless code satisfying the literal instruction, which is the safe reading.

@@ -1,0 +1,22 @@
+module: schemas_journal
+target: rust
+entries:
+  - promptLines:
+      - 45
+      - 45
+    kind: note
+    message: '"an enum (Copy as well)" is an odd but unambiguous parenthetical.'
+    reasoning: "The phrase 'an enum (`Copy` as well)' reads like an aside/insertion rather than a normal requirement sentence, but its intent is clear: JournalMode should derive Copy in addition to the other listed traits. The agent correctly added `Copy` to the derive list alongside Debug, Clone, PartialEq, Eq, Serialize, Deserialize. Flagging only because the phrasing is unusually terse/parenthetical compared to the rest of the spec."
+    suggestion: "`JournalMode`: an enum, deriving `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Serialize`, `Deserialize`, with variants `Full`, `Incremental`, `Reconcile`, serialized in lowercase."
+  - promptLines:
+      - 22
+      - 23
+    kind: note
+    message: Aside about 'general guidance to avoid outside dependencies' is a self-referential policy note, not a spec requirement.
+    reasoning: Lines 22-23 justify why sibling crate path dependencies are allowed despite an unstated general policy against outside dependencies. This doesn't correspond to anything the agent needed to implement differently — it added `text_diff` and `blame` as path dependencies as instructed — but the phrasing refers to a rule not stated anywhere in this prompt, which is worth surfacing since it reads as boilerplate bleeding in from a template rather than module-specific guidance.
+  - promptLines:
+      - 78
+      - 82
+    kind: assumption
+    message: Warning message text is unpinned; agent chose its own wording.
+    reasoning: "The prompt explicitly says the warning text is not pinned, only that there's exactly one warning per skipped line. The agent used 'line {n}: {serde error}' for parse/deserialize failures and 'line {n}: journal entry failed validation' for validation failures. This is a reasonable, spec-compliant choice but is recorded since the exact wording was left to the implementer's discretion."

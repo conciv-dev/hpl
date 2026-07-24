@@ -428,3 +428,113 @@ behaviorally equivalent Rust on the first attempt each, across 72 new corpus cas
 (155 total). The decisive new evidence is compositional: the generated modules
 build on the *generated* wave-1 crates by path, expressed entirely in prompt prose,
 with no toolchain change and the conformance corpus byte-identical.
+
+## Scale-out — slice 4 (wave 3): `napl-core` FULLY SELF-HOSTS
+
+Slice 4 generates the four **wave-3** `napl-core` modules — the aggregates that
+compose over waves 1–2 — and with them **phase 1 is complete**. The entire pure
+crate now regenerates from prose: **23/23 modules, 189 equivalence cases green,
+escape-hatch list still empty, every module converged on attempt 1 of 3.**
+
+| Module | Builds on (generated crate) | Attempts | Equivalence |
+| --- | --- | ---: | --- |
+| `schemas::journal` | `blame` + `text_diff` | 1/3 | **8/8** |
+| `incremental` | `schemas_attribution` + `schemas_line_range` | 1/3 | **3/3** (2 corpus + 1 composition) |
+| `yaml` | `schemas_attribution` + `schemas_ir` + `schemas_ml` + `schemas_line_range` | 1/3 | **9/9** |
+| `prompts` | `schemas_attribution` + `schemas_frontmatter` + `schemas_line_range` + `targets` | 1/3 | **14/14** (7 corpus + 7 byte-exact pins) |
+
+The path-dep-in-prose idiom from slice 3 carried over verbatim: each wave-3 prompt
+names its sibling member crates (`../blame`, `../text_diff`,
+`../schemas_attribution`, `../targets`, …), states that the path-dep is a workspace
+sibling and not a crates.io dependency, and forbids reimplementing the sibling or
+depending on any hand-written crate. Every generated `Cargo.toml` carries the right
+path-deps and each `src/lib.rs` calls the sibling's public API —
+`schemas_journal` builds patches with `text_diff::unified_diff` and yields
+`blame::BlameSourceEntry`; `yaml` reads `schemas_ir::Ir`/`schemas_ml::Ml`/
+`schemas_attribution::Attribution` fields; `prompts` reads `targets::TargetAdapter`
+and `schemas_frontmatter::Frontmatter`. No toolchain change was required and the
+40-scenario conformance corpus stays byte-identical.
+
+### Byte-exact where the toolchain pins bytes
+
+Two wave-3 modules produce **byte-load-bearing** output, and their prompts pin it
+as output data (never as pasted source — the same discipline `drift`/`guard`/
+`targets` used for their user-facing strings):
+
+- **`yaml`** is a focused emitter matching `eemeli/yaml`'s block style; the corpus
+  pins its scalar-styling and whole-document bytes. The prompt describes the
+  plain/single/double scalar heuristics and the block-emission rules in prose and
+  gives the exact document goldens; the generated emitter reproduces every pinned
+  byte (attribution/IR/machine-layer documents included).
+- **`prompts`** builds the coding-agent tasks and the IR/attribution/machine-layer
+  derivation prompts. Its four system-prompt constants are load-bearing — the
+  conformance corpus asserts substrings and the fake backend routes on the
+  `intermediate representation` / `MACHINE LAYER` markers — so the prompt supplies
+  them verbatim inside four-backtick fences (to preserve the literal triple-backtick
+  ```` ```yaml ```` sequences) and describes each builder's line-by-line assembly.
+  The generated constants came out **byte-identical** to the hand-written ones, and
+  the equivalence gate pins them so — plus full byte-exact assertions on the six
+  adapter-independent builders — to guarantee stage1 swap-in safety beyond the
+  substring corpus.
+
+### `statusclass` / `classify` — left in their I/O phases
+
+Two pure-looking classifiers were weighed for pull-forward and **declined**: both
+`napl-cli/src/statusclass.rs` and `napl-lsp/src/classify.rs` drag I/O — their
+`detect_drift` reads generated files off disk — so the module as written is not
+behaviorally-unit self-hostable. `statusclass`'s two unit tests are pure render
+(`StatusEntry::line`, `is_error`); `classify` has no unit tests. They stay in
+phases 2 and 3; the map records the split-first path by which the pure render slice
+could be pulled forward later.
+
+### Escape-hatch list
+
+Still **empty** — 23/23 modules across all three waves converged on attempt 1.
+
+### Phase 1 complete — the stage1 swap-in plan
+
+`napl-core` now has a complete generated twin: every module of the hand-written
+pure crate has a behaviorally-equivalent generated crate under
+`selfhost/.napl/src/rust/`, each gated by that module's exact unit corpus in the
+shared harness. **Stage1** is the toolchain built with those generated crates in
+place of the hand-written `napl-core` modules — same public API, corpus as gate.
+The plan:
+
+1. **Assemble a stage1 `napl-core`.** Behind the crate's existing public surface
+   (`lib.rs` re-exports), route each module to its generated crate. Two shapes:
+   the mechanical one is to make `napl-core` depend on the generated member crates
+   by path and re-export their items under the current module paths (`pub use
+   yaml_gen as yaml`, etc.); the cleaner long-run one is to promote the generated
+   `.napl/src/rust/` workspace to *be* `napl-core`'s modules. Start mechanical —
+   it is reversible and keeps the diff auditable.
+2. **Reconcile the API seams the equivalence gate already mapped.** The harness
+   documented every behavioral-but-not-type-identical divergence: each generated
+   schema crate surfaces its **own** error enum (`FrontmatterError`,
+   `AttributionError`, `MlError`, `IrValidationError`, a `String` journal-parse
+   error) where hand-written `napl-core` shares one `SchemaError`; a few names and
+   numeric/ownership types differ (`scan` vs `scan_document`, `Option<u64>` vs
+   `Option<usize>`). Stage1 needs a thin adapter layer at the `napl-cli`/`napl-lsp`
+   boundary that maps these to the callers' expected shapes — or those errors get
+   unified in the prompts. This adapter is the real remaining engineering, and the
+   equivalence tests are its spec.
+3. **Gate stage1 on the full corpus, then on conformance.** Stage1 is accepted only
+   when (a) every module's unit corpus passes against the swapped-in code — already
+   true, that is what the harness proves — and (b) the 40-scenario conformance suite
+   stays byte-identical with the stage1 binary driving it. Conformance is the CLI's
+   observable contract; passing it byte-for-byte with generated `napl-core` inside
+   is the phase-1 fixpoint demonstrated end to end.
+4. **Then phases 2–3.** With a stage1 core proven, the I/O crates (`napl-cli`
+   `cmd_*`/`fsutil`/`process`, `napl-lsp` server) become the next frontier, gated by
+   conformance and the LSP integration suite rather than unit vectors. `cmd_gen`
+   self-hosting is the true fixpoint — the generator regenerating itself.
+
+### Verdict
+
+Phase 1 is done. Four more behavior-only prompts — including the byte-exact
+`eemeli/yaml` emitter and the 523-LOC `prompts` builder whose four system-prompt
+constants came out byte-identical — drove stage0 to behaviorally equivalent Rust on
+the first attempt each, across 34 new corpus cases (189 total). Every module of the
+pure `napl-core` crate now self-hosts, composed on generated siblings by path, with
+no toolchain change and conformance byte-identical. What remains is the stage1
+swap-in (a bounded adapter layer the equivalence gate already specifies) and the
+I/O phases.

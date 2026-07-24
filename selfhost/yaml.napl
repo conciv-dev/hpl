@@ -1,0 +1,206 @@
+---
+module: yaml
+deps: [schemas_attribution, schemas_ir, schemas_ml, schemas_line_range]
+targets: [rust]
+tests:
+  - name: plain scalars stay plain and unquoted
+    given: { scalars: ["Returns the string Hello, name!", "nothing to add", "it's fine", "state the exact emphasis, e.g. all caps", "yes", "colon:nospace", "on", "Off", "no"] }
+    expect: { plain: true }
+  - name: strings needing quoting are double-quoted
+    given: { scalars: ["greet(name: string): string", "#leadinghash", " leadingspace", "trailingspace ", "true", "123", "null", "a: b", "has # hash", "- dashlead", "end colon:", "1.5", "0x10", ".inf", "~", "only ' apostrophe: with colon"] }
+    expect: { double_quoted: true }
+  - name: a plain-rejected string with a double quote and no apostrophe is single-quoted
+    given: { scalar: "\"loudly\" is vague" }
+    expect: { emitted: "'\"loudly\" is vague'" }
+  - name: the empty string is double-quoted
+    given: { scalar: "" }
+    expect: { emitted: "\"\"" }
+  - name: attribution serializes to its pinned block bytes
+    given: { doc: attribution }
+    expect: { bytes: "module: greeting\ntarget: typescript\nentries:\n  - promptLines:\n      - 1\n      - 1\n    file: greet.ts\n    lines:\n      - 1\n      - 1\n    note: builds the greeting string\n" }
+  - name: IR serializes to its pinned block bytes with empty collections inline
+    given: { doc: ir }
+    expect: { bytes: "module: greeting\ndeps: []\ntypes: []\nfunctions:\n  - name: greet\n    signature: \"greet(name: string): string\"\n    behavior: Returns the string Hello, name!\ntests: []\n" }
+  - name: an empty machine layer serializes with inline empty entries
+    given: { doc: ml_empty }
+    expect: { bytes: "module: greeting\ntarget: typescript\nentries: []\n" }
+  - name: a machine layer with entries serializes to its pinned block bytes
+    given: { doc: ml_entries }
+    expect: { bytes: "module: greeting\ntarget: typescript\nentries:\n  - promptLines:\n      - 1\n      - 1\n    kind: ambiguity\n    message: '\"loudly\" is vague'\n    reasoning: unclear whether to uppercase, add punctuation, or both\n    suggestion: state the exact emphasis, e.g. all caps\n  - promptLines:\n      - 1\n      - 1\n    kind: no-op\n    message: requirement already satisfied by existing code\n    reasoning: the greeting is already emphatic enough; no edit was needed\n" }
+---
+# A focused YAML emitter matching `eemeli/yaml` block style
+
+This module renders NAPL's on-disk documents (attribution, IR, machine-layer) as
+YAML **byte-for-byte identical** to what the JavaScript `yaml` package
+(`eemeli/yaml`) `stringify` produces for these document shapes. The exact bytes
+are load-bearing — the corpus pins them — so reproduce the block style and scalar
+heuristics precisely. It is pure: no I/O. Bring in `serde_json`.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `yaml/`: `yaml/Cargo.toml` (package name `yaml`)
+and `yaml/src/lib.rs`. Touch nothing outside `yaml/`. Ensure `cargo test` passes
+from the workspace root before finishing.
+
+## Builds on four modules of this workspace
+
+Each is a sibling member crate generated into this same workspace. Add a path
+dependency on each in your `Cargo.toml` (workspace siblings, not external
+crates.io dependencies), read their public fields to drive serialization, and do
+**not** reimplement them or depend on any hand-written crate.
+
+- **`schemas_line_range`** (`../schemas_line_range`): `LineRange`, an inclusive
+  1-based range with public `start`/`end` fields (`u32`).
+- **`schemas_attribution`** (`../schemas_attribution`): `Attribution` with public
+  fields `module: String`, `target: String`, `entries: Vec<AttributionEntry>`;
+  and `AttributionEntry` with public `prompt_lines: LineRange`, `file: String`,
+  `lines: LineRange`, `note: String`.
+- **`schemas_ir`** (`../schemas_ir`): `Ir` with public `module: String`,
+  `deps: Vec<String>`, `types: Vec<IrType>`, `functions: Vec<IrFunction>`,
+  `tests: Vec<IrTest>`; `IrType` with public `name`/`description`; `IrFunction`
+  with public `name`/`signature`/`behavior`; `IrTest` with public `name` and
+  `given`/`expect` (each a `serde_json::Value`).
+- **`schemas_ml`** (`../schemas_ml`): `Ml` with public `module: String`,
+  `target: String`, `entries: Vec<MlEntry>`; `MlEntry` with public
+  `prompt_lines: LineRange`, `kind: MlKind`, `message: String`,
+  `reasoning: String`, `suggestion: Option<String>`; and `MlKind` with variants
+  `Ambiguity`, `Assumption`, `Note`, `NoOp`.
+
+## The value model
+
+Expose a public enum `Yaml` (`Debug`, `Clone`, `PartialEq`) with variants:
+`Null`, `Bool(bool)`, `Int(i64)`, `Float(f64)`, `Str(String)`, `Seq(Vec<Yaml>)`,
+and `Map(Vec<(String, Yaml)>)` (a mapping whose key insertion order is preserved).
+
+## Scalar rendering
+
+A **string scalar** renders as follows:
+
+- The empty string renders as `""` (two double quotes).
+- If the string is *plain-representable* (rules below), it renders verbatim, with
+  no quoting.
+- Otherwise, if it contains a double-quote character and no apostrophe, it renders
+  single-quoted: wrap in `'…'`, doubling any apostrophe (there are none in this
+  branch). So `"loudly" is vague` → `'"loudly" is vague'`.
+- Otherwise it renders double-quoted: wrap in `"…"`, escaping `"`→`\"`, `\`→`\\`,
+  newline→`\n`, tab→`\t`, carriage-return→`\r`; other characters pass through.
+
+A non-empty string is **plain-representable** only when ALL of these hold:
+
+- Its first and last characters are not whitespace.
+- It contains no newline and no control character (a control character is any
+  codepoint below `0x20` other than newline, or the codepoint `0x7f`).
+- Its first character is none of these indicators:
+  `,` `[` `]` `{` `}` `#` `&` `*` `!` `|` `>` `'` `"` `%` `@` `` ` ``.
+- If its first character is `-`, `?`, or `:`, it has a second character and that
+  second character is not a space. (So `-`, `- x`, `: `, etc. are not plain, but
+  `colon:nospace` is — the leading char is a letter.)
+- It does not contain `": "` (colon followed by space), does not end with `:`, and
+  does not contain `" #"` (space followed by hash).
+- It does not resolve as a non-string core-schema value (rule below).
+
+A string **resolves as a non-string** when it is exactly one of the null/boolean
+literals `null`, `Null`, `NULL`, `~`, `true`, `True`, `TRUE`, `false`, `False`,
+`FALSE`; OR it parses as a **core integer**; OR it parses as a **core float**:
+
+- **Core integer**: after stripping a single leading `+` or `-`: a `0x` prefix
+  followed by one or more ASCII hex digits; or a `0o` prefix followed by one or
+  more octal digits (`0`–`7`); or one or more ASCII decimal digits.
+- **Core float**: after stripping a single leading `+` or `-`, the body is
+  `.inf`/`.Inf`/`.INF`, or the whole string is `.nan`/`.NaN`/`.NAN`; otherwise
+  split the body on `e`/`E` into a mantissa and optional exponent — the mantissa
+  must contain a `.` with all-digit (possibly empty) integer and fraction parts
+  and at least one digit overall (a body with no `.` is an integer, not a float),
+  and if an exponent is present it must be one or more digits after an optional
+  sign.
+
+So `yes`, `on`, `Off`, `no`, `it's fine`, `colon:nospace`, and
+`Returns the string Hello, name!` stay plain; while `true`, `123`, `null`, `~`,
+`1.5`, `0x10`, `.inf`, `greet(name: string): string`, `a: b`, `has # hash`,
+`- dashlead`, `end colon:`, `#leadinghash`, `" leadingspace"`,
+`"trailingspace "`, and `only ' apostrophe: with colon` are double-quoted.
+
+A **non-string** scalar renders as: `Null` → `null`; `Bool` → `true`/`false`;
+`Int` → its decimal form; `Float` → its Rust `f64` `to_string` form.
+
+## Document rendering
+
+`to_yaml_document(node: &Yaml) -> String` renders a whole document in block style
+with a trailing newline (`\n`). Build the body as a list of lines joined by `\n`,
+then append one `\n`.
+
+- A **non-empty map** renders as block entries at indent 0. An **empty map**
+  renders inline as `{}`. A **non-empty sequence** renders as block items at
+  indent 0. An **empty sequence** renders inline as `[]`. Any other node (a
+  scalar) renders as its single scalar line.
+
+Block **map** emission at a given indent, for each `(key, value)` in order (the
+key rendered as a string scalar by the rules above):
+
+- If the value is a non-empty sequence: emit `{indent}{key}:` then the sequence as
+  a block indented by `indent + 2`.
+- If the value is a non-empty map: emit `{indent}{key}:` then the map as a block
+  indented by `indent + 2`.
+- Otherwise emit `{indent}{key}: {scalar}` on one line, where an empty sequence
+  value is `[]`, an empty map value is `{}`, and any other value is its scalar
+  rendering.
+
+Block **sequence** emission at a given indent, for each item in order:
+
+- If the item is a non-empty map: emit the map as a block at `indent + 2`, then
+  turn its first line into a `- ` item — the first emitted line is
+  `{indent}- {firstLineWithoutItsLeadingIndentOfIndent+2}` and the remaining
+  lines follow unchanged.
+- If the item is a non-empty sequence: emit `{indent}-` then the inner sequence as
+  a block at `indent + 2`.
+- Otherwise emit `{indent}- {scalar}` (empty sequence → `[]`, empty map → `{}`,
+  else the scalar rendering).
+
+Indentation is spaces; each nesting level adds 2.
+
+## Document serializers
+
+`line_range(range: LineRange) -> Yaml` builds `Seq[Int(start), Int(end)]` (each
+endpoint as an `Int`).
+
+`attribution_to_yaml(attribution: &Attribution) -> String` renders the document
+`Map` with keys in this order: `module` (string), `target` (string), `entries`
+(a sequence; each entry is a `Map` with keys `promptLines` = `line_range(prompt_lines)`,
+`file` = string, `lines` = `line_range(lines)`, `note` = string). It produces
+exactly, for module `greeting`, target `typescript`, and one entry (promptLines
+`[1,1]`, file `greet.ts`, lines `[1,1]`, note `builds the greeting string`):
+
+```
+module: greeting
+target: typescript
+entries:
+  - promptLines:
+      - 1
+      - 1
+    file: greet.ts
+    lines:
+      - 1
+      - 1
+    note: builds the greeting string
+```
+
+`ml_to_yaml(ml: &Ml) -> String` renders a `Map` with keys `module`, `target`,
+`entries`. Each entry is a `Map` with keys, in order: `promptLines` =
+`line_range(prompt_lines)`, `kind` = the kind string (`Ambiguity`→`ambiguity`,
+`Assumption`→`assumption`, `Note`→`note`, `NoOp`→`no-op`), `message`,
+`reasoning`, and — only when `suggestion` is `Some` — `suggestion`. An empty
+entries list renders as `entries: []`.
+
+`ir_to_yaml(ir: &Ir) -> String` renders a `Map` with keys, in order: `module`
+(string), `deps` (a sequence of strings), `types` (a sequence of `Map`s with
+`name`, `description`), `functions` (a sequence of `Map`s with `name`,
+`signature`, `behavior`), and `tests` (a sequence of `Map`s with `name`, `given`,
+`expect`, where `given`/`expect` are each a `serde_json::Value` converted to
+`Yaml` by the rule below). Empty sequences render inline as `[]`.
+
+`json_to_yaml(value: &serde_json::Value) -> Yaml` converts a JSON value: JSON
+null → `Null`; bool → `Bool`; a number that is an exact `i64` → `Int`, else
+`Float` (of its `f64`); string → `Str`; array → `Seq` of converted items; object
+→ `Map` of converted entries preserving key order.

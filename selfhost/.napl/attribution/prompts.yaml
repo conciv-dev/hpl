@@ -1,0 +1,451 @@
+module: prompts
+target: rust
+entries:
+  - promptLines:
+      - 53
+      - 56
+    file: prompts/src/lib.rs
+    lines:
+      - 9
+      - 15
+    note: last_chars unicode-safe truncation helper
+  - promptLines:
+      - 43
+      - 44
+    file: prompts/src/lib.rs
+    lines:
+      - 17
+      - 21
+    note: DepSummary struct
+  - promptLines:
+      - 45
+      - 47
+    file: prompts/src/lib.rs
+    lines:
+      - 23
+      - 29
+    note: IncrementalTaskInput struct
+  - promptLines:
+      - 48
+      - 49
+    file: prompts/src/lib.rs
+    lines:
+      - 31
+      - 35
+    note: ReconcileFile struct
+  - promptLines:
+      - 85
+      - 85
+    file: prompts/src/lib.rs
+    lines:
+      - 37
+      - 47
+    note: shared failure block builder
+  - promptLines:
+      - 60
+      - 60
+    file: prompts/src/lib.rs
+    lines:
+      - 49
+      - 56
+    note: build_agent_task signature and line accumulator
+  - promptLines:
+      - 64
+      - 64
+    file: prompts/src/lib.rs
+    lines:
+      - 58
+      - 61
+    note: line 1 of agent task
+  - promptLines:
+      - 65
+      - 65
+    file: prompts/src/lib.rs
+    lines:
+      - 62
+      - 65
+    note: line 2 of agent task
+  - promptLines:
+      - 66
+      - 66
+    file: prompts/src/lib.rs
+    lines:
+      - 66
+      - 69
+    note: line 3 of agent task
+  - promptLines:
+      - 67
+      - 67
+    file: prompts/src/lib.rs
+    lines:
+      - 70
+      - 70
+    note: empty line
+  - promptLines:
+      - 68
+      - 69
+    file: prompts/src/lib.rs
+    lines:
+      - 71
+      - 72
+    note: idiom guidance lines
+  - promptLines:
+      - 70
+      - 70
+    file: prompts/src/lib.rs
+    lines:
+      - 73
+      - 73
+    note: empty line
+  - promptLines:
+      - 71
+      - 71
+    file: prompts/src/lib.rs
+    lines:
+      - 74
+      - 74
+    note: module line
+  - promptLines:
+      - 72
+      - 72
+    file: prompts/src/lib.rs
+    lines:
+      - 76
+      - 81
+    note: declared dependencies line, conditional
+  - promptLines:
+      - 73
+      - 73
+    file: prompts/src/lib.rs
+    lines:
+      - 83
+      - 89
+    note: other modules context block
+  - promptLines:
+      - 74
+      - 78
+    file: prompts/src/lib.rs
+    lines:
+      - 91
+      - 95
+    note: specification block wrapped in triple quotes
+  - promptLines:
+      - 79
+      - 79
+    file: prompts/src/lib.rs
+    lines:
+      - 96
+      - 96
+    note: empty line
+  - promptLines:
+      - 80
+      - 84
+    file: prompts/src/lib.rs
+    lines:
+      - 97
+      - 107
+    note: requirements lines
+  - promptLines:
+      - 85
+      - 85
+    file: prompts/src/lib.rs
+    lines:
+      - 109
+      - 111
+    note: append failure block conditionally
+  - promptLines:
+      - 61
+      - 61
+    file: prompts/src/lib.rs
+    lines:
+      - 113
+      - 113
+    note: join lines with newline
+  - promptLines:
+      - 89
+      - 90
+    file: prompts/src/lib.rs
+    lines:
+      - 116
+      - 123
+    note: build_incremental_task signature and accumulator
+  - promptLines:
+      - 92
+      - 92
+    file: prompts/src/lib.rs
+    lines:
+      - 125
+      - 128
+    note: incremental task line 1
+  - promptLines:
+      - 93
+      - 93
+    file: prompts/src/lib.rs
+    lines:
+      - 129
+      - 132
+    note: incremental task line 2
+  - promptLines:
+      - 94
+      - 94
+    file: prompts/src/lib.rs
+    lines:
+      - 133
+      - 136
+    note: incremental task line 3
+  - promptLines:
+      - 95
+      - 95
+    file: prompts/src/lib.rs
+    lines:
+      - 137
+      - 140
+    note: incremental task line 4
+  - promptLines:
+      - 96
+      - 98
+    file: prompts/src/lib.rs
+    lines:
+      - 141
+      - 143
+    note: idiom guidance section
+  - promptLines:
+      - 99
+      - 103
+    file: prompts/src/lib.rs
+    lines:
+      - 144
+      - 148
+    note: diff fenced block
+  - promptLines:
+      - 104
+      - 104
+    file: prompts/src/lib.rs
+    lines:
+      - 150
+      - 168
+    note: intersecting entries owned code regions block
+  - promptLines:
+      - 105
+      - 105
+    file: prompts/src/lib.rs
+    lines:
+      - 170
+      - 176
+    note: owned files block
+  - promptLines:
+      - 106
+      - 110
+    file: prompts/src/lib.rs
+    lines:
+      - 178
+      - 182
+    note: full current prompt body block
+  - promptLines:
+      - 111
+      - 116
+    file: prompts/src/lib.rs
+    lines:
+      - 183
+      - 197
+    note: requirements lines for incremental task
+  - promptLines:
+      - 117
+      - 117
+    file: prompts/src/lib.rs
+    lines:
+      - 199
+      - 201
+    note: append failure block conditionally
+  - promptLines:
+      - 121
+      - 122
+    file: prompts/src/lib.rs
+    lines:
+      - 206
+      - 212
+    note: build_reconcile_task signature and accumulator
+  - promptLines:
+      - 124
+      - 124
+    file: prompts/src/lib.rs
+    lines:
+      - 214
+      - 216
+    note: reconcile task line 1
+  - promptLines:
+      - 125
+      - 125
+    file: prompts/src/lib.rs
+    lines:
+      - 217
+      - 220
+    note: reconcile task line 2
+  - promptLines:
+      - 126
+      - 126
+    file: prompts/src/lib.rs
+    lines:
+      - 221
+      - 224
+    note: reconcile task line 3
+  - promptLines:
+      - 127
+      - 127
+    file: prompts/src/lib.rs
+    lines:
+      - 225
+      - 228
+    note: reconcile task line 4
+  - promptLines:
+      - 129
+      - 129
+    file: prompts/src/lib.rs
+    lines:
+      - 230
+      - 230
+    note: prompt file to amend line
+  - promptLines:
+      - 131
+      - 134
+    file: prompts/src/lib.rs
+    lines:
+      - 232
+      - 235
+    note: current prompt body block
+  - promptLines:
+      - 136
+      - 137
+    file: prompts/src/lib.rs
+    lines:
+      - 237
+      - 244
+    note: per-file observed source edits diff blocks
+  - promptLines:
+      - 139
+      - 143
+    file: prompts/src/lib.rs
+    lines:
+      - 246
+      - 263
+    note: reconcile requirements lines
+  - promptLines:
+      - 147
+      - 147
+    file: prompts/src/lib.rs
+    lines:
+      - 268
+      - 269
+    note: build_change_required_retry signature and base_task line
+  - promptLines:
+      - 151
+      - 155
+    file: prompts/src/lib.rs
+    lines:
+      - 270
+      - 282
+    note: change-required escalation lines
+  - promptLines:
+      - 159
+      - 162
+    file: prompts/src/lib.rs
+    lines:
+      - 286
+      - 299
+    note: build_ir_derivation_user assembly
+  - promptLines:
+      - 164
+      - 167
+    file: prompts/src/lib.rs
+    lines:
+      - 301
+      - 312
+    note: build_attribution_user assembly
+  - promptLines:
+      - 169
+      - 171
+    file: prompts/src/lib.rs
+    lines:
+      - 314
+      - 324
+    note: build_attribution_repair truncation of previous output
+  - promptLines:
+      - 172
+      - 177
+    file: prompts/src/lib.rs
+    lines:
+      - 325
+      - 341
+    note: build_attribution_repair fixed prose lines
+  - promptLines:
+      - 179
+      - 180
+    file: prompts/src/lib.rs
+    lines:
+      - 344
+      - 355
+    note: build_ml_derivation_user output truncation and fallback
+  - promptLines:
+      - 181
+      - 186
+    file: prompts/src/lib.rs
+    lines:
+      - 357
+      - 372
+    note: build_ml_derivation_user assembly
+  - promptLines:
+      - 195
+      - 210
+    file: prompts/src/lib.rs
+    lines:
+      - 375
+      - 375
+    note: IR_DERIVATION_SYSTEM constant literal
+  - promptLines:
+      - 212
+      - 229
+    file: prompts/src/lib.rs
+    lines:
+      - 377
+      - 377
+    note: ATTRIBUTION_SYSTEM constant literal
+  - promptLines:
+      - 231
+      - 263
+    file: prompts/src/lib.rs
+    lines:
+      - 379
+      - 379
+    note: ML_DERIVATION_SYSTEM constant literal
+  - promptLines:
+      - 265
+      - 268
+    file: prompts/src/lib.rs
+    lines:
+      - 381
+      - 381
+    note: YAML_STRICTNESS constant literal
+  - promptLines:
+      - 43
+      - 44
+    file: prompts/src/lib.rs
+    lines:
+      - 17
+      - 17
+    note: DepSummary derive attributes
+  - promptLines:
+      - 45
+      - 45
+    file: prompts/src/lib.rs
+    lines:
+      - 23
+      - 23
+    note: IncrementalTaskInput derive attributes
+  - promptLines:
+      - 48
+      - 48
+    file: prompts/src/lib.rs
+    lines:
+      - 31
+      - 31
+    note: ReconcileFile derive attributes

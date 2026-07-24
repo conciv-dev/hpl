@@ -1,0 +1,123 @@
+module: incremental
+target: rust
+entries:
+  - promptLines:
+      - 35
+      - 37
+    file: incremental/src/lib.rs
+    lines:
+      - 15
+      - 20
+    note: BodyLineDiff struct definition
+  - promptLines:
+      - 42
+      - 43
+    file: incremental/src/lib.rs
+    lines:
+      - 22
+      - 26
+    note: split lines on \n, strip trailing \r
+  - promptLines:
+      - 44
+      - 50
+    file: incremental/src/lib.rs
+    lines:
+      - 28
+      - 88
+    note: LCS table and op building with delete-preference on ties
+  - promptLines:
+      - 51
+      - 51
+    file: incremental/src/lib.rs
+    lines:
+      - 160
+      - 166
+    note: changed_old_lines from deletions
+  - promptLines:
+      - 52
+      - 52
+    file: incremental/src/lib.rs
+    lines:
+      - 167
+      - 173
+    note: changed_new_lines from insertions
+  - promptLines:
+      - 53
+      - 55
+    file: incremental/src/lib.rs
+    lines:
+      - 90
+      - 110
+    note: hunk grouping with 3-line context
+  - promptLines:
+      - 56
+      - 59
+    file: incremental/src/lib.rs
+    lines:
+      - 112
+      - 149
+    note: hunk header rendering with old/new start+count
+  - promptLines:
+      - 60
+      - 62
+    file: incremental/src/lib.rs
+    lines:
+      - 130
+      - 152
+    note: per-op line rendering, joined with newline
+  - promptLines:
+      - 39
+      - 41
+    file: incremental/src/lib.rs
+    lines:
+      - 155
+      - 187
+    note: diff_body_lines entry point assembling BodyLineDiff
+  - promptLines:
+      - 63
+      - 66
+    file: incremental/src/lib.rs
+    lines:
+      - 250
+      - 260
+    note: test for greet sentence unified diff example
+  - promptLines:
+      - 70
+      - 73
+    file: incremental/src/lib.rs
+    lines:
+      - 189
+      - 203
+    note: select_intersecting_entries implementation
+  - promptLines:
+      - 77
+      - 81
+    file: incremental/src/lib.rs
+    lines:
+      - 205
+      - 217
+    note: incremental_unlock_list implementation
+  - promptLines:
+      - 24
+      - 26
+    file: incremental/src/lib.rs
+    lines:
+      - 222
+      - 222
+    note: uses schemas_line_range::LineRange
+  - promptLines:
+      - 27
+      - 31
+    file: incremental/src/lib.rs
+    lines:
+      - 3
+      - 3
+    note: uses schemas_attribution::AttributionEntry
+  - promptLines:
+      - 27
+      - 31
+    file: incremental/src/lib.rs
+    lines:
+      - 224
+      - 231
+    note: test helper building AttributionEntry

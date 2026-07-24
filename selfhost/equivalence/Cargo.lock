@@ -71,12 +71,15 @@ dependencies = [
  "extensions",
  "guard",
  "hash",
+ "incremental",
  "parse_output",
+ "prompts",
  "reverse",
  "scanner",
  "schemas_attribution",
  "schemas_frontmatter",
  "schemas_ir",
+ "schemas_journal",
  "schemas_line_range",
  "schemas_lock",
  "schemas_map",
@@ -86,6 +89,7 @@ dependencies = [
  "serde_yaml",
  "targets",
  "text_diff",
+ "yaml",
 ]
 
 [[package]]
@@ -129,6 +133,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
+name = "incremental"
+version = "0.1.0"
+dependencies = [
+ "schemas_attribution",
+ "schemas_line_range",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -167,6 +179,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prompts"
+version = "0.1.0"
+dependencies = [
+ "schemas_attribution",
+ "schemas_frontmatter",
+ "schemas_line_range",
+ "targets",
 ]
 
 [[package]]
@@ -220,6 +242,16 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "schemas_journal"
+version = "0.1.0"
+dependencies = [
+ "blame",
+ "serde",
+ "serde_json",
+ "text_diff",
 ]
 
 [[package]]
@@ -373,6 +405,17 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "yaml"
+version = "0.1.0"
+dependencies = [
+ "schemas_attribution",
+ "schemas_ir",
+ "schemas_line_range",
+ "schemas_ml",
+ "serde_json",
+]
 
 [[package]]
 name = "zmij"

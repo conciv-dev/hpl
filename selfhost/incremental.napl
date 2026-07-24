@@ -1,0 +1,93 @@
+---
+module: incremental
+deps: [schemas_attribution, schemas_line_range]
+targets: [rust]
+tests:
+  - name: diffing two prompt bodies tracks the changed line and emits a unified diff
+    given: { old: "Greet a person by name.\\n", new: "Greet a person by name, loudly.\\n" }
+    expect: { unified_contains: ["-Greet a person by name.", "+Greet a person by name, loudly."], changed_old_lines: [1], changed_new_lines: [1] }
+  - name: the unlock list is sorted and deduplicated
+    given: { owned: [".napl/src/typescript/greet.ts"], intersecting: [], target_rel: ".napl/src/typescript" }
+    expect: { list: [".napl/src/typescript/greet.ts"] }
+---
+# Incremental regeneration: body-line diffing and the unlock list
+
+This module computes what an *incremental* (diff-scoped) regeneration must touch:
+it diffs two versions of a prompt body with per-line change tracking, selects the
+owned attribution regions that intersect the changed lines, and builds the sorted
+unlock list of files to reopen. It is pure: no I/O.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `incremental/`: `incremental/Cargo.toml` (package
+name `incremental`) and `incremental/src/lib.rs`. Touch nothing outside
+`incremental/`. Ensure `cargo test` passes from the workspace root before
+finishing.
+
+## Builds on two modules of this workspace
+
+Both are sibling member crates generated into this same workspace. Add a path
+dependency on each in your `Cargo.toml` (workspace siblings, not external
+crates.io dependencies), use their public API, and do **not** reimplement their
+logic or depend on any hand-written crate.
+
+- **`schemas_line_range`** (`../schemas_line_range`): exposes `LineRange`, an
+  inclusive 1-based range with public `start` and `end` fields (`u32`) and a
+  `new(start, end)` constructor.
+- **`schemas_attribution`** (`../schemas_attribution`): exposes
+  `AttributionEntry` (`Clone`), a mapping from prompt lines to code lines with
+  public fields `prompt_lines: LineRange`, `file: String`, `lines: LineRange`,
+  and `note: String`. This module reads `prompt_lines` and `file`, and returns
+  cloned `AttributionEntry` values.
+
+## The body-line diff
+
+Expose a public struct `BodyLineDiff` (`Debug`, `Clone`, `PartialEq`, `Eq`) with
+public fields `unified: String`, `changed_old_lines: Vec<usize>`, and
+`changed_new_lines: Vec<usize>`.
+
+`diff_body_lines(old_body: &str, new_body: &str) -> BodyLineDiff` computes a
+line-level diff between the two bodies:
+
+- Split each body into lines on `\n`, stripping a trailing `\r` from each line
+  (so `"a\nb\n"` splits into `["a", "b", ""]`).
+- Compute a longest-common-subsequence alignment of the two line sequences,
+  producing an ordered list of operations, each an **equal**, a **deletion** (a
+  line present only in the old body), or an **insertion** (a line present only in
+  the new body). Deletions carry a 1-based old-body line number; insertions carry
+  a 1-based new-body line number; equals carry both. When the choice between a
+  deletion and an insertion is free (neither extends the common subsequence
+  further), prefer the deletion.
+- `changed_old_lines` is the old-body line numbers of the deletions, in order.
+- `changed_new_lines` is the new-body line numbers of the insertions, in order.
+- `unified` is a unified diff of the two bodies with **3 lines of context**: group
+  the operations into hunks, where a hunk covers every operation within 3 of a
+  change; a purely-equal run wider than the context splits hunks. Each hunk begins
+  with a header `@@ -oldStart,oldCount +newStart,newCount @@`, where `oldStart`
+  and `oldCount` count the lines in the hunk present in the old body (equals and
+  deletions) and `newStart`/`newCount` those present in the new body (equals and
+  insertions); `oldStart`/`newStart` are the first such line number in the hunk,
+  or `0` if none. Under each header, one line per operation: a leading space then
+  the text for an equal, a leading `-` then the old text for a deletion, a leading
+  `+` then the new text for an insertion. Join all hunk lines with `\n` (no
+  trailing newline). So changing the sole body line from
+  `Greet a person by name.` to `Greet a person by name, loudly.` yields a unified
+  diff containing the lines `-Greet a person by name.` and
+  `+Greet a person by name, loudly.`.
+
+## Selecting the intersecting regions
+
+`select_intersecting_entries(entries: &[AttributionEntry], changed_old_lines: &[usize]) -> Vec<AttributionEntry>`:
+keep (cloned) every entry whose prompt range intersects the changed old lines —
+that is, some line in the inclusive range `prompt_lines.start ..= prompt_lines.end`
+(compared as `usize`) appears in `changed_old_lines`. Preserve input order.
+
+## The unlock list
+
+`incremental_unlock_list(owned_files: &[String], intersecting_entries: &[AttributionEntry], target_rel_to_root: &str) -> Vec<String>`:
+start from the owned files, then for each intersecting entry add the string
+`"{target_rel_to_root}/{file}"` (the entry's `file` joined under the target-
+relative directory with a `/`). Sort the resulting list and remove duplicates,
+returning the sorted, deduplicated vector.

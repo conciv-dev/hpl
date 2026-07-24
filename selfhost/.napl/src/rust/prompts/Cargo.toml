@@ -1,0 +1,10 @@
+[package]
+name = "prompts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemas_attribution = { path = "../schemas_attribution" }
+schemas_frontmatter = { path = "../schemas_frontmatter" }
+schemas_line_range = { path = "../schemas_line_range" }
+targets = { path = "../targets" }

@@ -1,0 +1,24 @@
+module: prompts
+deps:
+  - schemas_frontmatter
+  - schemas_line_range
+  - schemas_attribution
+  - targets
+types:
+  - name: DepSummary
+    description: "Structural record pairing a dependency module name with a short prose summary of it, used to give context about sibling modules when building a full-generation task prompt. Fields: module (string), summary (string). Equality/clone/debug supported.\n"
+  - name: IncrementalTaskInput
+    description: "Input bundle for building an incremental-update task prompt. Fields: module (string, the module name), diff (string, unified diff of the prompt body change), intersecting_entries (list of AttributionEntry identifying code regions that implement the changed prompt lines), owned_files (list of file paths owned by the module).\n"
+  - name: ReconcileFile
+    description: "Pairing of a source file path with a diff of hand-edits observed in it (baseline vs current), used when reconciling hand edits back into the prompt. Fields: file (string), diff (string). Equality/clone/debug supported.\n"
+functions:
+  - name: last_chars
+    signature: "last_chars(text: String, count: UnsignedInt) -> String"
+    behavior: "Returns the last `count` Unicode characters (scalar values, not bytes) of `text`. If `text` has `count` or fewer characters, returns `text` unchanged in full. Pure, no I/O.\n"
+  - name: build_agent_task
+    signature: "build_agent_task(adapter: TargetAdapter, frontmatter: Frontmatter, body: String, deps: List<DepSummary>, failure: Optional<String>) -> String"
+    behavior: "Assembles the full-generation coding-agent task prompt as newline-joined lines. Always includes: an intro naming frontmatter.module as the module being implemented as real runnable source code; a directive to write/edit files and scaffold the project; a statement that the prompt is the durable source of truth; a blank line; \"Target idiom guidance:\" followed by adapter.idiom_guidance verbatim; a blank line; \"Module: {frontmatter.module}\". If frontmatter.deps is non-empty, appends a line \"Declared dependencies: \" followed by the deps joined with \", \". If the `deps` parameter (DepSummary list) is non-empty, appends a blank line, a header line \"Other modules in this project (for context, do not reimplement them):\", then one \"- {module}: {summary}\" line per DepSummary, in input order. Then always: a blank line; \"Specification to implement (implement exactly this behavior):\"; a line of three double-quote characters; `body` trimmed of surrounding whitespace; another line of three double-quote characters; a blank line; \"Requirements:\"; a line requiring `adapter.test_command_label` to pass from the directory; a line requiring a real test suite covering the described behavior; a line requiring only functions/hooks, named exports, and no dead code; a line forbidding edits under node_modules in favor of the package manager. If `failure` is present, appends the failure block: a blank line, a line stating a previous attempt FAILED its tests and instructing to fix code/tests, a line about making the suite pass with test output following, a line of three backticks, the failure text trimmed and truncated to the last 6000 characters via last_chars, and a closing line of three backticks. Pure function; returns a single String with lines joined by \"\\n\". No trailing newline beyond what's implied by the joined lines.\n"
+  - name: build_incremental_task
+    signature: "build_incremental_task(adapter: TargetAdapter, frontmatter: Frontmatter, body: String, input: IncrementalTaskInput, failure: Optional<String>) -> String"
+    behavior: 'Assembles the incremental-update coding-agent task prompt as newline-joined lines. Always includes: an intro naming frontmatter.module as the module receiving an INCREMENTAL update; statements that the source already exists and passes tests, that the prompt (durable source of truth) has changed, and that edits must be minimal and not restructure untouched code or reformat unrelated files; a blank line; "Target idiom guidance:" followed by adapter.idiom_guidance; a blank line; "Unified diff of the prompt change (old vs new prompt body):"; a fenced-diff opening line ("'
+tests: []

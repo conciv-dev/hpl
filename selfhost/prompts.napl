@@ -1,0 +1,299 @@
+---
+module: prompts
+deps: [schemas_attribution, schemas_frontmatter, schemas_line_range, targets]
+targets: [rust]
+tests:
+  - name: the full-generation task names the module and embeds the spec
+    given: { module: greeting, body: "Greet a person by name." }
+    expect: { contains: ["implementing the module \"greeting\"", "Greet a person by name."], not_contains: ["INCREMENTAL update"] }
+  - name: a prior failure appends the failure block
+    given: { failure: "FAIL boom" }
+    expect: { contains: ["A previous attempt FAILED its tests.", "FAIL boom"] }
+  - name: the incremental task carries the diff and the intersecting region
+    given: { region: "greet.ts lines 1-1 note 'builds greeting'" }
+    expect: { contains: ["INCREMENTAL update", "-Greet a person by name.", "+Greet a person by name, loudly.", "greet.ts lines 1-1 — builds greeting"] }
+  - name: the reconcile task carries the prompt file, body, and per-file diff
+    given: { prompt_file: "examples/greeting.napl", file: ".napl/src/typescript/greet.ts" }
+    expect: { contains: ["reconciling hand edits", "Prompt file to amend: examples/greeting.napl", "=== FILE: .napl/src/typescript/greet.ts ===", "+HELLO", "NEVER touch the generated source"] }
+  - name: the change-required retry appends the critical escalation
+    given: { base: "BASE" }
+    expect: { starts_with: "BASE", contains: ["CRITICAL: A previous attempt made NO source changes"] }
+  - name: the derivation system prompts carry their routing markers
+    given: {}
+    expect: { ir_contains: "intermediate representation", ml_contains: "MACHINE LAYER", attribution_has_neither: true }
+  - name: the machine-layer user prompt marks NO CHANGES and empty output
+    given: { change_summary: "NO CHANGES", agent_output: "" }
+    expect: { contains: ["NO CHANGES", "(no output captured)"] }
+---
+# Coding-agent task and derivation-prompt builders
+
+This module builds the exact prompt strings the toolchain feeds to coding agents
+and to the IR / attribution / machine-layer derivation LLMs. **The exact text is
+load-bearing**: the conformance corpus asserts substrings of these strings, and a
+fake backend routes on markers inside the system prompts, so reproduce every
+literal byte, line break, and constant precisely. It is pure: no I/O — every
+function assembles and returns a `String` (or is a `&'static str` constant).
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `prompts/`: `prompts/Cargo.toml` (package name
+`prompts`) and `prompts/src/lib.rs`. Touch nothing outside `prompts/`. Ensure
+`cargo test` passes from the workspace root before finishing.
+
+## Builds on four modules of this workspace
+
+Each is a sibling member crate generated into this same workspace. Add a path
+dependency on each in your `Cargo.toml` (workspace siblings, not external
+crates.io dependencies), use their public API, and do **not** reimplement them or
+depend on any hand-written crate.
+
+- **`schemas_frontmatter`** (`../schemas_frontmatter`): `Frontmatter` with public
+  fields `module: String`, `deps: Vec<String>`, `targets: Vec<String>`, `tests`.
+  The task builders read `module` and `deps`.
+- **`schemas_line_range`** (`../schemas_line_range`): `LineRange` with public
+  `start`/`end` fields (`u32`).
+- **`schemas_attribution`** (`../schemas_attribution`): `AttributionEntry`
+  (`Clone`) with public `prompt_lines: LineRange`, `file: String`,
+  `lines: LineRange`, `note: String`.
+- **`targets`** (`../targets`): `TargetAdapter` with a public
+  `idiom_guidance: String` and a public `test_command_label: &'static str`, and
+  the function `get_adapter(name: &str) -> Result<TargetAdapter, String>`. The
+  task builders read `idiom_guidance` and `test_command_label` from the adapter
+  they are given.
+
+## The types
+
+Expose these public types:
+
+- `DepSummary` (`Debug`, `Clone`, `PartialEq`, `Eq`): public `module: String` and
+  `summary: String`.
+- `IncrementalTaskInput` (`Debug`, `Clone`): public `module: String`,
+  `diff: String`, `intersecting_entries: Vec<AttributionEntry>`, and
+  `owned_files: Vec<String>`.
+- `ReconcileFile` (`Debug`, `Clone`, `PartialEq`, `Eq`): public `file: String` and
+  `diff: String`.
+
+## A shared truncation helper
+
+`last_chars(text, count)` returns the last `count` **characters** (Unicode
+scalar values, not bytes) of `text`; if `text` has `count` or fewer characters it
+returns the whole `text`. Used to cap failure output at 6000 and agent output at
+4000 characters below.
+
+## The full-generation task
+
+`build_agent_task(adapter: &TargetAdapter, frontmatter: &Frontmatter, body: &str, deps: &[DepSummary], failure: Option<&str>) -> String`
+joins the following lines with `\n` (a bare bullet like `(empty)` denotes an
+empty line):
+
+1. `You are a coding agent implementing the module "{frontmatter.module}" as real, runnable`
+2. `source code in the current working directory. Write and edit files directly; scaffold the`
+3. `project and install dependencies as needed. The prompt below is the durable source of truth.`
+4. (empty)
+5. `Target idiom guidance:`
+6. `{adapter.idiom_guidance}`
+7. (empty)
+8. `Module: {frontmatter.module}`
+9. Only if `frontmatter.deps` is non-empty: `Declared dependencies: {frontmatter.deps joined by ", "}`
+10. Only if `deps` is non-empty, three-plus lines: (empty), then `Other modules in this project (for context, do not reimplement them):`, then one `- {dep.module}: {dep.summary}` per `DepSummary`.
+11. (empty)
+12. `Specification to implement (implement exactly this behavior):`
+13. `"""`
+14. `{body.trim()}`
+15. `"""`
+16. (empty)
+17. `Requirements:`
+18. `- Ensure "{adapter.test_command_label}" passes from this directory before you finish.`
+19. `- Write a real test suite covering the described behavior.`
+20. `- Use only functions/hooks, named exports, and no dead code.`
+21. `- Do not edit files under node_modules; use the package manager for dependencies.`
+22. Only if `failure` is `Some(f)`, the **failure block**: (empty), then `A previous attempt FAILED its tests. Read the current files, fix the code and/or tests,`, then `and make the suite pass. Test output from the failed attempt:`, then a line of three backticks, then `{last_chars(f.trim(), 6000)}`, then a line of three backticks.
+
+## The incremental task
+
+`build_incremental_task(adapter: &TargetAdapter, frontmatter: &Frontmatter, body: &str, input: &IncrementalTaskInput, failure: Option<&str>) -> String`
+joins with `\n`:
+
+1. `You are a coding agent making an INCREMENTAL update to the existing module "{frontmatter.module}"`
+2. `in the current working directory. Its source code already exists and passes tests. The prompt`
+3. `(the durable source of truth) has CHANGED. Make the MINIMAL code edits needed to realize the`
+4. `prompt change — do not restructure or rewrite untouched code, do not reformat unrelated files.`
+5. (empty)
+6. `Target idiom guidance:`
+7. `{adapter.idiom_guidance}`
+8. (empty)
+9. `Unified diff of the prompt change (old vs new prompt body):`
+10. three backticks followed by `diff` (i.e. ```` ```diff ````)
+11. `{input.diff.trim()}`
+12. a line of three backticks
+13. Only if `input.intersecting_entries` is non-empty: (empty), then `The changed prompt lines are currently implemented by these owned code regions.`, then `Prefer editing exactly these regions:`, then one line per entry `- {entry.file} lines {entry.lines.start}-{entry.lines.end}{note}` where `{note}` is the empty string when `entry.note` is empty, otherwise ` — {entry.note}` (space, em dash, space, note).
+14. Only if `input.owned_files` is non-empty: (empty), then `Files owned by this module (edit only what the change requires):`, then one `- {file}` per owned file.
+15. (empty)
+16. `Full current prompt body (the target behavior after the change):`
+17. `"""`
+18. `{body.trim()}`
+19. `"""`
+20. (empty)
+21. `Requirements:`
+22. `- Ensure "{adapter.test_command_label}" passes from this directory before you finish.`
+23. `- Update the existing tests to match the new behavior; do not delete unrelated tests.`
+24. `- Use only functions/hooks, named exports, and no dead code.`
+25. `- Do not edit files under node_modules; use the package manager for dependencies.`
+26. Only if `failure` is `Some(f)`: the same **failure block** as `build_agent_task`.
+
+## The reconcile task
+
+`build_reconcile_task(module: &str, prompt_file: &str, body: &str, files: &[ReconcileFile]) -> String`
+joins with `\n`:
+
+1. `You are reconciling hand edits back into the prompt (the durable source of truth) for the module "{module}".`
+2. `A developer edited generated source files directly, so they no longer match the prompt.`
+3. `Amend the prompt file below so that regenerating from it would reproduce the edited behavior.`
+4. `Edit ONLY the prompt file(s) named here — NEVER touch the generated source under .napl/src.`
+5. (empty)
+6. `Prompt file to amend: {prompt_file}`
+7. (empty)
+8. `Current prompt body:`
+9. `"""`
+10. `{body.trim()}`
+11. `"""`
+12. (empty)
+13. `Observed source edits (recorded baseline -> current), per file:`
+14. For each `ReconcileFile`: `=== FILE: {file.file} ===`, then ```` ```diff ````, then `{file.diff.trim()}`, then a line of three backticks.
+15. (empty)
+16. `Requirements:`
+17. `- Rewrite or extend the prompt prose so its described behavior matches the edited source.`
+18. `- Keep the YAML frontmatter valid; change only what the behavior change requires.`
+19. `- Do not restate the diff verbatim — describe the intended behavior in the prompt's own voice.`
+20. `- Do not edit, create, or delete any file under .napl/src — those are regenerated from the prompt.`
+
+## The change-required escalation
+
+`build_change_required_retry(base_task: &str) -> String` joins with `\n`:
+
+1. `{base_task}`
+2. (empty)
+3. `CRITICAL: A previous attempt made NO source changes at all, yet the prompt REQUIRES a change.`
+4. `Either implement the change now with real edits to the source files, or — only if you are certain`
+5. `no code change is needed — state CLEARLY in your final message WHY no change is required (for`
+6. `example: the requirement is already satisfied by the existing code, or the instruction cannot be`
+7. `acted on because it is unclear or nonsensical). Do not finish silently without doing one of these.`
+
+## The derivation user prompts
+
+`build_ir_derivation_user(module: &str, body: &str, files: &str) -> String` joins
+with `\n`: `Module name: {module}`, (empty), `Prompt (the contract, in prose):`,
+`"""`, `{body.trim()}`, `"""`, (empty), `Implementing source files:`, `{files}`
+(files verbatim, not trimmed).
+
+`build_attribution_user(module: &str, numbered_body: &str, files: &str) -> String`
+joins with `\n`: `Module: {module}`, (empty),
+`Prompt body (1-based line numbers):`, `{numbered_body}`, (empty),
+`Implementing source files (1-based line numbers):`, `{files}`.
+
+`build_attribution_repair(previous_output: &str, error_message: &str) -> String`:
+let `previous` be `previous_output.trim()`, then its first 4000 characters, then
+trimmed again. Join with `\n`: (empty),
+`Your PREVIOUS response was REJECTED as invalid and MUST be corrected. Return ONLY a single`,
+then a line whose text is `fenced ` followed by three backticks then `yaml code block containing the list — no prose, no commentary, nothing else. Every`,
+`item must reference a "file" that appears EXACTLY as labelled above, and the list must not be`,
+`empty. Emit STRICTLY valid YAML with double-quoted string values.`, (empty),
+`Your previous invalid response was:`, `"""`, `{previous}`, `"""`, (empty),
+`The validation error was:`, `{error_message}`.
+
+`build_ml_derivation_user(module: &str, numbered_body: &str, change_summary: &str, agent_output: &str) -> String`:
+let `output` be `last_chars(agent_output.trim(), 4000)`. Join with `\n`:
+`Module: {module}`, (empty),
+`Prompt body (1-based line numbers) — the durable source of truth:`,
+`{numbered_body}`, (empty),
+`What the coding agent changed in the source (1-based line numbers), or "NO CHANGES":`,
+`{change_summary}`, (empty), `The coding agent's final message:`, `"""`, then
+`(no output captured)` if `output` is empty otherwise `{output}`, then `"""`.
+
+## The system-prompt constants
+
+Expose four public `&'static str` constants whose values are **exactly** the text
+between the four-backtick fences below (each fence's content is literal — it
+contains real triple-backtick sequences and real line breaks; reproduce them
+byte-for-byte, with no leading or trailing newline unless shown).
+
+`IR_DERIVATION_SYSTEM`:
+
+````
+You derive a CONTRACT-LEVEL intermediate representation (IR) from finished source code.
+You are given a prompt (the contract in prose) and the source files that implement it.
+Produce a YAML document capturing CONTRACTS, not implementation, with these keys:
+- module: the exact module name provided.
+- deps: list of dependency module names (may be empty).
+- types: exported/public types as structural, language-neutral entries, each with a
+  "name" and a "description".
+- functions: the public functions/components, each with a "name", a language-neutral
+  "signature" string, and a "behavior" string covering pre/postconditions.
+- tests: the behavioral test cases as data, each with "name", "given", "expect".
+Do NOT include control flow, concurrency, memory idioms, or syntax trees.
+Output ONLY a single fenced ```yaml code block and nothing else.
+````
+
+`ATTRIBUTION_SYSTEM`:
+
+````
+You map lines of a prompt (the contract, in prose) to the exact lines of generated source
+code that implement them. You are given the prompt body with 1-based line numbers, and each
+implementing source file with 1-based line numbers.
+
+Produce a YAML list. Each item is a mapping with these keys:
+- promptLines: [start, end]  — 1-based inclusive line range in the prompt body.
+- file: the source file path exactly as labelled (relative to the target src directory).
+- lines: [start, end]  — 1-based inclusive line range in that file.
+- note: a short phrase describing what this code does (e.g. "trims whitespace").
+
+A prompt line may map to multiple code ranges, and one code range may map to multiple
+prompt lines — emit one item per concrete mapping. Only map lines that carry real intent;
+skip blank lines, headings, and boilerplate. Keep ranges tight.
+Output ONLY a single fenced ```yaml code block containing the list, and nothing else.
+````
+
+`ML_DERIVATION_SYSTEM`:
+
+````
+You are the MACHINE LAYER of a prompt compiler. A prompt (the contract, in prose) was compiled
+to source code by a coding agent. Your job is to record — for the human who wrote the prompt —
+where the prompt was ambiguous, what you had to assume, and anything else worth surfacing about
+this compile.
+
+You are given: the numbered prompt body, the numbered changes the agent made to the source
+(or the literal text "NO CHANGES"), and the coding agent's final message.
+
+Output a YAML list (which may be empty). Each item has these keys:
+- promptLines: [start, end]  — 1-based inclusive line range in the PROMPT BODY the entry is about.
+- kind: one of "ambiguity", "assumption", "note", or "no-op".
+- message: a one-line human-facing summary.
+- reasoning: a fuller explanation of what was unclear and what was done instead.
+- suggestion: OPTIONAL — a proposed clearer rewording of the prompt line(s).
+
+How to choose kind:
+- "ambiguity": the prompt line is vague, contradictory, self-referential, out of place, or reads
+  like an accidental or nonsensical insertion — an odd literal string, a phrase that does not fit
+  the surrounding requirement, or wording a careful engineer would stop and question. BE AGGRESSIVE
+  about flagging strange, surprising, or unmotivated phrasing; do NOT smooth it over or assume the
+  author must have meant something reasonable.
+- "assumption": you had to decide something the prompt left open; record the choice you made.
+- "note": something worth surfacing that is neither an ambiguity nor an assumption.
+- "no-op": use ONLY when the changes are "NO CHANGES". Explain why nothing was produced — the
+  requirement was already satisfied by existing code, or the instruction could not be understood or
+  acted upon. When the changes are "NO CHANGES" you MUST emit at least one "no-op" entry.
+
+An empty list is valid ONLY when the prompt is entirely clear AND real changes were made.
+Output ONLY a single fenced ```yaml code block containing the list, and nothing else.
+````
+
+`YAML_STRICTNESS` begins with two newline characters and then one line of text —
+its exact value is two `\n` characters followed by:
+`Emit STRICTLY valid YAML. Quote every string value with double quotes and escape any inner double quotes, especially values containing a colon, quote, or bracket.`
+(no trailing newline).
+
+The routing markers matter: `IR_DERIVATION_SYSTEM` must contain the phrase
+`intermediate representation`; `ML_DERIVATION_SYSTEM` must contain `MACHINE LAYER`;
+`ATTRIBUTION_SYSTEM` must contain neither of those phrases.

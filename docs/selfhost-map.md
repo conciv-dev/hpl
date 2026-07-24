@@ -51,8 +51,8 @@ depth and corpus size.
 
 Wave 1 is fully self-hosted: **13/13 modules**, 83 equivalence cases green.
 
-Waves 1–2 together: **19/19 modules, 155 equivalence cases green**, escape-hatch
-list still empty.
+Waves 1–3 together: **23/23 modules, 189 equivalence cases green**, escape-hatch
+list still empty — all of `napl-core` self-hosts (phase 1 complete).
 
 ### Wave 2 — depends only on wave 1
 
@@ -76,14 +76,23 @@ pull-forward was needed. (`schemas::journal` depends on `blame`, not the reverse
 
 ### Wave 3 — aggregates over waves 1–2
 
-| Module | LOC | Unit tests | Intra-crate deps | Self-host status |
+Wave 3 is fully self-hosted: **4/4 modules, 34 equivalence cases green** (slice 4),
+each generated on **attempt 1 of 3**. Every generated wave-3 crate path-deps the
+generated wave-1/2 crate(s) it builds on.
+
+| Module | LOC | Unit tests | Builds on (generated crate) | Self-host status |
 | --- | ---: | ---: | --- | --- |
-| `schemas::journal` | 228 | 8 | `blame`, `text_diff` | queued |
-| `prompts` | 523 | 7 | `schemas`, `targets` | queued |
-| `yaml` | 535 | 9 | `schemas` | queued |
-| `incremental` | 235 | 2 | `schemas` | queued |
+| `schemas::journal` | 228 | 8 | `blame`, `text_diff` | **done** (slice 4, 8/8 — path-deps generated `blame` + `text_diff`) |
+| `incremental` | 235 | 2 | `schemas_attribution`, `schemas_line_range` | **done** (slice 4, 3/3 — 2 corpus + 1 composition case) |
+| `yaml` | 535 | 9 | `schemas_attribution`, `schemas_ir`, `schemas_ml`, `schemas_line_range` | **done** (slice 4, 9/9 — byte-exact block goldens) |
+| `prompts` | 523 | 7 | `schemas_attribution`, `schemas_frontmatter`, `schemas_line_range`, `targets` | **done** (slice 4, 14/14 — 7 corpus + 7 byte-exact pins) |
 
 `lib.rs` (23 LOC, 0 tests) is a pure re-export root and is not a self-host unit.
+
+**Phase 1 (`napl-core`) is COMPLETE: 23/23 modules, 189 equivalence cases green,
+escape-hatch list still empty, every module converged on attempt 1.** The pure
+crate now self-hosts end to end; see `selfhost.md` slice 4 for the stage1 swap-in
+plan.
 
 ## Phase 2 — `napl-cli` (I/O orchestration; later)
 
@@ -93,7 +102,7 @@ carry real unit tests and could be pulled forward as pure leaves.
 
 | Module | LOC | Unit tests | Character |
 | --- | ---: | ---: | --- |
-| `statusclass` | 213 | 2 | pure classification — **candidate to pull into phase 1** |
+| `statusclass` | 213 | 2 | classification — **stays phase 2** (see note); its 2 tests are pure-render only |
 | `driftdetect` | 146 | 2 | mostly pure over journal data |
 | `snapshot` | 147 | 2 | fs walk + hashing (I/O) |
 | `fsutil` | 70 | 2 | fs read/write (I/O) |
@@ -107,6 +116,17 @@ carry real unit tests and could be pulled forward as pure leaves.
 
 `cmd_gen` (1084 LOC) is the stage0 orchestrator itself — the last thing to
 self-host, and the true fixpoint when it does.
+
+**Slice-4 call on `statusclass` and `napl-lsp`'s `classify`.** Both were candidates
+to pull forward into phase 1. Reading the source settled it: both drag I/O — their
+`detect_drift` reads generated files off disk (`fsutil::exists` /
+`std::fs::read_to_string` / `Path::exists`), so the module as written is not pure
+and cannot be gated by the behavioral-equivalence harness. `statusclass`'s **two
+unit tests are pure** (`StatusEntry::line` padding and `is_error`), and `classify`
+carries **no unit tests at all**. So neither folds into phase 1 as written. The
+pure rendering slice of `statusclass` (the `line()`/`is_error()` corpus) could be
+pulled forward later only if the module is split so the fs-reading classifier lives
+elsewhere; until then both stay in their I/O phases (2 and 3).
 
 ## Phase 3 — `napl-lsp` (JSON-RPC server; later)
 
@@ -133,8 +153,8 @@ Modules that stay hand-written because current stage0 + prompt cannot reproduce
 their behavior under the equivalence gate. A module leaves the list only when its
 prompt drives a passing generation.
 
-- *(empty)* — no wave-1 or wave-2 module has failed to converge yet (19/19 on
-  attempt 1).
+- *(empty)* — no `napl-core` module has failed to converge (23/23 on attempt 1;
+  phase 1 complete).
 
 ## Layout note (RESOLVED in slice 2 — Cargo workspace)
 

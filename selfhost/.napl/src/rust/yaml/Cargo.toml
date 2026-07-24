@@ -1,0 +1,11 @@
+[package]
+name = "yaml"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+schemas_line_range = { path = "../schemas_line_range" }
+schemas_attribution = { path = "../schemas_attribution" }
+schemas_ir = { path = "../schemas_ir" }
+schemas_ml = { path = "../schemas_ml" }
