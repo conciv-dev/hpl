@@ -1,0 +1,54 @@
+# Reconstructing a generated file from its journal patches
+
+This module is the **pure** baseline-reconstruction core of the CLI's
+generation-time drift detector: given the journal entries and a file path, it
+replays that file's recorded patches in gen order to rebuild the content the
+toolchain last wrote. It is pure — no filesystem access; the I/O shell reads the
+current file off disk and diffs it against this baseline. It depends only on
+generated sibling crates, never on a hand-written crate.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `driftdetect_replay/`:
+`driftdetect_replay/Cargo.toml` (package name `driftdetect_replay`) and
+`driftdetect_replay/src/lib.rs`. Touch nothing outside `driftdetect_replay/`.
+Ensure `cargo test` passes from the workspace root before finishing.
+
+## Builds on two modules of this workspace
+
+Both are sibling member crates generated into this same workspace. Add a path
+dependency on each in your `Cargo.toml` (they are workspace siblings, not external
+crates.io dependencies, so add them even though the general guidance is to avoid
+outside dependencies), use their public API, and do **not** reimplement their
+logic or depend on any hand-written crate — depend only on the generated siblings.
+
+- **`schemas_journal`** (`../schemas_journal`): exposes the journal serde types.
+  You need `JournalEntry` — a public struct with (among others) a public field
+  `gen: i64` and a public field `files: Vec<JournalFile>`, where `JournalFile` has
+  public fields `path: String` and `patch: String`. Take journal entries as
+  `&[schemas_journal::JournalEntry]`.
+- **`text_diff`** (`../text_diff`): exposes `parse_hunks(patch: &str) -> Vec<Hunk>`
+  and `apply_hunks(base: &str, hunks: &[Hunk]) -> String`, which parse a unified
+  diff and apply it to a base text. Use these to apply each recorded patch.
+
+## `reconstruct_file_content(entries, file_path)`
+
+`reconstruct_file_content(entries: &[schemas_journal::JournalEntry], file_path: &str) -> Option<String>`:
+replay the patches recorded for `file_path` across the journal, oldest gen first.
+
+- Order the entries by ascending `gen` (do not assume they arrive sorted; sort a
+  borrowed view, do not mutate the caller's slice).
+- Start with no content yet (conceptually `None`).
+- For each entry in gen order, look for a file in that entry's `files` whose `path`
+  equals `file_path`. If found, take the current content so far (the empty string
+  when there is none yet), apply that file's `patch` to it (parse the patch into
+  hunks, then apply the hunks), and let the result become the new current content.
+- After walking every entry, return the accumulated content, or `None` if no entry
+  ever touched `file_path`.
+
+So two entries whose patches first insert `line one` then append `line two`
+reconstruct to exactly `line one\nline two`, while querying a path that no entry
+touches returns `None`.
+</content>

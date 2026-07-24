@@ -1,0 +1,25 @@
+module: driftdetect_replay
+deps:
+  - schemas_journal
+  - text_diff
+types: []
+functions:
+  - name: reconstruct_file_content
+    signature: "reconstruct_file_content(entries: &[schemas_journal::JournalEntry], file_path: &str) -> Option<String>"
+    behavior: "Pure, no filesystem access. Reconstructs the baseline content of file_path by replaying its recorded patches across entries in ascending gen order. Does not assume entries arrive pre-sorted; sorts a borrowed view and does not mutate the caller's slice. Starts with no content. For each entry in gen order, if that entry's files contains one whose path equals file_path, applies that file's patch (parsed into hunks, then applied) to the current accumulated content (empty string if none yet), and the result becomes the new accumulated content. Entries/files with non-matching paths are ignored. After processing all entries, returns the final accumulated content, or None if no entry ever contained a file matching file_path.\n"
+tests:
+  - name: replays_two_patches_in_gen_order
+    given: two entries in ascending gen order for path "a.rs", first patch inserting "line one", second appending "line two"
+    expect: reconstruct_file_content returns Some("line one\nline two")
+  - name: sorts_out_of_order_entries_without_mutating_input
+    given: two entries for path "a.rs" passed in descending gen order (gen 2 then gen 1)
+    expect: reconstruct_file_content returns Some("line one\nline two") as if sorted ascending, and the original entries slice/vec is left unchanged
+  - name: returns_none_for_untouched_path
+    given: one entry touching only "a.rs"
+    expect: reconstruct_file_content(entries, "b.rs") returns None
+  - name: ignores_files_from_other_entries_with_different_paths
+    given: a single entry whose files list contains both "a.rs" (patch producing "content a") and "b.rs" (patch producing "content b")
+    expect: reconstruct_file_content for "a.rs" returns Some("content a") and for "b.rs" returns Some("content b"), each unaffected by the other's patch
+  - name: three_entries_apply_in_ascending_gen_order
+    given: three entries for "a.rs" with gens 3, 1, 2 (out of order) building "" -> "v1" -> "v1\nv2" -> "v1\nv2\nv3"
+    expect: reconstruct_file_content returns Some("v1\nv2\nv3"), confirming patches applied strictly by ascending gen regardless of input order

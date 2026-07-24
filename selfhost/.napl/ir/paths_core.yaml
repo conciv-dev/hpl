@@ -1,0 +1,32 @@
+module: paths_core
+deps: []
+types:
+  - name: NaplPaths
+    description: "Resolved layout of the `.napl` project directory. Public fields (all path values): ir_dir, src_dir, map_path, lock_path, gen_lock_path, journal_path, prompts_at_gen_dir, examples_dir, attribution_dir, ml_dir.\n"
+functions:
+  - name: resolve_paths
+    signature: "resolve_paths(root: Path) -> NaplPaths"
+    behavior: "Given project root path, computes the `.napl` layout beneath it. Let napl_dir = root/.napl. Sets: ir_dir = napl_dir/ir; src_dir = napl_dir/src; map_path = napl_dir/map.json; lock_path = napl_dir/lock.json; gen_lock_path = napl_dir/gen.lock; journal_path = napl_dir/journal.jsonl; prompts_at_gen_dir = napl_dir/prompts-at-gen; attribution_dir = napl_dir/attribution; ml_dir = napl_dir/mapl. examples_dir is joined to root directly (root/examples), sitting beside .napl rather than inside it. Pure computation, no filesystem access; always succeeds for any input path.\n"
+  - name: rel_to
+    signature: "rel_to(root: Path, path: Path) -> String"
+    behavior: "Renders path relative to root as POSIX-style string (forward-slash separated). If path is prefixed by root, strips that prefix and joins remaining path components with '/'. If path is not under root, path is used unchanged (still rendered with '/' separators regardless of platform). Leading root marker renders as empty segment; parent-dir components render as \"..\". Pure string/path computation, no filesystem access.\n"
+tests:
+  - name: resolve_paths_places_fields_under_napl_dir
+    given: root = "/p"
+    expect: 'ir_dir="/p/.napl/ir", src_dir="/p/.napl/src", map_path="/p/.napl/map.json", lock_path="/p/.napl/lock.json", gen_lock_path="/p/.napl/gen.lock", journal_path="/p/.napl/journal.jsonl", prompts_at_gen_dir="/p/.napl/prompts-at-gen", attribution_dir="/p/.napl/attribution"
+'
+  - name: examples_dir_sits_beside_napl_not_inside_it
+    given: root = "/p"
+    expect: examples_dir = "/p/examples"
+  - name: ml_dir_is_named_mapl
+    given: root = "/p"
+    expect: ml_dir = "/p/.napl/mapl"
+  - name: rel_to_strips_root_prefix
+    given: root="/project", path="/project/.napl/map.json"
+    expect: result = ".napl/map.json"
+  - name: rel_to_returns_path_unchanged_when_not_under_root
+    given: root="/project", path="/other/file.txt"
+    expect: result = "/other/file.txt"
+  - name: rel_to_renders_forward_slashes
+    given: root="/root", path="/root/a/b/c/d.txt"
+    expect: result = "a/b/c/d.txt" and contains no backslashes

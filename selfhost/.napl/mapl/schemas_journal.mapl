@@ -3,20 +3,14 @@ target: rust
 entries:
   - promptLines:
       - 45
-      - 45
-    kind: note
-    message: '"an enum (Copy as well)" is an odd but unambiguous parenthetical.'
-    reasoning: "The phrase 'an enum (`Copy` as well)' reads like an aside/insertion rather than a normal requirement sentence, but its intent is clear: JournalMode should derive Copy in addition to the other listed traits. The agent correctly added `Copy` to the derive list alongside Debug, Clone, PartialEq, Eq, Serialize, Deserialize. Flagging only because the phrasing is unusually terse/parenthetical compared to the rest of the spec."
-    suggestion: "`JournalMode`: an enum, deriving `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Serialize`, `Deserialize`, with variants `Full`, `Incremental`, `Reconcile`, serialized in lowercase."
+      - 46
+    kind: ambiguity
+    message: "'(Copy as well)' reads like a stray aside dropped mid-sentence."
+    reasoning: "The parenthetical \"(Copy as well)\" interrupts the type description awkwardly — it's unclear whether it means \"also derive Copy\" or is a leftover fragment from editing. The agent interpreted it as an instruction to add Copy to the derive list (in addition to Debug, Clone, PartialEq, Eq, Serialize, Deserialize), which is a reasonable reading but the phrasing itself is a strange insertion a careful author should tighten.\n"
+    suggestion: "`JournalMode`: an enum, also `Copy`, with variants `Full`, `Incremental`, `Reconcile`, serialized in lowercase."
   - promptLines:
-      - 22
-      - 23
-    kind: note
-    message: Aside about 'general guidance to avoid outside dependencies' is a self-referential policy note, not a spec requirement.
-    reasoning: Lines 22-23 justify why sibling crate path dependencies are allowed despite an unstated general policy against outside dependencies. This doesn't correspond to anything the agent needed to implement differently — it added `text_diff` and `blame` as path dependencies as instructed — but the phrasing refers to a rule not stated anywhere in this prompt, which is worth surfacing since it reads as boilerplate bleeding in from a template rather than module-specific guidance.
-  - promptLines:
-      - 78
       - 82
+      - 89
     kind: assumption
-    message: Warning message text is unpinned; agent chose its own wording.
-    reasoning: "The prompt explicitly says the warning text is not pinned, only that there's exactly one warning per skipped line. The agent used 'line {n}: {serde error}' for parse/deserialize failures and 'line {n}: journal entry failed validation' for validation failures. This is a reasonable, spec-compliant choice but is recorded since the exact wording was left to the implementer's discretion."
+    message: Exact reason text for failed-validation warnings left unspecified; agent used literal "failed validation".
+    reasoning: The prompt pins the byte-exact text only for the invalid-JSON branch, and says the deserialize/validation branch's `{reason}` is just "the deserialize/validation message" without saying what a *validation* failure's message should literally read (deserialize errors naturally produce serde's error string, but validation failures have no such natural message). The agent assumed the literal string "failed validation" for this case, which the tests then pin down. This is a defensible filler but was not dictated by the prompt.

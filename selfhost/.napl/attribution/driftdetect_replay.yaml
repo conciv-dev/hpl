@@ -1,0 +1,107 @@
+module: driftdetect_replay
+target: rust
+entries:
+  - promptLines:
+      - 3
+      - 8
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 1
+      - 7
+    note: module doc summarizing pure baseline-reconstruction role
+  - promptLines:
+      - 27
+      - 31
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 9
+      - 9
+    note: import JournalEntry from schemas_journal sibling crate
+  - promptLines:
+      - 32
+      - 34
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 22
+      - 23
+    note: use text_diff parse_hunks/apply_hunks to apply recorded patch
+  - promptLines:
+      - 36
+      - 39
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 11
+      - 14
+    note: function signature and doc for reconstruct_file_content
+  - promptLines:
+      - 41
+      - 42
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 15
+      - 16
+    note: sort borrowed view of entries by ascending gen without mutating input
+  - promptLines:
+      - 43
+      - 43
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 18
+      - 18
+    note: start with no content (None)
+  - promptLines:
+      - 44
+      - 47
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 19
+      - 24
+    note: find matching file per entry, apply patch to current content
+  - promptLines:
+      - 48
+      - 49
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 26
+      - 26
+    note: return accumulated content or None
+  - promptLines:
+      - 51
+      - 53
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 52
+      - 62
+    note: test replays two patches in gen order to expected content
+  - promptLines:
+      - 41
+      - 42
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 64
+      - 76
+    note: test sorts out-of-order entries without mutating caller slice
+  - promptLines:
+      - 48
+      - 49
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 78
+      - 82
+    note: test returns None for untouched path
+  - promptLines:
+      - 44
+      - 47
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 84
+      - 102
+    note: test ignores files with different paths within/between entries
+  - promptLines:
+      - 41
+      - 51
+    file: driftdetect_replay/src/lib.rs
+    lines:
+      - 104
+      - 115
+    note: test three entries apply in ascending gen order regardless of input order

@@ -1,0 +1,32 @@
+# Diffing two directory snapshots
+
+This module is the **pure** comparison core of the CLI's snapshot module: given a
+before and an after snapshot (each a map from path to content hash), it reports
+which paths changed. It is pure — no filesystem access; the I/O shell walks the
+tree to build the snapshots and calls this to compare them. No dependencies on
+other project modules.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `snapshot_diff/`: `snapshot_diff/Cargo.toml`
+(package name `snapshot_diff`) and `snapshot_diff/src/lib.rs`. Touch nothing
+outside `snapshot_diff/`. Ensure `cargo test` passes from the workspace root
+before finishing.
+
+## `diff_snapshots(before, after)`
+
+`diff_snapshots(before: &std::collections::BTreeMap<String, String>, after: &std::collections::BTreeMap<String, String>) -> Vec<String>`:
+the sorted list of paths whose value in `after` differs from `before`.
+
+Walk every `(path, hash)` in `after` and keep the path when `before` has no entry
+for it (a newly added path) or has a different hash for it (a changed path). A path
+present in `before` but absent from `after` is not reported (this diff is
+after-relative — it lists what appears or changes in `after`, not what was
+removed). Return the kept paths sorted in ascending order.
+
+For example, comparing before `{"/a": "h1", "/b": "h2"}` with after
+`{"/a": "h1", "/b": "h2x", "/c": "h3"}` yields exactly `["/b", "/c"]`: `/a` is
+unchanged and dropped, `/b` changed, `/c` is new.
+</content>

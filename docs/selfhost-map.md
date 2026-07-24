@@ -29,21 +29,28 @@ suite and the LSP integration tests, not per-function unit vectors. They are a
 Phase 1 is not just self-hosted in the harness — it is **swapped in**: the shipping
 `napl` binary now runs the generated crates. `napl-core`'s hand-written module
 bodies are deleted and replaced by thin adapters over the generated crates
-(cross-workspace path-deps; `selfhost/` untouched). **22 of 23 modules run
-generated code; conformance is 40/40 byte-identical.** Every "done" below is now
-**swapped-in**, with one exception on the escape-hatch list:
+(cross-workspace path-deps; `selfhost/` untouched). **All 23 of 23 modules run
+generated code; conformance is 40/40 byte-identical; the escape-hatch list is
+empty.**
 
-- **`schemas::journal` — escape-hatch (hand-written body restored).** Generated
-  `read_journal_str` emits corrupt-line warning text that diverges from what
-  conformance `34-journal-corrupt-line` pins; the equivalence gate only checks
-  `(entries, warnings.len())`, so this is a real observable gap outside the adapter
-  spec. Generated `schemas_journal` stays equivalence-green (8/8), just not wired
-  into the binary. (`schemas::frontmatter` was NOT escape-hatched — its
-  `FrontmatterError` is bridged to the pinned message text in the adapter, because
-  the generated `prompts` crate composes on `schemas_frontmatter::Frontmatter`.)
+- **`schemas::journal` — escape-hatch CLEARED.** The generated `read_journal_str`
+  previously emitted corrupt-line warning text (`"line 2: expected ident …"`)
+  diverging from what conformance `34-journal-corrupt-line` pins byte-for-byte
+  (`journal: skipping corrupt line 2 (invalid JSON)`). The `schemas_journal.napl`
+  prompt now pins that exact warning as behavior prose plus a byte-exact given/
+  expect case, and describes the two-phase parse (arbitrary-JSON syntax check
+  first → `(invalid JSON)`; deserialize/validation failure second → the same
+  `journal: skipping corrupt line {n} ` prefix). Re-genned on **attempt 1/3**, the
+  generated crate now produces the pinned bytes, so `schemas::journal` is a
+  straight re-export adapter (no error-message seam) and ships. The equivalence
+  gate was extended to assert the warning **text** (9/9, was 8/8).
+  (`schemas::frontmatter` remains bridged — its `FrontmatterError` is mapped to the
+  pinned message text in the adapter, because the generated `prompts` crate
+  composes on `schemas_frontmatter::Frontmatter`.)
 
-See `selfhost.md` → "Stage1 swap-in — DONE" for the workspace-membership call, the
-adapter seam catalog, and the full gate numbers.
+See `selfhost.md` → "Stage1 swap-in — DONE" and "Journal escape-hatch cleared +
+Phase 2 opened" for the workspace-membership call, the adapter seam catalog, and
+the full gate numbers.
 
 ## Phase 1 — `napl-core` (pure; the active campaign)
 
@@ -110,45 +117,85 @@ generated wave-1/2 crate(s) it builds on.
 
 `lib.rs` (23 LOC, 0 tests) is a pure re-export root and is not a self-host unit.
 
-**Phase 1 (`napl-core`) is COMPLETE: 23/23 modules, 189 equivalence cases green,
-every module converged on attempt 1** — and now **SWAPPED IN**: the shipping binary
-runs generated code for 22 of 23 modules, conformance 40/40 byte-identical, with
-`schemas::journal` on the stage1 escape-hatch (warning-text divergence). See
-`selfhost.md` → "Stage1 swap-in — DONE".
+**Phase 1 (`napl-core`) is COMPLETE: 23/23 modules, 190 equivalence cases green,
+every module converged on attempt 1** — and now **FULLY SWAPPED IN**: the shipping
+binary runs generated code for all 23 of 23 modules, conformance 40/40
+byte-identical, escape-hatch list empty (`schemas::journal` cleared — see the
+stage1 status section above). See `selfhost.md` → "Stage1 swap-in — DONE" and
+"Journal escape-hatch cleared + Phase 2 opened".
 
-## Phase 2 — `napl-cli` (I/O orchestration; later)
+## Phase 2 — `napl-cli` (I/O orchestration; OPEN, first batch swapped in)
 
-Not behavioral-unit self-hostable in the same way — these are gated by the
-conformance corpus (`conformance/`, 40 scenarios), not per-function vectors. A few
-carry real unit tests and could be pulled forward as pure leaves.
+Phase 2 is not behavioral-unit self-hostable the way `napl-core` is — the command
+handlers are gated by the **conformance corpus** (`conformance/`, 40 scenarios),
+not per-function vectors. But most I/O modules wrap a **pure core** that can be
+extracted, generated, and gated by that module's existing pure unit tests. The
+discipline is the campaign's: **extract-pure-core, keep-thin-I/O-shell** — split
+each module so the deterministic data-in/data-out logic lives in a function the
+generated crate can replace, keep the filesystem/subprocess plumbing hand-written
+in the shell, and swap the generated pure core in behind the shell's call sites.
 
-| Module | LOC | Unit tests | Character |
-| --- | ---: | ---: | --- |
-| `statusclass` | 213 | 2 | classification — **stays phase 2** (see note); its 2 tests are pure-render only |
-| `driftdetect` | 146 | 2 | mostly pure over journal data |
-| `snapshot` | 147 | 2 | fs walk + hashing (I/O) |
-| `fsutil` | 70 | 2 | fs read/write (I/O) |
-| `paths` | 126 | 2 | path algebra (mostly pure) |
-| `process` | 435 | 4 | subprocess spawning (I/O) |
-| `clock` | 65 | 3 | time (I/O) |
-| `state` | 89 | 0 | in-memory state |
-| `error` | 35 | 0 | error type |
-| `cmd_*` (gen/status/init/watch/reconcile/blame/build/test) | ~1900 | 0 | command handlers (I/O + orchestration) |
-| `main` | 184 | 0 | arg parsing / dispatch |
+**Gate strategy.** The conformance corpus is the behavioral spec for the `cmd_*`
+handlers (the fake-agent harness makes gens deterministic); the per-module pure
+unit corpora are the equivalence gate for the extracted cores. A pure-core
+extraction refactor must keep conformance byte-identical **before** the generated
+swap; then the swap must keep it byte-identical again.
 
-`cmd_gen` (1084 LOC) is the stage0 orchestrator itself — the last thing to
-self-host, and the true fixpoint when it does.
+### Per-module pure/IO split (the plan)
 
-**Slice-4 call on `statusclass` and `napl-lsp`'s `classify`.** Both were candidates
-to pull forward into phase 1. Reading the source settled it: both drag I/O — their
-`detect_drift` reads generated files off disk (`fsutil::exists` /
-`std::fs::read_to_string` / `Path::exists`), so the module as written is not pure
-and cannot be gated by the behavioral-equivalence harness. `statusclass`'s **two
-unit tests are pure** (`StatusEntry::line` padding and `is_error`), and `classify`
-carries **no unit tests at all**. So neither folds into phase 1 as written. The
-pure rendering slice of `statusclass` (the `line()`/`is_error()` corpus) could be
-pulled forward later only if the module is split so the fs-reading classifier lives
-elsewhere; until then both stay in their I/O phases (2 and 3).
+| Module | LOC | Pure core (self-host unit) | I/O shell (stays hand-written) | Pure unit tests | Status |
+| --- | ---: | --- | --- | ---: | --- |
+| `clock` | 65 | `iso_from_millis` (millis → ISO-8601) + civil-date math | `now()` (reads wall clock / `NAPL_FIXED_NOW`) | 3 | **swapped** (`clock_fmt`, batch 1) |
+| `paths` | 126 | `resolve_paths` + `NaplPaths` + `rel_to` (path algebra) | `find_prompt_files`/`walk` (readdir) | 1 (`rel_to`) | **swapped** (`paths_core`, batch 1) |
+| `statusclass` | 213 | `FileStatus` + `StatusEntry` + `line`/`is_error` (render) | `classify_prompt`/`detect_drift` (fs read + hash) | 2 | **swapped** (`statusclass_render`, batch 1) |
+| `driftdetect` | 146 | `reconstruct_file_content` (journal patch replay) | `classify_file`/`detect_gen_drift` (fs read) | 2 | **swapped** (`driftdetect_replay`, batch 1 — composes on generated `schemas_journal` + `text_diff`) |
+| `snapshot` | 147 | `diff_snapshots` (before/after hash diff) | `walk`/`snapshot_hashes`/`snapshot_contents` + `make_filter`/`SnapshotFilter` | 1 (`diff_snapshots`) | **swapped** (`snapshot_diff`, batch 1) |
+| `fsutil` | 70 | — (only the mode constants are pure; every fn is fs I/O) | all (`read_opt`/`write`/`set_mode`/`exists`/`mkdir_parent`) | 0 pure | **shell** (no pure slice with a unit test) |
+| `error` | 35 | msg-extraction from `SchemaError` | type + `From` trait glue over hand-written `SchemaError`/`io::Error` | 0 | **shell** (inseparable from caller types) |
+| `process` | 435 | — | subprocess spawn + lockfile (all 4 tests are fs I/O) | 0 pure | **shell** |
+| `state` | 89 | in-memory state | — | 0 | **shell** |
+| `driftdetect`/`snapshot` filter slices | — | `make_filter`/`SnapshotFilter::is_excluded_file` are pure but have no direct unit test | walk uses them | 0 pure | later batch (add a pure unit test first) |
+| `cmd_*` (gen/status/init/watch/reconcile/blame/build/test) | ~1900 | derivation/orchestration | I/O + orchestration | 0 | **shell** (conformance-gated) |
+| `main` | 184 | — | arg parsing / dispatch | 0 | **shell** |
+
+`cmd_gen` (1133 LOC) is the stage0 orchestrator itself — the last thing to
+self-host, and the true fixpoint when it does. The shells shrink as more pure cores
+are extracted; a module is only "shell" until its next pure slice grows a unit test.
+
+### Batch 1 — the low-risk leaves (DONE, all swapped in)
+
+Five pure cores generated from behavior-prose prompts in `selfhost/`, each
+converged on **attempt 1 of 3**, each gated by that module's exact hand-written
+pure unit corpus in the shared equivalence harness, each swapped into `napl-cli`
+behind its existing call sites (thin re-export; hand-written pure body deleted;
+the unit corpus rides along as the regression net):
+
+| Generated crate | Replaces (napl-cli module's pure slice) | Deps | Equivalence |
+| --- | --- | --- | --- |
+| `clock_fmt` | `clock::iso_from_millis` | — | 3/3 (byte-exact ISO strings) |
+| `paths_core` | `paths::{resolve_paths, NaplPaths, rel_to}` | — | 2/2 (rel_to + full layout) |
+| `statusclass_render` | `statusclass::{FileStatus, StatusEntry, line, is_error}` | — | 2/2 (byte-exact status lines) |
+| `driftdetect_replay` | `driftdetect::reconstruct_file_content` | `schemas_journal`, `text_diff` | 2/2 (composes on generated phase-1 crates) |
+| `snapshot_diff` | `snapshot::diff_snapshots` | — | 1/1 |
+
+**Batch-1 evidence:** `driftdetect_replay` is the notable one — a phase-2 pure core
+composing on **generated phase-1** crates by path (`schemas_journal::JournalEntry`
+inputs, `text_diff::{parse_hunks, apply_hunks}` replay). Because napl-core already
+re-exports `schemas_journal::JournalEntry` (JOB A) and both crates path-dep the same
+`schemas_journal`, the types unify and the shell passes `&[napl_core::schemas::
+JournalEntry]` straight through. No extraction refactor was needed: each pure core
+was already a cleanly separable function/type in its module, so the swap is a
+re-export behind the unchanged call sites, and conformance stayed 40/40
+byte-identical across every swap.
+
+### Batch 2 candidates (recommended next)
+
+The next low-risk pure slices, in rough order: the `snapshot`/`SnapshotFilter`
+exclusion predicate (`make_filter` + `is_excluded_file` — pure, but needs a direct
+unit test added first), then the pure derivation helpers inside `cmd_reconcile` /
+`cmd_blame` that operate over already-read journal/map data. The `cmd_*` handlers,
+`process`, `fsutil`, `error`, `state`, and `main` stay hand-written shells until
+their pure cores grow (or until the conformance-gated `cmd_gen` fixpoint work).
 
 ## Phase 3 — `napl-lsp` (JSON-RPC server; later)
 
@@ -175,15 +222,16 @@ Modules that stay hand-written because current stage0 + prompt cannot reproduce
 their behavior under the equivalence gate. A module leaves the list only when its
 prompt drives a passing generation.
 
-- **Generation:** *(empty)* — no `napl-core` module has failed to converge (23/23
-  on attempt 1; phase 1 complete).
-- **Stage1 swap-in:** `schemas::journal` — the generated `read_journal_str`'s
-  corrupt-line **warning text** diverges from the format conformance
-  `34-journal-corrupt-line` pins byte-for-byte (the equivalence gate only compares
-  `(entries, warnings.len())`, never the text). Hand-written body restored in the
-  shipping binary; generated `schemas_journal` remains equivalence-green and
-  drift-clean. This is a message-format gap, not a logic gap, and it cascades
-  nowhere (no generated crate depends on `schemas_journal`).
+- **Generation:** *(empty)* — no module (phase 1 or phase-2 batch 1) has failed to
+  converge (28/28 generated modules on attempt 1).
+- **Stage1 swap-in:** *(empty)* — `schemas::journal` was **cleared**: the prompt now
+  pins the byte-exact corrupt-line warning (`journal: skipping corrupt line {n}
+  (invalid JSON)`) as behavior prose + a given/expect case, the crate re-genned on
+  attempt 1 to produce those bytes, and the equivalence gate now asserts the warning
+  text (9/9). All 23 `napl-core` modules ship generated code with no seam left on
+  the hatch.
+- **Phase 2 swap-in:** *(empty)* — batch-1's five pure cores all swapped in with
+  conformance 40/40 byte-identical.
 
 ## Layout note (RESOLVED in slice 2 — Cargo workspace)
 

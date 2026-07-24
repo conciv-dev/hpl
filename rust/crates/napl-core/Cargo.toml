@@ -29,6 +29,7 @@ gen_yaml = { package = "yaml", path = "../../../selfhost/.napl/src/rust/yaml" }
 schemas_attribution = { path = "../../../selfhost/.napl/src/rust/schemas_attribution" }
 schemas_frontmatter = { path = "../../../selfhost/.napl/src/rust/schemas_frontmatter" }
 schemas_ir = { path = "../../../selfhost/.napl/src/rust/schemas_ir" }
+schemas_journal = { path = "../../../selfhost/.napl/src/rust/schemas_journal" }
 schemas_line_range = { path = "../../../selfhost/.napl/src/rust/schemas_line_range" }
 schemas_lock = { path = "../../../selfhost/.napl/src/rust/schemas_lock" }
 schemas_map = { path = "../../../selfhost/.napl/src/rust/schemas_map" }

@@ -1,0 +1,42 @@
+# Formatting a Unix timestamp as ISO-8601 UTC
+
+This module renders a Unix timestamp (milliseconds since the epoch) as an
+ISO-8601 UTC string with a millisecond fraction. It is the **pure** core of the
+CLI's clock seam: the I/O shell reads the wall clock and delegates the formatting
+here. It is pure — no I/O, no reading the system clock, no environment, no
+dependencies on other project modules.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `clock_fmt/`: `clock_fmt/Cargo.toml` (package name
+`clock_fmt`) and `clock_fmt/src/lib.rs`. Touch nothing outside `clock_fmt/`.
+Ensure `cargo test` passes from the workspace root before finishing.
+
+## `iso_from_millis(millis)`
+
+`iso_from_millis(millis: u64) -> String`: interpret `millis` as the number of
+milliseconds elapsed since the Unix epoch (`1970-01-01T00:00:00.000Z`) in UTC,
+and return the corresponding calendar timestamp formatted **exactly** as:
+
+    {year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{ms:03}Z
+
+That is: a four-digit year, two-digit month and day separated by `-`, the literal
+`T`, two-digit hour, minute, and second separated by `:`, a `.`, the three-digit
+millisecond remainder, and a trailing `Z`. Every field is zero-padded to its
+fixed width. There is no timezone offset other than the literal `Z` (UTC).
+
+The calendar is the proleptic Gregorian calendar. Split `millis` into whole
+seconds and a millisecond remainder (`millis % 1000`), then whole days and a
+within-day remainder; the within-day remainder gives hours, minutes, and seconds,
+and the whole-day count is converted to a civil `(year, month, day)` date. Use no
+external date crate — the conversion is small integer arithmetic (a standard
+days-since-epoch to civil-date algorithm handles it).
+
+Worked examples that must hold to the byte:
+
+- `iso_from_millis(0)` is exactly `1970-01-01T00:00:00.000Z`.
+- `iso_from_millis(1_784_764_800_000)` is exactly `2026-07-23T00:00:00.000Z`.
+- `iso_from_millis(1_234)` is exactly `1970-01-01T00:00:01.234Z`.
+</content>

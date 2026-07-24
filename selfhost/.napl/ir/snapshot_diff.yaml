@@ -1,0 +1,29 @@
+module: snapshot_diff
+deps: []
+types: []
+functions:
+  - name: diff_snapshots
+    signature: "diff_snapshots(before: Map<String, String>, after: Map<String, String>) -> List<String>"
+    behavior: "Pure comparison, no I/O. Given a before snapshot and an after snapshot, each mapping path to content hash, returns the sorted list of paths whose value in after differs from before. A path is included when it is absent from before (newly added) or present in before with a different hash (changed). A path present in before but absent from after is not included — the result is after-relative and does not report removals. Unchanged paths (same hash in both) are excluded. Result is deterministically sorted in ascending order. Does not mutate either input map.\n"
+tests:
+  - name: spec_example
+    given: "before = {/a: h1, /b: h2}, after = {/a: h1, /b: h2x, /c: h3}"
+    expect: "[/b, /c]"
+  - name: empty_before_and_after
+    given: before = {}, after = {}
+    expect: "[]"
+  - name: all_new_paths
+    given: "before = {}, after = {/a: h1, /b: h2}"
+    expect: "[/a, /b]"
+  - name: identical_snapshots_yield_nothing
+    given: "before = {/a: h1, /b: h2}, after = identical copy of before"
+    expect: "[]"
+  - name: removed_path_not_reported
+    given: "before = {/a: h1, /b: h2}, after = {/a: h1}"
+    expect: "[]"
+  - name: result_is_sorted
+    given: "before = {}, after = {/z: h1, /a: h2, /m: h3}"
+    expect: "[/a, /m, /z]"
+  - name: mixed_add_change_unchanged_remove
+    given: "before = {/a: h1, /b: h2, /d: h4}, after = {/a: h1, /b: h2changed, /c: h3}"
+    expect: "[/b, /c]"

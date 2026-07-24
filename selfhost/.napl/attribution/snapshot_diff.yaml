@@ -1,0 +1,51 @@
+module: snapshot_diff
+target: rust
+entries:
+  - promptLines:
+      - 3
+      - 7
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 1
+      - 5
+    note: module doc, pure comparison core description
+  - promptLines:
+      - 18
+      - 21
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 9
+      - 17
+    note: fn signature and doc for diff_snapshots
+  - promptLines:
+      - 23
+      - 24
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 18
+      - 20
+    note: keep path if before missing or hash differs
+  - promptLines:
+      - 25
+      - 27
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 11
+      - 22
+    note: after-relative, no removed reporting, return kept sorted
+  - promptLines:
+      - 27
+      - 27
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 21
+      - 22
+    note: sorted output via BTreeMap iteration order
+  - promptLines:
+      - 29
+      - 31
+    file: snapshot_diff/src/lib.rs
+    lines:
+      - 37
+      - 41
+    note: spec example test case

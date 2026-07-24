@@ -1,7 +1,14 @@
 //! The clock seam: `now()` reads `NAPL_FIXED_NOW` at the CLI entry, falling
 //! back to the real UTC time in ISO-8601 with milliseconds.
+//!
+//! Stage1: the pure millis-to-ISO formatting is the NAPL-generated `clock_fmt`
+//! crate; this shell only reads the wall clock (or the fixed-now env) and
+//! delegates the formatting. The unit corpus below rides along as the
+//! regression net.
 
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use clock_fmt::iso_from_millis;
 
 /// The current timestamp: `NAPL_FIXED_NOW` when set, else real UTC.
 #[must_use]
@@ -13,31 +20,6 @@ pub fn now() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     iso_from_millis(duration.as_millis() as u64)
-}
-
-fn iso_from_millis(millis: u64) -> String {
-    let secs = millis / 1000;
-    let ms = millis % 1000;
-    let days = secs / 86_400;
-    let rem = secs % 86_400;
-    let (hour, minute, second) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    let (year, month, day) = civil_from_days(i64::try_from(days).unwrap_or_default());
-    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{ms:03}Z")
-}
-
-// Howard Hinnant's days-from-civil, inverted.
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    let year = if m <= 2 { y + 1 } else { y };
-    (year, m, d)
 }
 
 #[cfg(test)]

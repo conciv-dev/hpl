@@ -27,6 +27,11 @@ schemas_journal = { path = "../.napl/src/rust/schemas_journal" }
 incremental = { path = "../.napl/src/rust/incremental" }
 yaml = { path = "../.napl/src/rust/yaml" }
 prompts = { path = "../.napl/src/rust/prompts" }
+clock_fmt = { path = "../.napl/src/rust/clock_fmt" }
+paths_core = { path = "../.napl/src/rust/paths_core" }
+statusclass_render = { path = "../.napl/src/rust/statusclass_render" }
+driftdetect_replay = { path = "../.napl/src/rust/driftdetect_replay" }
+snapshot_diff = { path = "../.napl/src/rust/snapshot_diff" }
 
 [dev-dependencies]
 serde_json = "1"

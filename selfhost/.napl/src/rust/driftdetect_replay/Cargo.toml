@@ -1,0 +1,8 @@
+[package]
+name = "driftdetect_replay"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemas_journal = { path = "../schemas_journal" }
+text_diff = { path = "../text_diff" }

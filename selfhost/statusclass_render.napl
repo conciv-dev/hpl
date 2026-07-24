@@ -1,0 +1,90 @@
+---
+module: statusclass_render
+deps: []
+targets: [rust]
+tests:
+  - name: a clean status pads the label to twelve columns with no detail suffix
+    given: { status: clean, file: "examples/greeting.napl", detail: "" }
+    expect: { line: "clean        examples/greeting.napl" }
+  - name: a prompt-stale status appends its detail in parentheses
+    given: { status: prompt-stale, file: "examples/greeting.napl", detail: "never generated" }
+    expect: { line: "prompt-stale examples/greeting.napl (never generated)" }
+  - name: a drift status uppercases its label and keeps the twelve-column pad
+    given: { status: drift, file: "examples/greeting.napl", detail: "typescript: x was edited" }
+    expect: { line: "DRIFT        examples/greeting.napl (typescript: x was edited)" }
+  - name: an unattributed status renders its label and detail
+    given: { status: unattributed, file: "examples/greeting.napl", detail: "run napl gen typescript --force" }
+    expect: { line: "unattributed examples/greeting.napl (run napl gen typescript --force)" }
+  - name: only drift and unattributed count as errors
+    given: {}
+    expect: { errors: [drift, unattributed], not_errors: [clean, prompt-stale] }
+---
+# Rendering a prompt's status line
+
+This module is the **pure** rendering core of the CLI's status command: it holds
+the status enum and the one-line rendering of a classified prompt. It is pure —
+no filesystem access, no hashing, no dependencies on other project modules. (The
+I/O classifier that reads generated files off disk to decide the status stays
+hand-written and constructs the `StatusEntry` values this module renders.)
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `statusclass_render/`:
+`statusclass_render/Cargo.toml` (package name `statusclass_render`) and
+`statusclass_render/src/lib.rs`. Touch nothing outside `statusclass_render/`.
+Ensure `cargo test` passes from the workspace root before finishing.
+
+## The status enum
+
+Expose a public enum `FileStatus` (deriving at least `Debug`, `Clone`, `Copy`,
+`PartialEq`, `Eq`) with exactly these variants:
+
+- `Clean` — locked, attributed, and the prompt matches its last gen.
+- `PromptStale` — not generated, or the prompt changed since gen.
+- `Drift` — a generated file was edited or deleted.
+- `Unattributed` — generated files exist but attribution failed.
+
+Each variant has a fixed lowercase-ish **label** used when rendering:
+
+- `Clean` → `clean`
+- `PromptStale` → `prompt-stale`
+- `Drift` → `DRIFT` (uppercase — it is an error state)
+- `Unattributed` → `unattributed`
+
+## The status entry
+
+Expose a public struct `StatusEntry` with public fields:
+
+- `file: String` — the prompt path relative to the project root.
+- `status: FileStatus`
+- `detail: String` — a human-facing detail, possibly empty.
+
+### `line(&self) -> String`
+
+Render the entry exactly as the CLI prints one status line: the status **label**
+left-aligned and padded with spaces to a minimum width of **12** columns, then a
+single space, then the `file`, then — only when `detail` is non-empty — a space
+and the detail wrapped in parentheses. When `detail` is empty there is no trailing
+space and no parentheses.
+
+Concretely, the format is `{label:<12} {file}{suffix}` where `suffix` is empty for
+an empty detail and ` ({detail})` otherwise. Byte-exact examples:
+
+- `clean` + `examples/greeting.napl` + empty detail →
+  `clean        examples/greeting.napl` (the label `clean` is 5 characters, so 7
+  spaces pad it to 12, then one separating space).
+- `prompt-stale` + `examples/greeting.napl` + `never generated` →
+  `prompt-stale examples/greeting.napl (never generated)` (the label is already 12
+  characters, so exactly one separating space follows).
+- `DRIFT` + `examples/greeting.napl` + `typescript: x was edited` →
+  `DRIFT        examples/greeting.napl (typescript: x was edited)`.
+- `unattributed` + `examples/greeting.napl` + `run napl gen typescript --force` →
+  `unattributed examples/greeting.napl (run napl gen typescript --force)`.
+
+### `is_error(&self) -> bool`
+
+Whether this status fails the CI gate: `true` for `Drift` and `Unattributed`,
+`false` for `Clean` and `PromptStale`.
+</content>

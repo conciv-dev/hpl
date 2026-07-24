@@ -70,12 +70,21 @@ pub fn read_journal_str(raw: &str) -> (Vec<JournalEntry>, Vec<String>) {
             continue;
         }
 
+        if serde_json::from_str::<serde_json::Value>(line).is_err() {
+            warnings.push(format!(
+                "journal: skipping corrupt line {line_number} (invalid JSON)"
+            ));
+            continue;
+        }
+
         match serde_json::from_str::<JournalEntry>(line) {
             Ok(entry) if entry_is_valid(&entry) => entries.push(entry),
             Ok(_) => warnings.push(format!(
-                "line {line_number}: journal entry failed validation"
+                "journal: skipping corrupt line {line_number} (failed validation)"
             )),
-            Err(err) => warnings.push(format!("line {line_number}: {err}")),
+            Err(err) => warnings.push(format!(
+                "journal: skipping corrupt line {line_number} ({err})"
+            )),
         }
     }
 
@@ -202,7 +211,7 @@ mod tests {
         let (entries, warnings) = read_journal_str("not json at all");
         assert!(entries.is_empty());
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].contains("line 1"));
+        assert_eq!(warnings[0], "journal: skipping corrupt line 1 (invalid JSON)");
     }
 
     #[test]
@@ -221,7 +230,7 @@ mod tests {
         let (entries, warnings) = read_journal_str(&bad);
         assert!(entries.is_empty());
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].contains("line 1"));
+        assert!(warnings[0].starts_with("journal: skipping corrupt line 1 ("));
     }
 
     #[test]
@@ -273,7 +282,7 @@ mod tests {
         let (entries, warnings) = read_journal_str(&raw);
         assert_eq!(entries.len(), 2);
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].contains("line 2"));
+        assert_eq!(warnings[0], "journal: skipping corrupt line 2 (invalid JSON)");
     }
 
     #[test]

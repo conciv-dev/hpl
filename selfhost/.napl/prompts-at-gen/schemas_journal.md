@@ -68,18 +68,36 @@ line. Walk the lines by splitting on `\n`, stripping a trailing `\r` from each,
 tracking a 1-based line number. For each line:
 
 - If the line is empty after trimming, skip it silently (no entry, no warning).
-- Try to parse the line as JSON. If it is not valid JSON, push a warning naming
-  the 1-based line number and move on (no entry).
-- Otherwise deserialize it as a `JournalEntry` and run validation (below). If
-  either the deserialize or the validation fails, push a warning naming the
-  1-based line number and the failure, and move on (no entry).
+- First try to parse the line as **arbitrary JSON** (a generic JSON value). If it
+  is **not syntactically valid JSON**, push a warning and move on (no entry). This
+  warning text is **byte-exact and load-bearing** — a downstream command prints it
+  verbatim to the user, so it must match to the byte:
+
+      journal: skipping corrupt line {n} (invalid JSON)
+
+  where `{n}` is the 1-based line number. For example, a non-JSON second line
+  yields exactly `journal: skipping corrupt line 2 (invalid JSON)` — the literal
+  prefix `journal: skipping corrupt line `, the number, then ` (invalid JSON)`.
+- Otherwise the line **is** syntactically valid JSON: deserialize it as a
+  `JournalEntry` and run validation (below). If either the deserialize or the
+  validation fails, push a warning of the form
+  `journal: skipping corrupt line {n} ({reason})` — the **same**
+  `journal: skipping corrupt line {n} ` prefix as above, followed by the failure
+  reason in parentheses — and move on (no entry). (Only the syntactically-invalid
+  case pins its exact bytes; here just the shared prefix and the surrounding
+  parentheses are fixed, the `{reason}` inside is the deserialize/validation
+  message.)
 - On success, push the entry.
+
+The two phases matter: a line that is not valid JSON at all must take the
+`(invalid JSON)` branch, and only a line that parses as JSON but is not a valid
+entry takes the `({reason})` branch. Do not collapse them into one deserialize
+attempt — a raw non-JSON line must never surface a serde parse message.
 
 Validation of an entry rejects it when: `gen` is less than 1; `module` is empty;
 `target` is empty; or any file's `path` is empty. A rejected entry is skipped
 with a warning exactly like a deserialize failure — it never appears in the
-returned entries. (The warning *text* is not pinned; only that there is exactly
-one warning per skipped line and none per accepted line.)
+returned entries.
 
 ## Querying the journal
 

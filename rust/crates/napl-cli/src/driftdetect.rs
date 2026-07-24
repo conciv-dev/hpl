@@ -1,31 +1,23 @@
 //! Generation-time drift detection (the I/O counterpart of `drift.ts`); the
 //! report formatting lives in `napl_core::drift`.
+//!
+//! Stage1: the pure journal-patch replay (`reconstruct_file_content`) is the
+//! NAPL-generated `driftdetect_replay` crate (composed on the generated
+//! `schemas_journal` + `text_diff` crates), re-exported here; this shell reads
+//! the current file off disk and diffs it against the reconstructed baseline.
+//! The unit corpus below rides along as the regression net.
 
 use std::path::Path;
 
 use napl_core::drift::{DriftReason, DriftedFile, ModuleDrift};
 use napl_core::hash::content_hash;
 use napl_core::schemas::{JournalEntry, NaplMap};
-use napl_core::text_diff::{apply_hunks, parse_hunks, unified_diff};
+use napl_core::text_diff::unified_diff;
 
 use crate::error::CliResult;
 use crate::fsutil;
 
-/// Replay a file's journal patches oldest-to-newest, mirroring
-/// `reconstructFileContent`.
-#[must_use]
-pub fn reconstruct_file_content(entries: &[JournalEntry], file_path: &str) -> Option<String> {
-    let mut ordered: Vec<&JournalEntry> = entries.iter().collect();
-    ordered.sort_by_key(|entry| entry.gen);
-    let mut content: Option<String> = None;
-    for entry in ordered {
-        if let Some(file) = entry.files.iter().find(|f| f.path == file_path) {
-            let base = content.unwrap_or_default();
-            content = Some(apply_hunks(&base, &parse_hunks(&file.patch)));
-        }
-    }
-    content
-}
+pub use driftdetect_replay::reconstruct_file_content;
 
 fn classify_file(
     root: &Path,

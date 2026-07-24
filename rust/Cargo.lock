@@ -152,6 +152,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
+name = "clock_fmt"
+version = "0.1.0"
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -232,6 +236,14 @@ dependencies = [
 [[package]]
 name = "drift"
 version = "0.1.0"
+
+[[package]]
+name = "driftdetect_replay"
+version = "0.1.0"
+dependencies = [
+ "schemas_journal",
+ "text_diff",
+]
 
 [[package]]
 name = "equivalent"
@@ -547,13 +559,18 @@ name = "napl-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "clock_fmt",
  "ctrlc",
+ "driftdetect_replay",
  "napl-core",
  "napl-lsp",
  "notify",
+ "paths_core",
  "serde",
  "serde_json",
  "serde_yaml",
+ "snapshot_diff",
+ "statusclass_render",
  "thiserror",
 ]
 
@@ -575,6 +592,7 @@ dependencies = [
  "schemas_attribution",
  "schemas_frontmatter",
  "schemas_ir",
+ "schemas_journal",
  "schemas_line_range",
  "schemas_lock",
  "schemas_map",
@@ -683,6 +701,10 @@ dependencies = [
 
 [[package]]
 name = "parse_output"
+version = "0.1.0"
+
+[[package]]
+name = "paths_core"
 version = "0.1.0"
 
 [[package]]
@@ -827,6 +849,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemas_journal"
+version = "0.1.0"
+dependencies = [
+ "blame",
+ "serde",
+ "serde_json",
+ "text_diff",
+]
+
+[[package]]
 name = "schemas_line_range"
 version = "0.1.0"
 dependencies = [
@@ -953,6 +985,14 @@ name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
+
+[[package]]
+name = "snapshot_diff"
+version = "0.1.0"
+
+[[package]]
+name = "statusclass_render"
+version = "0.1.0"
 
 [[package]]
 name = "strsim"

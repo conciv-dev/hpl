@@ -1,0 +1,78 @@
+---
+module: paths_core
+deps: []
+targets: [rust]
+tests:
+  - name: rel_to renders a child path POSIX-style relative to the root
+    given: { root: "/project", path: "/project/.napl/map.json" }
+    expect: { rel: ".napl/map.json" }
+  - name: resolve_paths places the map under the .napl directory
+    given: { root: "/p" }
+    expect: { map_path: "/p/.napl/map.json" }
+  - name: resolve_paths places examples beside .napl, not inside it
+    given: { root: "/p" }
+    expect: { examples_dir: "/p/examples" }
+  - name: resolve_paths uses mapl (not ml) for the machine-layer directory
+    given: { root: "/p" }
+    expect: { ml_dir: "/p/.napl/mapl" }
+---
+# Path algebra for the `.napl` project layout
+
+This module is the **pure** path-algebra core of the CLI's path module: it
+computes where the `.napl` layout lives under a project root and renders POSIX
+relative paths. It is pure — no filesystem access, no reading directories, no
+dependencies on other project modules. (The I/O shell that walks the tree to find
+prompt files stays hand-written and calls into this module.)
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `paths_core/`: `paths_core/Cargo.toml` (package name
+`paths_core`) and `paths_core/src/lib.rs`. Touch nothing outside `paths_core/`.
+Ensure `cargo test` passes from the workspace root before finishing.
+
+## The resolved layout struct
+
+Expose a public struct `NaplPaths` with these public fields, each a
+`std::path::PathBuf`:
+
+- `ir_dir`
+- `src_dir`
+- `map_path`
+- `lock_path`
+- `gen_lock_path`
+- `journal_path`
+- `prompts_at_gen_dir`
+- `examples_dir`
+- `attribution_dir`
+- `ml_dir`
+
+## `resolve_paths(root)`
+
+`resolve_paths(root: &std::path::Path) -> NaplPaths`: given a project root, build
+the layout. Let `napl_dir` be `root` joined with `.napl`. Then:
+
+- `ir_dir` = `napl_dir` joined with `ir`
+- `src_dir` = `napl_dir` joined with `src`
+- `map_path` = `napl_dir` joined with `map.json`
+- `lock_path` = `napl_dir` joined with `lock.json`
+- `gen_lock_path` = `napl_dir` joined with `gen.lock`
+- `journal_path` = `napl_dir` joined with `journal.jsonl`
+- `prompts_at_gen_dir` = `napl_dir` joined with `prompts-at-gen`
+- `examples_dir` = **`root`** joined with `examples` (beside `.napl`, not inside it)
+- `attribution_dir` = `napl_dir` joined with `attribution`
+- `ml_dir` = `napl_dir` joined with `mapl` (the directory is named `mapl`)
+
+For example, under root `/p`: `map_path` is `/p/.napl/map.json`, `examples_dir` is
+`/p/examples`, and `ml_dir` is `/p/.napl/mapl`.
+
+## `rel_to(root, path)`
+
+`rel_to(root: &std::path::Path, path: &std::path::Path) -> String`: the path of
+`path` relative to `root`, rendered with forward slashes. Strip the `root` prefix
+from `path`; if `path` is not under `root`, use `path` unchanged. Then render the
+result as a string with the platform path separator replaced by `/` so the output
+is always POSIX-style. For example, with root `/project`, the path
+`/project/.napl/map.json` renders as `.napl/map.json`.
+</content>

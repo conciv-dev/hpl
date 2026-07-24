@@ -1,0 +1,9 @@
+module: statusclass_render
+target: rust
+entries:
+  - promptLines:
+      - 1
+      - 69
+    kind: note
+    message: Prompt fully clear, spec map straight to Rust code 1:1.
+    reasoning: Enum variants, labels, struct fields, line() format, is_error() rules all spelled exact with byte examples. Agent build match, tests match examples verbatim. No gap found.

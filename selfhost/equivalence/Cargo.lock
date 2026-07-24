@@ -29,6 +29,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+name = "clock_fmt"
+version = "0.1.0"
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,17 +66,28 @@ name = "drift"
 version = "0.1.0"
 
 [[package]]
+name = "driftdetect_replay"
+version = "0.1.0"
+dependencies = [
+ "schemas_journal",
+ "text_diff",
+]
+
+[[package]]
 name = "equivalence"
 version = "0.1.0"
 dependencies = [
  "blame",
  "body_lines",
+ "clock_fmt",
  "drift",
+ "driftdetect_replay",
  "extensions",
  "guard",
  "hash",
  "incremental",
  "parse_output",
+ "paths_core",
  "prompts",
  "reverse",
  "scanner",
@@ -87,6 +102,8 @@ dependencies = [
  "schemas_ordered_map",
  "serde_json",
  "serde_yaml",
+ "snapshot_diff",
+ "statusclass_render",
  "targets",
  "text_diff",
  "yaml",
@@ -170,6 +187,10 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "parse_output"
+version = "0.1.0"
+
+[[package]]
+name = "paths_core"
 version = "0.1.0"
 
 [[package]]
@@ -362,6 +383,14 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
+
+[[package]]
+name = "snapshot_diff"
+version = "0.1.0"
+
+[[package]]
+name = "statusclass_render"
+version = "0.1.0"
 
 [[package]]
 name = "syn"

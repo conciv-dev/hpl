@@ -307,13 +307,13 @@
     },
     "schemas_journal.napl": {
       "module": "schemas_journal",
-      "promptHash": "58b9bf776ec3bdaa82bd9d96dc614a61ceb555dd2c9913b729fa4580645cde62",
+      "promptHash": "533df5639e43ebe5bf601f3215f7a28a16ad0a221c50f2fc9d60b7e369f51274",
       "declaredTargets": [
         "rust"
       ],
       "targets": {
         "rust": {
-          "promptHashAtGen": "58b9bf776ec3bdaa82bd9d96dc614a61ceb555dd2c9913b729fa4580645cde62",
+          "promptHashAtGen": "533df5639e43ebe5bf601f3215f7a28a16ad0a221c50f2fc9d60b7e369f51274",
           "files": [
             ".napl/src/rust/schemas_journal/Cargo.toml",
             ".napl/src/rust/schemas_journal/src/lib.rs"
@@ -365,6 +365,86 @@
           "files": [
             ".napl/src/rust/prompts/Cargo.toml",
             ".napl/src/rust/prompts/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "clock_fmt.napl": {
+      "module": "clock_fmt",
+      "promptHash": "d6f4e055037dbb2b27ccdeeb9b3c46fd627c51cf49ed19b3d307409c24c7d27d",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "d6f4e055037dbb2b27ccdeeb9b3c46fd627c51cf49ed19b3d307409c24c7d27d",
+          "files": [
+            ".napl/src/rust/clock_fmt/Cargo.toml",
+            ".napl/src/rust/clock_fmt/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "paths_core.napl": {
+      "module": "paths_core",
+      "promptHash": "a017d3f9f5a60901f4dd44a63278f805c3e42dc95cfd69d6b80888948e753d4b",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "a017d3f9f5a60901f4dd44a63278f805c3e42dc95cfd69d6b80888948e753d4b",
+          "files": [
+            ".napl/src/rust/paths_core/Cargo.toml",
+            ".napl/src/rust/paths_core/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "statusclass_render.napl": {
+      "module": "statusclass_render",
+      "promptHash": "24cdb5c1328634b0489441dce5fdf5660ca766d6d9237bf9952163d442f61e2a",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "24cdb5c1328634b0489441dce5fdf5660ca766d6d9237bf9952163d442f61e2a",
+          "files": [
+            ".napl/src/rust/statusclass_render/Cargo.toml",
+            ".napl/src/rust/statusclass_render/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "driftdetect_replay.napl": {
+      "module": "driftdetect_replay",
+      "promptHash": "2dc207581462ff8cc3269a946b1dcb811f7f20af2b496429e810bacc40d60e25",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "2dc207581462ff8cc3269a946b1dcb811f7f20af2b496429e810bacc40d60e25",
+          "files": [
+            ".napl/src/rust/driftdetect_replay/Cargo.toml",
+            ".napl/src/rust/driftdetect_replay/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "snapshot_diff.napl": {
+      "module": "snapshot_diff",
+      "promptHash": "c7d341e8a8e32d38ea733e31a3db55d0ee3e656042e7e66a3dd43e91ebb61d28",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "c7d341e8a8e32d38ea733e31a3db55d0ee3e656042e7e66a3dd43e91ebb61d28",
+          "files": [
+            ".napl/src/rust/snapshot_diff/Cargo.toml",
+            ".napl/src/rust/snapshot_diff/src/lib.rs"
           ]
         }
       }
@@ -646,7 +726,7 @@
     },
     ".napl/src/rust/schemas_journal/src/lib.rs": {
       "target": "rust",
-      "hash": "a1335ff35fe601235fb11d1bb4de8891ae21b2e5841b918cf8ed4b88d32e5c15",
+      "hash": "a80c27e369375bfebc62483dd83701413f835c4746f43c5419e3b922c527b2a3",
       "prompts": [
         "schemas_journal.napl"
       ]
@@ -691,6 +771,76 @@
       "hash": "2b8b4a2c52bcfe5212920d7b07347e556e3d1701dd51c675a832b9d475230260",
       "prompts": [
         "prompts.napl"
+      ]
+    },
+    ".napl/src/rust/clock_fmt/Cargo.toml": {
+      "target": "rust",
+      "hash": "13ce1a608498dbf01fbc2a2653d1255e56c28d7342a869ac80158d62d7039601",
+      "prompts": [
+        "clock_fmt.napl"
+      ]
+    },
+    ".napl/src/rust/clock_fmt/src/lib.rs": {
+      "target": "rust",
+      "hash": "d80c9c140f84deecc6afa034a520ca86932a46ea8e41f1005f58b0f392b58a41",
+      "prompts": [
+        "clock_fmt.napl"
+      ]
+    },
+    ".napl/src/rust/paths_core/Cargo.toml": {
+      "target": "rust",
+      "hash": "261e4e0ea691194e88b9d933b193ca76f81c396f19d361dee2e67487d2e65596",
+      "prompts": [
+        "paths_core.napl"
+      ]
+    },
+    ".napl/src/rust/paths_core/src/lib.rs": {
+      "target": "rust",
+      "hash": "9c10bae4dbefd7f8e7505dc64ec06a6711f1bedf6a129c79205ebd16326abcb0",
+      "prompts": [
+        "paths_core.napl"
+      ]
+    },
+    ".napl/src/rust/statusclass_render/Cargo.toml": {
+      "target": "rust",
+      "hash": "77933484f70605c4364ee04cac6bdc2c47c7b81d878c50d45eeb1daf7c522540",
+      "prompts": [
+        "statusclass_render.napl"
+      ]
+    },
+    ".napl/src/rust/statusclass_render/src/lib.rs": {
+      "target": "rust",
+      "hash": "ad33ac52ed8dd654476f9d822c95f983cd8003bf2e1472f526840405ec1884c6",
+      "prompts": [
+        "statusclass_render.napl"
+      ]
+    },
+    ".napl/src/rust/driftdetect_replay/Cargo.toml": {
+      "target": "rust",
+      "hash": "dd3df7524f45928c0d6e755caacb1df43bf204ed1f5afd7a00003de0d184f16e",
+      "prompts": [
+        "driftdetect_replay.napl"
+      ]
+    },
+    ".napl/src/rust/driftdetect_replay/src/lib.rs": {
+      "target": "rust",
+      "hash": "990cbd8bc95cc4ac82674d2be0b9675578c4050ce0969cd5b963d3d69e5d8d81",
+      "prompts": [
+        "driftdetect_replay.napl"
+      ]
+    },
+    ".napl/src/rust/snapshot_diff/Cargo.toml": {
+      "target": "rust",
+      "hash": "3b9ffd03377d34af4d46add4362680afe93a72fe2f53796975f39f40cac18fad",
+      "prompts": [
+        "snapshot_diff.napl"
+      ]
+    },
+    ".napl/src/rust/snapshot_diff/src/lib.rs": {
+      "target": "rust",
+      "hash": "28144ba2053d71ab1cf583ba92657b500ac8b1e6e6dbd59def533218cdef2ebf",
+      "prompts": [
+        "snapshot_diff.napl"
       ]
     }
   }

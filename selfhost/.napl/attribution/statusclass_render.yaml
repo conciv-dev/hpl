@@ -1,0 +1,107 @@
+module: statusclass_render
+target: rust
+entries:
+  - promptLines:
+      - 20
+      - 21
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 7
+      - 8
+    note: enum decl with required derives
+  - promptLines:
+      - 22
+      - 27
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 9
+      - 17
+    note: four variants with doc comments
+  - promptLines:
+      - 28
+      - 33
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 20
+      - 28
+    note: label() match per variant
+  - promptLines:
+      - 37
+      - 41
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 37
+      - 44
+    note: StatusEntry struct fields
+  - promptLines:
+      - 43
+      - 49
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 48
+      - 55
+    note: line() renders padded label + file + optional detail
+  - promptLines:
+      - 51
+      - 52
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 49
+      - 54
+    note: suffix format and format string
+  - promptLines:
+      - 54
+      - 56
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 84
+      - 89
+    note: byte-exact example test, clean empty detail
+  - promptLines:
+      - 57
+      - 59
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 91
+      - 97
+    note: byte-exact example test, prompt-stale with detail
+  - promptLines:
+      - 60
+      - 61
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 99
+      - 105
+    note: byte-exact example test, DRIFT with detail
+  - promptLines:
+      - 62
+      - 63
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 107
+      - 113
+    note: byte-exact example test, unattributed with detail
+  - promptLines:
+      - 65
+      - 68
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 31
+      - 33
+    note: is_error true for Drift/Unattributed
+  - promptLines:
+      - 65
+      - 68
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 58
+      - 60
+    note: StatusEntry::is_error delegates to status
+  - promptLines:
+      - 65
+      - 68
+    file: statusclass_render/src/lib.rs
+    lines:
+      - 137
+      - 148
+    note: is_error test for all variants

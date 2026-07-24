@@ -20,5 +20,11 @@ clap = { version = "4", features = ["derive"] }
 notify = "8"
 ctrlc = "3"
 
+clock_fmt = { path = "../../../selfhost/.napl/src/rust/clock_fmt" }
+paths_core = { path = "../../../selfhost/.napl/src/rust/paths_core" }
+statusclass_render = { path = "../../../selfhost/.napl/src/rust/statusclass_render" }
+driftdetect_replay = { path = "../../../selfhost/.napl/src/rust/driftdetect_replay" }
+snapshot_diff = { path = "../../../selfhost/.napl/src/rust/snapshot_diff" }
+
 [lints]
 workspace = true

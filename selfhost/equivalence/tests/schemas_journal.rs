@@ -74,6 +74,23 @@ fn skips_corrupt_and_invalid_lines_with_warnings() {
     let (entries, warnings) = read_journal_str(&raw);
     assert_eq!(entries.iter().map(|e| e.gen).collect::<Vec<_>>(), vec![1]);
     assert_eq!(warnings.len(), 2);
+    // The syntactically-invalid line yields the byte-exact, conformance-pinned
+    // warning; the deserialize failure shares the same prefix + parentheses.
+    assert_eq!(warnings[0], "journal: skipping corrupt line 2 (invalid JSON)");
+    assert!(warnings[1].starts_with("journal: skipping corrupt line 3 ("));
+    assert!(warnings[1].ends_with(')'));
+}
+
+#[test]
+fn invalid_json_warning_is_byte_exact() {
+    // Mirrors conformance scenario 34-journal-corrupt-line: a valid entry on
+    // line 1, a non-JSON line 2. The warning text is printed verbatim by the
+    // `blame` command and pinned byte-for-byte by the conformance corpus.
+    let valid = serde_json::to_string(&entry(1, "greet.ts")).unwrap();
+    let raw = format!("{valid}\nthis line is not valid json and must be skipped\n");
+    let (entries, warnings) = read_journal_str(&raw);
+    assert_eq!(entries.iter().map(|e| e.gen).collect::<Vec<_>>(), vec![1]);
+    assert_eq!(warnings, vec!["journal: skipping corrupt line 2 (invalid JSON)"]);
 }
 
 #[test]

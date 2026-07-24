@@ -1,4 +1,10 @@
 //! Per-prompt status classification (the I/O counterpart of `status-core.ts`).
+//!
+//! Stage1: the pure status enum and one-line rendering (`FileStatus`,
+//! `StatusEntry`, `line`, `is_error`) are the NAPL-generated
+//! `statusclass_render` crate, re-exported here; this shell reads generated
+//! files off disk to classify each prompt into a `StatusEntry`. The unit corpus
+//! below rides along as the regression net.
 
 use std::path::Path;
 
@@ -8,58 +14,7 @@ use napl_core::schemas::{parse_frontmatter, NaplMap, PromptRecord};
 use crate::error::CliResult;
 use crate::fsutil;
 
-/// The status of a prompt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FileStatus {
-    /// Locked, attributed, and prompt matches its last gen.
-    Clean,
-    /// Not generated, or the prompt changed since gen.
-    PromptStale,
-    /// A generated file was edited or deleted.
-    Drift,
-    /// Generated files exist but attribution failed.
-    Unattributed,
-}
-
-impl FileStatus {
-    fn label(self) -> &'static str {
-        match self {
-            FileStatus::Clean => "clean",
-            FileStatus::PromptStale => "prompt-stale",
-            FileStatus::Drift => "DRIFT",
-            FileStatus::Unattributed => "unattributed",
-        }
-    }
-}
-
-/// A classified status entry.
-pub struct StatusEntry {
-    /// The prompt path (relative to root).
-    pub file: String,
-    /// The status.
-    pub status: FileStatus,
-    /// The human-facing detail.
-    pub detail: String,
-}
-
-impl StatusEntry {
-    /// Render the status line exactly as the CLI prints it.
-    #[must_use]
-    pub fn line(&self) -> String {
-        let suffix = if self.detail.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.detail)
-        };
-        format!("{:<12} {}{}", self.status.label(), self.file, suffix)
-    }
-
-    /// Whether this status is an error (fails the CI gate).
-    #[must_use]
-    pub fn is_error(&self) -> bool {
-        matches!(self.status, FileStatus::Drift | FileStatus::Unattributed)
-    }
-}
+pub use statusclass_render::{FileStatus, StatusEntry};
 
 struct DriftResult {
     detail: Option<String>,

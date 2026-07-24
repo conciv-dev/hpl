@@ -1,0 +1,17 @@
+module: paths_core
+target: rust
+entries:
+  - promptLines:
+      - 47
+      - 47
+    kind: ambiguity
+    message: ml_dir field maps to a directory literally named "mapl", not "ml".
+    reasoning: 'The prompt names field `ml_dir` but explicitly says the directory itself is called `mapl` (not `ml` as the field name would suggest). This mismatch reads like it could be a typo either in the field name or the directory name, but the prompt is explicit enough ("the directory is named mapl") that the agent implemented it literally as stated rather than assuming a typo. Flagging since a careful reviewer would want to confirm this odd field/directory name mismatch is intentional.
+'
+    suggestion: Clarify why ml_dir points to "mapl" — confirm this isn't a typo for "ml".
+  - promptLines:
+      - 52
+      - 59
+    kind: note
+    message: rel_to spec described as strip+replace; implementation uses component-wise rebuild, behaviorally equivalent.
+    reasoning: The prompt describes rel_to procedurally as "strip the root prefix, then replace the platform separator with /". The agent instead implemented it by iterating path Components and rejoining with "/", which handles edge cases (root dir, parent dir, prefix components) not explicitly spelled out in the prompt. This produces the same observable results for all given examples and tests, so no behavior change, just noting the implementation strategy diverges from the literal wording of the spec.

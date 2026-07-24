@@ -1,0 +1,75 @@
+module: clock_fmt
+target: rust
+entries:
+  - promptLines:
+      - 19
+      - 21
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 22
+      - 24
+    note: parses millis into ms remainder and total seconds
+  - promptLines:
+      - 23
+      - 28
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 34
+      - 36
+    note: zero-padded ISO-8601 format string with literal T, Z
+  - promptLines:
+      - 30
+      - 32
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 23
+      - 30
+    note: splits millis into seconds/ms remainder, days and time-of-day fields
+  - promptLines:
+      - 33
+      - 35
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 3
+      - 19
+    note: days-since-epoch to civil (year, month, day) algorithm
+  - promptLines:
+      - 33
+      - 35
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 32
+      - 32
+    note: converts day count to civil date via civil_from_days
+  - promptLines:
+      - 39
+      - 39
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 44
+      - 46
+    note: test epoch is zero
+  - promptLines:
+      - 40
+      - 40
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 48
+      - 51
+    note: test known 2026 date
+  - promptLines:
+      - 41
+      - 41
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 53
+      - 56
+    note: test sub-second remainder
+  - promptLines:
+      - 3
+      - 7
+    file: clock_fmt/src/lib.rs
+    lines:
+      - 21
+      - 22
+    note: pure formatting function signature, no I/O

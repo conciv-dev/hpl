@@ -1,0 +1,10 @@
+module: snapshot_diff
+target: rust
+entries:
+  - promptLines:
+      - 11
+      - 16
+    kind: note
+    message: Agent flagged that snapshot_diff isn't listed in workspace members, yet cargo test still picked it up.
+    reasoning: "Prompt says the root Cargo.toml is owned by the toolchain and must be left alone, and that `cargo test` must pass from the workspace root. The agent's final message admits the new crate isn't listed under `[workspace.members]` but claims it \"ran under it — no matter, works,\" without verifying why (likely a wildcard/glob member pattern already present in the root manifest, or default-members behavior). This is worth double-checking: if the root manifest doesn't already glob-include new directories, `cargo test` from the root may not actually be exercising this crate in CI, contradicting the \"ensure cargo test passes from the workspace root\" requirement.\n"
+    suggestion: Clarify whether the root workspace manifest already includes new member crates automatically (e.g. via a `snapshot_diff/*` or `*` glob in `[workspace.members]`), or whether the prompt should explicitly state that membership registration is out of scope / already handled.

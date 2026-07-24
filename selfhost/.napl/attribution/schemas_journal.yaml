@@ -2,45 +2,13 @@ module: schemas_journal
 target: rust
 entries:
   - promptLines:
-      - 1
-      - 6
-    file: schemas_journal/src/lib.rs
-    lines:
-      - 2
-      - 6
-    note: module doc summarizing journal purpose, pure parsing no I/O
-  - promptLines:
-      - 27
-      - 29
-    file: schemas_journal/src/lib.rs
-    lines:
-      - 48
-      - 50
-    note: file_patch delegates to text_diff::unified_diff
-  - promptLines:
-      - 30
-      - 33
-    file: schemas_journal/src/lib.rs
-    lines:
-      - 8
-      - 8
-    note: imports BlameSourceEntry from blame crate
-  - promptLines:
-      - 30
-      - 33
-    file: schemas_journal/src/lib.rs
-    lines:
-      - 91
-      - 108
-    note: file_history returns Vec<BlameSourceEntry>
-  - promptLines:
-      - 37
+      - 40
       - 44
     file: schemas_journal/src/lib.rs
     lines:
       - 11
       - 20
-    note: JournalFile struct with serde field renames
+    note: JournalFile struct with serde renames for hashBefore/hashAfter
   - promptLines:
       - 45
       - 46
@@ -48,7 +16,7 @@ entries:
     lines:
       - 22
       - 29
-    note: JournalMode enum lowercase serialization
+    note: JournalMode enum, lowercase serde rename_all
   - promptLines:
       - 47
       - 55
@@ -58,66 +26,90 @@ entries:
       - 45
     note: JournalEntry struct with field renames and default files
   - promptLines:
+      - 27
+      - 29
+    file: schemas_journal/src/lib.rs
+    lines:
+      - 8
+      - 8
+    note: import of text_diff crate (used via path in file_patch)
+  - promptLines:
+      - 30
+      - 33
+    file: schemas_journal/src/lib.rs
+    lines:
+      - 8
+      - 8
+    note: import BlameSourceEntry from blame crate
+  - promptLines:
       - 59
       - 61
     file: schemas_journal/src/lib.rs
     lines:
-      - 47
+      - 48
       - 50
-    note: file_patch treats None before as empty string
+    note: file_patch delegates to text_diff::unified_diff, None -> empty string
   - promptLines:
       - 65
-      - 68
+      - 70
     file: schemas_journal/src/lib.rs
     lines:
       - 61
       - 71
-    note: read_journal_str splits lines, strips CR, tracks line number
-  - promptLines:
-      - 70
-      - 70
-    file: schemas_journal/src/lib.rs
-    lines:
-      - 69
-      - 71
-    note: skip blank lines silently
+    note: read_journal_str line splitting, CR stripping, 1-based numbering, blank skip
   - promptLines:
       - 71
-      - 72
+      - 80
     file: schemas_journal/src/lib.rs
     lines:
       - 73
       - 78
-    note: invalid JSON pushes warning with line number
+    note: syntactic JSON validity check, byte-exact invalid JSON warning
   - promptLines:
-      - 73
-      - 76
+      - 81
+      - 90
+    file: schemas_journal/src/lib.rs
+    lines:
+      - 80
+      - 88
+    note: deserialize as JournalEntry, validate, push entry or warning with reason
+  - promptLines:
+      - 92
+      - 95
     file: schemas_journal/src/lib.rs
     lines:
       - 73
-      - 82
-    note: deserialize, validate, push entry or warning
+      - 88
+    note: "two-phase parse: invalid JSON branch vs validation/deserialize branch kept separate"
   - promptLines:
-      - 78
-      - 82
+      - 97
+      - 100
     file: schemas_journal/src/lib.rs
     lines:
       - 52
       - 57
-    note: entry_is_valid validation rules
+    note: "entry_is_valid validation rules: gen>=1, non-empty module/target/file paths"
   - promptLines:
-      - 86
-      - 87
+      - 97
+      - 100
     file: schemas_journal/src/lib.rs
     lines:
-      - 86
-      - 88
-    note: next_gen_number computes max gen plus one or 1
+      - 81
+      - 84
+    note: validation failure produces skip warning, entry never returned
   - promptLines:
-      - 89
+      - 104
+      - 105
+    file: schemas_journal/src/lib.rs
+    lines:
       - 94
+      - 97
+    note: "next_gen_number: max gen + 1, or 1 for empty"
+  - promptLines:
+      - 107
+      - 112
     file: schemas_journal/src/lib.rs
     lines:
-      - 91
-      - 108
-    note: file_history filters entries touching file_path, in order
+      - 99
+      - 117
+    note: file_history builds BlameSourceEntry list for matching file path, entry order

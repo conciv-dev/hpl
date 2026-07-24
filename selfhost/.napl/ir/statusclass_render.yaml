@@ -1,0 +1,62 @@
+module: statusclass_render
+deps: []
+types:
+  - name: FileStatus
+    description: 'Enum classifying a prompt relative to its generated files. Variants: Clean (locked, attributed, prompt matches last gen), PromptStale (not generated, or prompt changed since gen), Drift (a generated file was edited or deleted), Unattributed (generated files exist but attribution failed). Each variant maps to a fixed display label: Clean -> "clean", PromptStale -> "prompt-stale", Drift -> "DRIFT" (uppercase, error state), Unattributed -> "unattributed". Supports equality comparison and copying.
+'
+  - name: StatusEntry
+    description: "Struct representing one classified prompt ready to render as a status line. Fields: file (string, prompt path relative to project root), status (FileStatus), detail (string, human-facing detail, possibly empty). Supports equality comparison.\n"
+functions:
+  - name: FileStatus.label
+    signature: "label(self: FileStatus) -> string"
+    behavior: 'Returns the fixed display label for the status: "clean" for Clean, "prompt-stale" for PromptStale, "DRIFT" for Drift, "unattributed" for Unattributed. Pure, total function with no side effects.
+'
+  - name: FileStatus.is_error
+    signature: "is_error(self: FileStatus) -> bool"
+    behavior: "Returns true if the status fails the CI gate (Drift or Unattributed), false otherwise (Clean or PromptStale).\n"
+  - name: StatusEntry.line
+    signature: "line(self: StatusEntry) -> string"
+    behavior: "Renders the entry as one status line in the format \"{label:<12} {file}{suffix}\", where label is the status's fixed label left-aligned and space-padded to a minimum width of 12 columns, followed by a single space, then file. If detail is empty, suffix is empty (no trailing space, no parentheses). If detail is non-empty, suffix is \" ({detail})\" (one leading space, detail wrapped in parentheses). Labels longer than 12 characters are not truncated; exactly one separating space still follows. Pure function, no side effects.\n"
+  - name: StatusEntry.is_error
+    signature: "is_error(self: StatusEntry) -> bool"
+    behavior: "Returns self.status.is_error() — true for Drift and Unattributed status, false for Clean and PromptStale.\n"
+tests:
+  - name: labels_are_fixed
+    given: each FileStatus variant (Clean, PromptStale, Drift, Unattributed)
+    expect: 'label() returns "clean", "prompt-stale", "DRIFT", "unattributed" respectively.
+'
+  - name: line_clean_empty_detail
+    given: 'StatusEntry{file: "examples/greeting.napl", status: Clean, detail: ""}
+'
+    expect: line() == "clean        examples/greeting.napl"
+  - name: line_prompt_stale_with_detail_has_single_separator
+    given: 'StatusEntry{file: "examples/greeting.napl", status: PromptStale, detail: "never generated"}
+'
+    expect: 'line() == "prompt-stale examples/greeting.napl (never generated)"
+'
+  - name: line_drift_with_detail
+    given: 'StatusEntry{file: "examples/greeting.napl", status: Drift, detail: "typescript: x was edited"}
+'
+    expect: 'line() == "DRIFT        examples/greeting.napl (typescript: x was edited)"
+'
+  - name: line_unattributed_with_detail
+    given: 'StatusEntry{file: "examples/greeting.napl", status: Unattributed, detail: "run napl gen typescript --force"}
+'
+    expect: 'line() == "unattributed examples/greeting.napl (run napl gen typescript --force)"
+'
+  - name: line_no_detail_has_no_trailing_space_or_parens
+    given: 'StatusEntry{file: "examples/greeting.napl", status: Drift, detail: ""}
+'
+    expect: 'line() == "DRIFT        examples/greeting.napl"; result does not end with a space and does not contain "("
+'
+  - name: line_exact_twelve_char_label_gets_single_separator
+    given: PromptStale label (length 12) with empty detail
+    expect: 'label length == 12; line() == "prompt-stale examples/greeting.napl"
+'
+  - name: line_shorter_labels_pad_to_width_twelve
+    given: StatusEntry with status Clean and empty detail
+    expect: 'line() starts with "clean        " (5-char label padded to 12 columns plus separating space, 13 chars total)
+'
+  - name: is_error_for_all_variants
+    given: each FileStatus variant and corresponding StatusEntry
+    expect: is_error() is false for Clean and PromptStale, true for Drift and Unattributed, consistent between FileStatus.is_error() and StatusEntry.is_error()

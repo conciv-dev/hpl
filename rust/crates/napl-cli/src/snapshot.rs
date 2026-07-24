@@ -1,5 +1,10 @@
 //! Directory snapshots (hashes and contents) and their diff, mirroring
 //! `snapshot.ts`.
+//!
+//! Stage1: the pure snapshot comparison (`diff_snapshots`) is the NAPL-generated
+//! `snapshot_diff` crate, re-exported here; this shell keeps the filesystem walk
+//! and the exclusion filter. The unit corpus below rides along as the regression
+//! net.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -7,6 +12,8 @@ use std::path::Path;
 use napl_core::hash::content_hash;
 
 use crate::error::CliResult;
+
+pub use snapshot_diff::diff_snapshots;
 
 /// Which entries a snapshot skips.
 #[allow(clippy::struct_field_names)]
@@ -94,21 +101,6 @@ pub fn snapshot_contents(
     let mut out = BTreeMap::new();
     walk(dir, filter, true, true, &mut out)?;
     Ok(out)
-}
-
-/// The sorted set of paths whose hash changed, mirroring `diffSnapshots`.
-#[must_use]
-pub fn diff_snapshots(
-    before: &BTreeMap<String, String>,
-    after: &BTreeMap<String, String>,
-) -> Vec<String> {
-    let mut changed: Vec<String> = after
-        .iter()
-        .filter(|(path, hash)| before.get(*path) != Some(*hash))
-        .map(|(path, _)| path.clone())
-        .collect();
-    changed.sort();
-    changed
 }
 
 #[cfg(test)]
