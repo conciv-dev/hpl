@@ -2,62 +2,20 @@
 //! report formatting lives in `napl_core::drift`.
 //!
 //! Stage1: the pure journal-patch replay (`reconstruct_file_content`) is the
-//! NAPL-generated `driftdetect_replay` crate (composed on the generated
-//! `schemas_journal` + `text_diff` crates), re-exported here; this shell reads
-//! the current file off disk and diffs it against the reconstructed baseline.
-//! The unit corpus below rides along as the regression net.
+//! NAPL-generated `driftdetect_replay` crate, and the on-disk drift walk
+//! (`detect_gen_drift`) is the NAPL-generated `driftdetect_io` crate — both
+//! re-exported here behind the unchanged public surface. The unit corpus below
+//! rides along as the regression net.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use napl_core::drift::{DriftReason, DriftedFile, ModuleDrift};
-use napl_core::hash::content_hash;
+use napl_core::drift::ModuleDrift;
 use napl_core::schemas::{JournalEntry, NaplMap};
-use napl_core::text_diff::unified_diff;
 
-use crate::error::CliResult;
-use crate::fsutil;
+use crate::error::{CliError, CliResult};
 
 pub use driftdetect_replay::reconstruct_file_content;
-
-fn classify_file(
-    root: &Path,
-    file_path: &str,
-    map: &NaplMap,
-    journal: &[JournalEntry],
-) -> CliResult<Option<DriftedFile>> {
-    let abs = root.join(file_path);
-    let expected_hash = map.files.get(file_path).map(|f| f.hash.clone());
-    let baseline = reconstruct_file_content(journal, file_path);
-    if !fsutil::exists(&abs) {
-        return Ok(Some(DriftedFile {
-            file: file_path.to_string(),
-            reason: DriftReason::Missing,
-            expected_hash,
-            actual_hash: None,
-            baseline,
-            current: None,
-            diff: None,
-        }));
-    }
-    let current = std::fs::read_to_string(&abs)?;
-    let actual_hash = content_hash(&current);
-    if expected_hash.as_deref() == Some(actual_hash.as_str()) {
-        return Ok(None);
-    }
-    let diff = baseline
-        .as_ref()
-        .map(|baseline| unified_diff(baseline, &current));
-    Ok(Some(DriftedFile {
-        file: file_path.to_string(),
-        reason: DriftReason::Edited,
-        expected_hash,
-        actual_hash: Some(actual_hash),
-        baseline,
-        current: Some(current),
-        diff,
-    }))
-}
 
 /// Detect drifted, attributed files for a target, mirroring `detectGenDrift`.
 pub fn detect_gen_drift(
@@ -68,38 +26,8 @@ pub fn detect_gen_drift(
     module_scope: Option<&str>,
     prompt_paths: &BTreeMap<String, String>,
 ) -> CliResult<Vec<ModuleDrift>> {
-    let mut drifts = Vec::new();
-    for (_, record) in map.prompts.iter() {
-        if let Some(scope) = module_scope {
-            if record.module != scope {
-                continue;
-            }
-        }
-        let Some(target_record) = record.targets.get(target) else {
-            continue;
-        };
-        if target_record.unattributed == Some(true) {
-            continue;
-        }
-        let mut files = Vec::new();
-        for file_path in &target_record.files {
-            if let Some(drifted) = classify_file(root, file_path, map, journal)? {
-                files.push(drifted);
-            }
-        }
-        if !files.is_empty() {
-            drifts.push(ModuleDrift {
-                module: record.module.clone(),
-                prompt_file: prompt_paths
-                    .get(&record.module)
-                    .cloned()
-                    .unwrap_or_else(|| record.module.clone()),
-                target: target.to_string(),
-                files,
-            });
-        }
-    }
-    Ok(drifts)
+    driftdetect_io::detect_gen_drift(root, target, map, journal, module_scope, prompt_paths)
+        .map_err(CliError::new)
 }
 
 #[cfg(test)]

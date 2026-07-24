@@ -1,5 +1,5 @@
 pub use fsutil_io::{
-    exists, mkdir_parent, read_opt, set_mode, write, EXEC_MODE, READONLY_MODE, WRITABLE_MODE,
+    exists, read_opt, set_mode, write, EXEC_MODE, READONLY_MODE, WRITABLE_MODE,
 };
 
 #[cfg(test)]

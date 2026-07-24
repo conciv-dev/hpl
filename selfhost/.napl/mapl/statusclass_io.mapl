@@ -1,0 +1,55 @@
+module: statusclass_io
+target: rust
+entries:
+  - promptLines:
+      - 1
+      - 91
+    kind: no-op
+    message: No changes — agent reports existing statusclass_io crate already satisfies whole prompt body.
+    reasoning: 'Changes were "NO CHANGES". Agent claims statusclass_io/Cargo.toml and statusclass_io/src/lib.rs already exist and implement classify() with the exact signature, the 5-step ordering, exact detail strings, String I/O errors, no `//` comments, and the required empty_map()/never-generated test; it cites `cargo test -p statusclass_io` = 10 passed. Nothing new was produced because the prompt was a re-statement of already-conformant generated code. Unverified from here: the prompt asks for `cargo test` from the workspace ROOT, but the agent only ran `-p statusclass_io`, so workspace-root green is not evidenced.'
+  - promptLines:
+      - 23
+      - 24
+    kind: note
+    message: Workspace-root `cargo test` gate not evidenced — agent only ran `-p statusclass_io`.
+    reasoning: Line 23-24 requires `cargo test` to pass from the workspace root before finishing. The final message reports only the package-scoped run. Other members could be red and this module would still report success.
+  - promptLines:
+      - 61
+      - 84
+    kind: ambiguity
+    message: Step numbering is not a clean sequence — step 4's "Otherwise" is unreachable after step 3 as written.
+    reasoning: 'Steps 1 and 2 are guarded by "if the record exists"; step 3 by "if the record does not exist"; step 4 opens with "Otherwise", which after an exhaustive exists/not-exists split reads as dead. The intended control flow is presumably: no record → PromptStale (step 3), record exists → drift check → attribution check → declared-target staleness → clean. The list order and the evaluation order therefore differ, which a careful reader would stop on.'
+    suggestion: 'Reorder as: (1) if no record → PromptStale "never generated"; (2) drift check; (3) attribution check; (4) declared-target staleness; (5) clean. Drop "Otherwise" in favour of explicit guards.'
+  - promptLines:
+      - 81
+      - 83
+    kind: ambiguity
+    message: Two prompt-stale details are inconsistently formatted — one is target-prefixed, one is not.
+    reasoning: '"{target}: not generated" carries the target prefix; "prompt changed since gen" does not, even though it is also produced per declared target inside the same loop. Unclear whether the missing prefix is deliberate or an oversight. Taken literally (and as implemented), the bare string is emitted.'
+    suggestion: State explicitly whether the stale-hash detail is intentionally un-prefixed.
+  - promptLines:
+      - 64
+      - 70
+    kind: ambiguity
+    message: "`{file_path}` in detail strings — unclear whether it is the map-relative path or the root-joined path."
+    reasoning: The path is joined against `root` for the disk read, but the detail string template reuses the same placeholder name. Assumed the recorded (relative) path is what goes in the message, since that is what the map keys on and what a user recognizes.
+    suggestion: 'Say "detail `{target}: {rel file path as recorded in the map} is missing`".'
+  - promptLines:
+      - 62
+      - 63
+    kind: ambiguity
+    message: '"`unattributed` flag is not exactly `true`" — "exactly" is doing unexplained work.'
+    reasoning: '`unattributed` is described as an optional flag. "Not exactly true" presumably means `Some(true)` is the only skip case, with `None` and `Some(false)` both drift-checked. The word "exactly" recurs at line 73 and line 82 (for hashes), suggesting the author is guarding against some looser comparison, but the looser alternative is never named.'
+    suggestion: 'Replace with: "for each target whose `unattributed` is not `Some(true)`".'
+  - promptLines:
+      - 6
+      - 8
+    kind: note
+    message: Module self-declares "no given/expect corpus" and defers to an external conformance suite not visible here.
+    reasoning: Behaviour is stated to be pinned by "the status scenarios" in a conformance suite outside this module. Nothing in this compile verifies against that suite; only the crate's own tests were run. If the scenarios and this prose diverge, that divergence is undetectable from this module alone.
+  - promptLines:
+      - 88
+      - 90
+    kind: assumption
+    message: Only one test is mandated; agent reports 10 tests present.
+    reasoning: The prompt specifies exactly one required test (empty_map → PromptStale "never generated"). The existing file has 10. Assumed the extra tests are pre-existing and welcome rather than scope violations, so nothing was removed — consistent with the "touch nothing outside statusclass_io" and no-churn stance.

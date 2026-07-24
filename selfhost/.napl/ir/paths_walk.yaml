@@ -1,0 +1,17 @@
+module: paths_walk
+deps:
+  - extensions
+types:
+  - name: IgnoredDirectoryNames
+    description: 'Fixed set of three directory names never descended into during discovery: "node_modules", ".napl", ".git". Dependency and toolchain-state trees, never source. Internal constant, not part of the public surface.'
+functions:
+  - name: find_prompt_files
+    signature: "find_prompt_files(root: Path, aliases: List<String>) -> Result<List<Path>, IoError>"
+    behavior: "Discovers every prompt file under the directory tree rooted at `root`. Collects the full path of each entry that is a file and whose name is a prompt file per extensions.is_prompt_file, passing `aliases` borrowed into the slice-of-string-slices shape that API expects. Descends into subdirectories except any whose name is one of the three ignored names, which are skipped without descending. Returns the collected paths sorted by the default path ordering. Tolerant of missing directories: a directory whose read fails with the not-found error kind is treated as empty, so a nonexistent `root` yields an empty list rather than an error. Any other I/O error — reading a directory, reading an entry, or querying an entry's file type — is propagated as an error. Prompt-file classification is delegated entirely to `extensions`; no alias or extension logic is reimplemented here."
+tests:
+  - name: finds_prompts_and_skips_ignored_trees
+    given: A unique temporary directory containing examples/a.napl, examples/b.napl, examples/notprompt.txt, .napl/src/ignored.napl, and node_modules/dep.napl; discovery run with extensions::default_prompt_aliases() as the aliases.
+    expect: Succeeds and returns exactly [examples/a.napl, examples/b.napl] in sorted order — the .napl and node_modules trees are skipped without descending and the non-prompt file is excluded.
+  - name: missing_root_yields_an_empty_list
+    given: A root path that does not exist (a "nope" child of a fresh temporary directory), with extensions::default_prompt_aliases() as the aliases.
+    expect: Succeeds with an empty list rather than an error.

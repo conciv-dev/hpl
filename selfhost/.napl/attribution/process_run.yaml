@@ -1,0 +1,483 @@
+module: process_run
+target: rust
+entries:
+  - promptLines:
+      - 1
+      - 10
+    file: process_run/src/lib.rs
+    lines:
+      - 1
+      - 7
+    note: module doc-comment describing the I/O shell
+  - promptLines:
+      - 31
+      - 31
+    file: process_run/src/lib.rs
+    lines:
+      - 9
+      - 13
+    note: only std library imports
+  - promptLines:
+      - 42
+      - 44
+    file: process_run/src/lib.rs
+    lines:
+      - 15
+      - 21
+    note: public RunOutput struct with output and code fields
+  - promptLines:
+      - 73
+      - 74
+    file: process_run/src/lib.rs
+    lines:
+      - 25
+      - 31
+    note: "shared stream-merge helper: stdout alone or stdout\\nstderr"
+  - promptLines:
+      - 48
+      - 50
+    file: process_run/src/lib.rs
+    lines:
+      - 36
+      - 43
+    note: spawn command with args in cwd, stdin null, streams captured
+  - promptLines:
+      - 50
+      - 53
+    file: process_run/src/lib.rs
+    lines:
+      - 45
+      - 52
+    note: output is stdout concatenated with stderr, code or 1
+  - promptLines:
+      - 53
+      - 55
+    file: process_run/src/lib.rs
+    lines:
+      - 53
+      - 56
+    note: spawn failure yields leading-newline error text and code 1
+  - promptLines:
+      - 59
+      - 62
+    file: process_run/src/lib.rs
+    lines:
+      - 62
+      - 70
+    note: program --version probe with discarded output, false on failure
+  - promptLines:
+      - 17
+      - 22
+    file: process_run/src/lib.rs
+    lines:
+      - 74
+      - 91
+    note: piped spawn + stdin write, write error propagated as launch failure
+  - promptLines:
+      - 68
+      - 69
+    file: process_run/src/lib.rs
+    lines:
+      - 75
+      - 83
+    note: three streams piped, write task to stdin, wait for exit
+  - promptLines:
+      - 72
+      - 74
+    file: process_run/src/lib.rs
+    lines:
+      - 84
+      - 90
+    note: lossy UTF-8 capture, merged output, code or 1
+  - promptLines:
+      - 66
+      - 68
+    file: process_run/src/lib.rs
+    lines:
+      - 94
+      - 100
+    note: run_agent signature spawning the claude CLI
+  - promptLines:
+      - 69
+      - 72
+    file: process_run/src/lib.rs
+    lines:
+      - 101
+      - 114
+    note: claude agent argument list then allowed_tools appended, in cwd
+  - promptLines:
+      - 75
+      - 76
+    file: process_run/src/lib.rs
+    lines:
+      - 115
+      - 115
+    note: spawn/write failure message for the claude agent
+  - promptLines:
+      - 80
+      - 82
+    file: process_run/src/lib.rs
+    lines:
+      - 119
+      - 121
+    note: run_codex signature spawning codex in cwd
+  - promptLines:
+      - 83
+      - 83
+    file: process_run/src/lib.rs
+    lines:
+      - 122
+      - 123
+    note: codex exec --full-auto --model {model} arguments
+  - promptLines:
+      - 84
+      - 86
+    file: process_run/src/lib.rs
+    lines:
+      - 124
+      - 124
+    note: codex merged output and spawn-failure message
+  - promptLines:
+      - 90
+      - 91
+    file: process_run/src/lib.rs
+    lines:
+      - 129
+      - 129
+    note: run_custom signature
+  - promptLines:
+      - 92
+      - 92
+    file: process_run/src/lib.rs
+    lines:
+      - 130
+      - 132
+    note: empty command rejected with fixed message
+  - promptLines:
+      - 93
+      - 96
+    file: process_run/src/lib.rs
+    lines:
+      - 134
+      - 142
+    note: temp task file named with pid and nanos-since-epoch, 0 before epoch
+  - promptLines:
+      - 96
+      - 97
+    file: process_run/src/lib.rs
+    lines:
+      - 143
+      - 144
+    note: task file write failure message
+  - promptLines:
+      - 97
+      - 100
+    file: process_run/src/lib.rs
+    lines:
+      - 146
+      - 150
+    note: "{task}/{dir} placeholder substitution over program and args"
+  - promptLines:
+      - 99
+      - 101
+    file: process_run/src/lib.rs
+    lines:
+      - 152
+      - 158
+    note: spawn substituted program in cwd, stdin null, streams piped
+  - promptLines:
+      - 102
+      - 102
+    file: process_run/src/lib.rs
+    lines:
+      - 159
+      - 159
+    note: always remove temp task file, ignoring errors
+  - promptLines:
+      - 102
+      - 104
+    file: process_run/src/lib.rs
+    lines:
+      - 162
+      - 168
+    note: merged output and exit code on success
+  - promptLines:
+      - 104
+      - 106
+    file: process_run/src/lib.rs
+    lines:
+      - 169
+      - 172
+    note: custom agent spawn-failure message with program name
+  - promptLines:
+      - 110
+      - 111
+    file: process_run/src/lib.rs
+    lines:
+      - 176
+      - 177
+    note: llm_complete signature invoking claude
+  - promptLines:
+      - 111
+      - 112
+    file: process_run/src/lib.rs
+    lines:
+      - 178
+      - 185
+    note: one-shot completion argument list
+  - promptLines:
+      - 113
+      - 114
+    file: process_run/src/lib.rs
+    lines:
+      - 186
+      - 188
+    note: system prompt args added only when trimmed system is non-empty
+  - promptLines:
+      - 114
+      - 116
+    file: process_run/src/lib.rs
+    lines:
+      - 189
+      - 194
+    note: spawn with no cwd override, three streams piped; spawn error message
+  - promptLines:
+      - 17
+      - 22
+    file: process_run/src/lib.rs
+    lines:
+      - 195
+      - 199
+    note: stdin write failure reuses the launch-failure message
+  - promptLines:
+      - 116
+      - 117
+    file: process_run/src/lib.rs
+    lines:
+      - 200
+      - 202
+    note: wait failure mapped to the same launch-failure message
+  - promptLines:
+      - 116
+      - 116
+    file: process_run/src/lib.rs
+    lines:
+      - 204
+      - 206
+    note: lossy UTF-8 capture of both streams and exit code
+  - promptLines:
+      - 117
+      - 120
+    file: process_run/src/lib.rs
+    lines:
+      - 207
+      - 217
+    note: non-zero exit error with trimmed stderr or the no-stderr literal
+  - promptLines:
+      - 120
+      - 121
+    file: process_run/src/lib.rs
+    lines:
+      - 218
+      - 220
+    note: empty trimmed stdout error
+  - promptLines:
+      - 121
+      - 122
+    file: process_run/src/lib.rs
+    lines:
+      - 221
+      - 221
+    note: returns raw untrimmed stdout
+  - promptLines:
+      - 132
+      - 133
+    file: process_run/src/lib.rs
+    lines:
+      - 225
+      - 227
+    note: GenLock struct carrying the lock path internally
+  - promptLines:
+      - 133
+      - 134
+    file: process_run/src/lib.rs
+    lines:
+      - 229
+      - 236
+    note: release removes the lock file if present, ignoring errors
+  - promptLines:
+      - 138
+      - 140
+    file: process_run/src/lib.rs
+    lines:
+      - 239
+      - 247
+    note: is_alive runs kill -0 {pid} with output discarded
+  - promptLines:
+      - 167
+      - 169
+    file: process_run/src/lib.rs
+    lines:
+      - 253
+      - 262
+    note: "read held pid: trimmed contents parsed as i32, None if unreadable"
+  - promptLines:
+      - 148
+      - 150
+    file: process_run/src/lib.rs
+    lines:
+      - 266
+      - 270
+    note: acquire_gen_lock_with signature with injected pid and liveness fn
+  - promptLines:
+      - 151
+      - 155
+    file: process_run/src/lib.rs
+    lines:
+      - 271
+      - 275
+    note: create parent dirs when non-empty; bare error display aborts acquisition
+  - promptLines:
+      - 175
+      - 178
+    file: process_run/src/lib.rs
+    lines:
+      - 277
+      - 280
+    note: "steal: overwrite with {pid}\\n, bare error display on write failure"
+  - promptLines:
+      - 156
+      - 158
+    file: process_run/src/lib.rs
+    lines:
+      - 285
+      - 289
+    note: exclusive create-new of the lock file
+  - promptLines:
+      - 160
+      - 166
+    file: process_run/src/lib.rs
+    lines:
+      - 290
+      - 294
+    note: write pid through the create-new handle before returning the lock
+  - promptLines:
+      - 167
+      - 167
+    file: process_run/src/lib.rs
+    lines:
+      - 295
+      - 296
+    note: AlreadyExists branch reads the currently held pid
+  - promptLines:
+      - 169
+      - 174
+    file: process_run/src/lib.rs
+    lines:
+      - 298
+      - 301
+    note: live other holder yields the contention error with pid and path
+  - promptLines:
+      - 175
+      - 178
+    file: process_run/src/lib.rs
+    lines:
+      - 302
+      - 302
+    note: stale or same-pid lock is stolen
+  - promptLines:
+      - 179
+      - 181
+    file: process_run/src/lib.rs
+    lines:
+      - 305
+      - 308
+    note: other create errors give the could-not-acquire message
+  - promptLines:
+      - 185
+      - 188
+    file: process_run/src/lib.rs
+    lines:
+      - 313
+      - 316
+    note: "acquire_gen_lock: real pid (0 if it does not fit) delegating to _with"
+  - promptLines:
+      - 192
+      - 193
+    file: process_run/src/lib.rs
+    lines:
+      - 323
+      - 336
+    note: unique temporary directory helper for tests
+  - promptLines:
+      - 195
+      - 196
+    file: process_run/src/lib.rs
+    lines:
+      - 406
+      - 416
+    note: fresh acquire writes 4242\n; release removes the file
+  - promptLines:
+      - 197
+      - 200
+    file: process_run/src/lib.rs
+    lines:
+      - 418
+      - 433
+    note: live other holder refused, message checked, file left as 9999\n
+  - promptLines:
+      - 201
+      - 203
+    file: process_run/src/lib.rs
+    lines:
+      - 435
+      - 443
+    note: dead holder stolen and overwritten with 4242\n
+  - promptLines:
+      - 204
+      - 205
+    file: process_run/src/lib.rs
+    lines:
+      - 445
+      - 453
+    note: same-pid reacquire leaves 4242\n
+  - promptLines:
+      - 206
+      - 211
+    file: process_run/src/lib.rs
+    lines:
+      - 455
+      - 488
+    note: "racing threads: exactly one acquires, others see a full pid and contend"
+  - promptLines:
+      - 215
+      - 220
+    file: process_run/src/lib.rs
+    lines:
+      - 490
+      - 499
+    note: "broken stdin pipe test: child exits without reading a 4MB input"
+  - promptLines:
+      - 46
+      - 55
+    file: process_run/src/lib.rs
+    lines:
+      - 342
+      - 362
+    note: run_command stream-order and spawn-failure tests
+  - promptLines:
+      - 59
+      - 62
+    file: process_run/src/lib.rs
+    lines:
+      - 364
+      - 368
+    note: program_available true/false tests
+  - promptLines:
+      - 92
+      - 106
+    file: process_run/src/lib.rs
+    lines:
+      - 370
+      - 404
+    note: run_custom empty-command, substitution, and spawn-failure tests

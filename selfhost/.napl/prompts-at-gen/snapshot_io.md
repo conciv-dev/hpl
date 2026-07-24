@@ -1,0 +1,93 @@
+# Directory snapshots: the filesystem walk
+
+This module is the CLI's snapshot seam: it walks a directory tree and records
+either the content **hash** or the raw **content** of every file that survives the
+exclusion filter, keyed by absolute path. It is an **I/O shell**, not a pure module
+— it reads the real filesystem — so it declares no given/expect corpus; its
+behavior is pinned by the conformance suite (snapshots underlie the drift and heal
+scenarios) and by its own filesystem walk tests. The pure snapshot comparison and
+the pure exclusion predicate live in separate crates and are not part of this
+module.
+
+The functions return `Result<T, String>` where the `String` is the bare I/O error
+message; the CLI shell that wraps this module maps that string into its own error
+type unchanged.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `snapshot_io/`: `snapshot_io/Cargo.toml` (package
+name `snapshot_io`) and `snapshot_io/src/lib.rs`. Touch nothing outside
+`snapshot_io/`. Ensure `cargo test` passes from the workspace root before
+finishing.
+
+The generated Rust carries zero ordinary code comments: no `//` line comments and
+no `/* */` block comments anywhere, in runtime code or tests. The code must be
+self-explanatory. Where a note earns its place it is a `///` doc-comment on a
+public item only, matching the workspace convention; every other explanation of
+how or why the code works is omitted rather than written as a comment.
+
+## Builds on two modules of this workspace
+
+Use each module's public API — do not reimplement its types or logic, and do not
+depend on any hand-written crate.
+
+- **`hash`** (`../hash`): `content_hash(content: &str) -> String` computes the
+  content hash recorded for a file in the hash snapshot.
+- **`snapshot_filter`** (`../snapshot_filter`): `SnapshotFilter` is the exclusion
+  predicate. `is_excluded_dir(&self, name: &str) -> bool` decides whether a
+  directory is skipped; `is_excluded_file(&self, name: &str, at_root: bool) ->
+  bool` decides whether a file is skipped, where `at_root` is whether the file sits
+  directly in the snapshot's root directory (some exclusions apply only at the
+  root). `make_filter(exclude_dirs, exclude_files, exclude_root_files,
+  exclude_suffixes: &[String]) -> SnapshotFilter` builds one (used by the tests).
+
+## The walk
+
+Both snapshot functions perform the same recursive walk of a directory tree,
+differing only in what they record per file. Walk semantics:
+
+- Read the directory's entries. **If the directory cannot be read for any reason,
+  treat it as empty** and record nothing from it (this is not an error — a snapshot
+  of a path that cannot be read yields no entries). Reading an individual entry, or
+  querying its file type, that fails is propagated as an `Err` (its I/O error
+  rendered as a string).
+- For each entry that is a **directory**: skip it if the filter excludes that
+  directory name; otherwise descend into it. Entries below the root are never "at
+  root".
+- For each entry that is a **file**: skip it if the filter excludes it (passing
+  whether the file is at the root); otherwise read the file to a string
+  (propagating any I/O error as a string) and record it under the file's absolute
+  path as a lossy-UTF-8 string key. For a hash snapshot record `content_hash` of
+  the content; for a content snapshot record the raw content.
+
+The top-level call is "at root"; recursive descent is not. Because the records are
+keyed in a sorted map, the result is ordered by path.
+
+## `snapshot_hashes(dir, filter)`
+
+`snapshot_hashes(dir: &std::path::Path, filter: &snapshot_filter::SnapshotFilter)
+-> Result<std::collections::BTreeMap<String, String>, String>`: walk `dir` and
+record each surviving file's **content hash** keyed by its absolute path.
+
+## `snapshot_contents(dir, filter)`
+
+`snapshot_contents(dir: &std::path::Path, filter:
+&snapshot_filter::SnapshotFilter) -> Result<std::collections::BTreeMap<String,
+String>, String>`: walk `dir` and record each surviving file's **raw content**
+keyed by its absolute path.
+
+## Filesystem walk tests to include
+
+Write the crate's own `#[cfg(test)]` tests against unique temporary directories,
+building filters with `snapshot_filter::make_filter`:
+
+- Excluded dirs/files/suffixes are omitted: in a directory holding `keep.ts`,
+  `AGENTS.md`, `types.d.ts`, and a `node_modules/` with `dep.js`, a hash snapshot
+  with `node_modules` excluded, `AGENTS.md` excluded, and `.d.ts` excluded as a
+  suffix records only `keep.ts`.
+- Root-only exclusions keep nested namesakes: in a directory holding a root
+  `Cargo.toml`, a `member/Cargo.toml`, and a `member/lib.rs`, a hash snapshot with
+  `Cargo.toml` as a root-only excluded file omits the root `Cargo.toml` but keeps
+  both `member/Cargo.toml` and `member/lib.rs`.

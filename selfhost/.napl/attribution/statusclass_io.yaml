@@ -1,0 +1,227 @@
+module: statusclass_io
+target: rust
+entries:
+  - promptLines:
+      - 13
+      - 15
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 31
+      - 31
+    note: returns Result of StatusEntry or String
+  - promptLines:
+      - 26
+      - 30
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 1
+      - 10
+    note: module doc-comment, no ordinary comments
+  - promptLines:
+      - 37
+      - 38
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 12
+      - 12
+    note: imports content_hash from hash crate
+  - promptLines:
+      - 39
+      - 47
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 13
+      - 13
+    note: imports NaplMap from schemas_map
+  - promptLines:
+      - 48
+      - 51
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 14
+      - 14
+    note: imports FileStatus and StatusEntry
+  - promptLines:
+      - 55
+      - 56
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 24
+      - 31
+    note: classify signature
+  - promptLines:
+      - 57
+      - 57
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 92
+      - 98
+    note: entry helper always sets file to rel_path
+  - promptLines:
+      - 57
+      - 57
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 20
+      - 21
+    note: doc note that rel_path becomes entry file
+  - promptLines:
+      - 57
+      - 58
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 32
+      - 32
+    note: prompt hash from content_hash of raw
+  - promptLines:
+      - 58
+      - 59
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 33
+      - 33
+    note: look up prompt record by module
+  - promptLines:
+      - 61
+      - 62
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 37
+      - 37
+    note: walk record targets in order, drift check first
+  - promptLines:
+      - 62
+      - 63
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 38
+      - 40
+    note: skip targets flagged unattributed true
+  - promptLines:
+      - 70
+      - 71
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 38
+      - 40
+    note: unattributed target skipped in drift check
+  - promptLines:
+      - 63
+      - 63
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 41
+      - 41
+    note: walk target files in order
+  - promptLines:
+      - 63
+      - 64
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 42
+      - 42
+    note: resolve file path against root
+  - promptLines:
+      - 64
+      - 65
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 43
+      - 49
+    note: missing file returns Drift is-missing detail
+  - promptLines:
+      - 65
+      - 66
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 50
+      - 50
+    note: read file, propagate IO error as display string
+  - promptLines:
+      - 66
+      - 68
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 51
+      - 52
+    note: hash content, compare to recorded hash
+  - promptLines:
+      - 68
+      - 70
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 52
+      - 58
+    note: mismatch or absent record returns Drift was-edited
+  - promptLines:
+      - 72
+      - 73
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 62
+      - 62
+    note: second pass over targets for attribution
+  - promptLines:
+      - 73
+      - 75
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 63
+      - 69
+    note: unattributed target returns Unattributed entry
+  - promptLines:
+      - 76
+      - 77
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 33
+      - 35
+    note: missing record returns PromptStale never generated
+  - promptLines:
+      - 78
+      - 79
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 72
+      - 72
+    note: walk declared targets in order
+  - promptLines:
+      - 79
+      - 81
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 73
+      - 79
+    note: declared target absent from record is PromptStale
+  - promptLines:
+      - 81
+      - 83
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 80
+      - 86
+    note: prompt_hash_at_gen mismatch is PromptStale
+  - promptLines:
+      - 84
+      - 84
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 89
+      - 89
+    note: clean entry with empty detail
+  - promptLines:
+      - 88
+      - 90
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 184
+      - 198
+    note: test unknown module in empty map gives never generated
+  - promptLines:
+      - 46
+      - 47
+    file: statusclass_io/src/lib.rs
+    lines:
+      - 103
+      - 103
+    note: imports empty_map for tests

@@ -1,0 +1,96 @@
+# Generation-time drift detection: reading current files off disk
+
+This module is the CLI's generation-drift detector: for a given target it walks the
+recorded module map, reconstructs each attributed generated file's baseline from
+the journal, reads the current file off disk, and reports every file that has
+drifted (been edited or deleted) from what the prompt last generated. It is an
+**I/O shell**, not a pure module — it reads generated files to compare them — so it
+declares no given/expect corpus; its behavior is pinned by the conformance suite
+(the drift scenarios) and the report formatting lives elsewhere. The pure
+journal-patch replay lives in a separate crate and is not part of this module.
+
+The function returns `Result<T, String>` where the `String` is the bare I/O error
+message; the CLI shell that wraps this module maps that string into its own error
+type unchanged.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `driftdetect_io/`: `driftdetect_io/Cargo.toml`
+(package name `driftdetect_io`) and `driftdetect_io/src/lib.rs`. Touch nothing
+outside `driftdetect_io/`. Ensure `cargo test` passes from the workspace root
+before finishing.
+
+## Builds on six modules of this workspace
+
+Use each module's public API — do not reimplement its types or logic, and do not
+depend on any hand-written crate.
+
+- **`drift`** (`../drift`): the drift report types. `DriftedFile` has public fields
+  `file: String`, `reason: DriftReason`, `expected_hash: Option<String>`,
+  `actual_hash: Option<String>`, `baseline: Option<String>`, `current:
+  Option<String>`, `diff: Option<String>`. `DriftReason` is an enum with variants
+  `Edited` and `Missing`. `ModuleDrift` has public fields `module: String`,
+  `prompt_file: String`, `target: String`, `files: Vec<DriftedFile>`. Construct
+  these directly.
+- **`driftdetect_replay`** (`../driftdetect_replay`): `reconstruct_file_content(
+  entries: &[JournalEntry], file_path: &str) -> Option<String>` replays the
+  journal's patches to rebuild a file's last-generated baseline content (`None`
+  when the journal has no history for that path).
+- **`hash`** (`../hash`): `content_hash(content: &str) -> String` hashes the
+  current file content for comparison against the recorded hash.
+- **`schemas_journal`** (`../schemas_journal`): `JournalEntry` is one journal
+  record (the replay input type).
+- **`schemas_map`** (`../schemas_map`): `NaplMap` is the module map, with an ordered
+  `prompts` map (values `PromptRecord`, each with a `module` name and an ordered
+  `targets` map of `PromptTargetRecord` carrying `files` and an `unattributed`
+  flag) and an ordered `files` map (values carrying a `hash` field). Look up keys
+  and iterate these maps through their public API.
+- **`text_diff`** (`../text_diff`): `unified_diff(before: &str, after: &str) ->
+  String` renders the drift diff between the baseline and the current content.
+
+The crate's tests construct `NaplMap` values, whose ordered `prompts` and `files`
+maps are `schemas_ordered_map::OrderedMap`; **`schemas_ordered_map`**
+(`../schemas_ordered_map`) is therefore a test-only dependency of this crate. It
+is used solely by the tests, not by the runtime code, and no dependency may be
+introduced that is not declared in this prompt's `deps:` frontmatter.
+
+## Classifying one file (internal)
+
+For one `file_path` under `root`, decide whether it has drifted:
+
+- Resolve `file_path` against `root`. Record the file's `expected_hash` as the hash
+  stored for that path in the map's `files` map (an `Option<String>`), and its
+  `baseline` as `reconstruct_file_content(journal, file_path)`.
+- If the resolved path does **not** exist on disk, the file is drifted with reason
+  `Missing`: a `DriftedFile` with the `expected_hash` and `baseline` as above,
+  `actual_hash` `None`, `current` `None`, and `diff` `None`.
+- Otherwise read the current content off disk (propagating any I/O error as its
+  display string) and hash it as `actual_hash`. If the `expected_hash` equals
+  `Some(actual_hash)`, the file is clean (no drift). Otherwise it is drifted with
+  reason `Edited`: a `DriftedFile` with the `expected_hash`, `baseline`,
+  `actual_hash` as `Some(actual_hash)`, `current` as `Some(content)`, and `diff` as
+  the `unified_diff` of the baseline and the current content when a baseline exists
+  (`None` when there is no baseline).
+
+## `detect_gen_drift(root, target, map, journal, module_scope, prompt_paths)`
+
+`detect_gen_drift(root: &std::path::Path, target: &str, map: &NaplMap, journal:
+&[JournalEntry], module_scope: Option<&str>, prompt_paths:
+&std::collections::BTreeMap<String, String>) -> Result<Vec<ModuleDrift>, String>`:
+detect the drifted, attributed files of `target` across every module. Walk the
+map's `prompts` in order; for each prompt record:
+
+- If `module_scope` is `Some(scope)` and the record's module is not `scope`, skip
+  it.
+- Look up `target` in the record's `targets`; skip the record if the target is
+  absent. Skip it if that target record's `unattributed` flag is exactly `true`.
+- Classify each of that target record's `files` in order (per the rules above),
+  collecting the drifted ones.
+- If any files drifted, push a `ModuleDrift` for this module: its `module` is the
+  record's module, its `target` is `target`, its `files` are the drifted files, and
+  its `prompt_file` is the value for this module in `prompt_paths` when present,
+  falling back to the module name itself.
+
+Return the collected `ModuleDrift`s in map order.

@@ -9,11 +9,7 @@
       }
     ],
     "content": "A\nB\nC\n",
-    "gens": [
-      1,
-      1,
-      1
-    ]
+    "gens": [1, 1, 1]
   },
   {
     "entries": [
@@ -31,11 +27,7 @@
       }
     ],
     "content": "A\nB2\nC\n",
-    "gens": [
-      1,
-      3,
-      1
-    ]
+    "gens": [1, 3, 1]
   },
   {
     "entries": [
@@ -53,10 +45,7 @@
       }
     ],
     "content": "A\nB\n",
-    "gens": [
-      1,
-      2
-    ]
+    "gens": [1, 2]
   },
   {
     "entries": [
@@ -74,11 +63,7 @@
       }
     ],
     "content": "X\nA\nB\n",
-    "gens": [
-      2,
-      1,
-      1
-    ]
+    "gens": [2, 1, 1]
   },
   {
     "entries": [
@@ -96,13 +81,6 @@
       }
     ],
     "content": "a\nB\nc\nd\nE\nf\n",
-    "gens": [
-      1,
-      3,
-      1,
-      1,
-      3,
-      3
-    ]
+    "gens": [1, 3, 1, 1, 3, 3]
   }
 ]

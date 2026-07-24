@@ -1,0 +1,61 @@
+module: paths_walk
+target: rust
+entries:
+  - promptLines:
+      - 51
+      - 51
+    kind: assumption
+    message: '"unique temporary directory" left uniqueness scheme open — used pid + nanos under std::env::temp_dir().'
+    reasoning: Prompt required a unique temp dir but named no crate (tempfile etc.) and no naming scheme, while also saying not to depend on hand-written crates and to touch nothing outside paths_walk/. Agent avoided adding a dev-dependency and hand-rolled `unique_temp_dir` from `std::process::id()` + `SystemTime` nanos, with explicit `remove_dir_all` cleanup at test end (cleanup is skipped if the test panics early, leaving temp dirs behind).
+    suggestion: Write the test against a unique temporary directory (e.g. under `std::env::temp_dir()`, named with the process id and a nanosecond timestamp); no external test crates.
+  - promptLines:
+      - 43
+      - 45
+    kind: assumption
+    message: Missing-directory tolerance is untested by the specified test; agent added a second test not asked for.
+    reasoning: Section "Filesystem walk test to include" specifies exactly one test, which never exercises the NotFound path. The agent added `missing_root_yields_an_empty_list` to cover lines 43-45. Extra test beyond the prompt's stated scope, but inside paths_walk/.
+  - promptLines:
+      - 37
+      - 39
+    kind: assumption
+    message: Entry names are non-UTF-8-safe-lossy; `is_prompt_file` takes &str so OsString converted via to_string_lossy.
+    reasoning: "`is_prompt_file(path: &str, ...)` needs a `&str`, but directory entry names are `OsString`. Prompt said nothing about non-UTF-8 names. Agent used `to_string_lossy()`, so a non-UTF-8 file name is matched (and an ignored-dir comparison made) against its lossy form rather than being skipped or erroring."
+    suggestion: State the behavior for non-UTF-8 entry names (e.g. "compare the lossy UTF-8 form of the entry name" or "skip entries whose names are not valid UTF-8").
+  - promptLines:
+      - 37
+      - 38
+    kind: assumption
+    message: Symlinks and non-file/non-dir entries are ignored; entry file_type is not followed.
+    reasoning: Prompt says collect entries that are "a file" and descend into "subdirectories" without saying whether symlinks are followed. `entry.file_type()` does not follow symlinks, so a symlink to a prompt file or to a directory is silently skipped. No symlink loop risk, but symlinked prompt trees are invisible.
+    suggestion: "Specify symlink handling: \"do not follow symlinks — an entry's own file type decides\" (or the opposite)."
+  - promptLines:
+      - 40
+      - 41
+    kind: note
+    message: Walk order is an explicit LIFO stack, not recursion; final `sort()` makes traversal order unobservable.
+    reasoning: Agent used a `Vec` worklist with `pop()` (depth-first, reverse sibling order). Since results are sorted before return, order is not observable, so this satisfies line 41 regardless. Worth noting only because "the default path ordering" is `PathBuf`'s `Ord` — byte-wise on the whole path, not per-component.
+  - promptLines:
+      - 30
+      - 31
+    kind: assumption
+    message: Ignored names are matched at any depth, not only at the root.
+    reasoning: Prompt says "any directory whose name is one of the three ignored names" — read as depth-independent name matching, so a nested `foo/node_modules` is skipped too. The test only covers root-level `.napl` and `node_modules`, so the nested case is unverified.
+  - promptLines:
+      - 13
+      - 17
+    kind: note
+    message: Workspace root Cargo.toml already listed `paths_walk`, so no root edit was needed.
+    reasoning: The prompt forbade touching the root manifest while requiring `cargo test` to pass from the root — those conflict if the root does not list the new member. Agent reports the root already listed `paths_walk`, so no conflict materialized; agent added `paths_walk/Cargo.toml` with a single `extensions = { path = "../extensions" }` dependency.
+  - promptLines:
+      - 21
+      - 24
+    kind: ambiguity
+    message: '"do not depend on any hand-written crate" is unexplained and near-contradicts depending on `extensions`.'
+    reasoning: The clause sits immediately after an instruction to depend on `extensions` (a workspace crate that is itself hand-written), so its scope is unclear — it may mean "no vendored/local crates other than workspace members" or "no third-party crates at all". Agent read it as the latter and shipped with `extensions` as the sole dependency, hand-rolling the temp-dir helper rather than pulling `tempfile` or `walkdir`.
+    suggestion: Depend only on the `extensions` workspace crate; add no third-party dependencies (no `walkdir`, no `tempfile`).
+  - promptLines:
+      - 54
+      - 54
+    kind: note
+    message: Test relies on `extensions::default_prompt_aliases()` returning `Vec<String>`; unverified against extensions' actual signature here.
+    reasoning: Line 54 names the function but not its return type. The call site passes `&extensions::default_prompt_aliases()` directly into a `&[String]` parameter, which only compiles if it returns `Vec<String>` (or `[String; N]`). Agent reports the workspace `cargo test` is green, so the shape matched.

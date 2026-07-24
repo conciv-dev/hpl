@@ -1,0 +1,96 @@
+---
+module: statusclass_io
+deps: [hash, schemas_map, statusclass_render]
+targets: [rust]
+tests: []
+---
+# Per-prompt status classification: reading generated files off disk
+
+This module is the CLI's status classifier: given one prompt's frontmatter
+identity and the recorded module map, it reads that prompt's generated files off
+disk and decides the prompt's status — clean, drifted, unattributed, or
+prompt-stale. It is an **I/O shell**, not a pure module — it reads generated files
+to compare their hashes — so it declares no given/expect corpus; its behavior is
+pinned by the conformance suite (the status scenarios) and by its own tests. The
+pure status enum and one-line rendering live in a separate crate and are not part
+of this module. The frontmatter parse (and its error text) stays in the caller;
+this module receives the already-parsed `module` name and declared `targets`.
+
+The function returns `Result<StatusEntry, String>` where the `String` is the bare
+I/O error message; the CLI shell that wraps this module maps that string into its
+own error type unchanged.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `statusclass_io/`: `statusclass_io/Cargo.toml`
+(package name `statusclass_io`) and `statusclass_io/src/lib.rs`. Touch nothing
+outside `statusclass_io/`. Ensure `cargo test` passes from the workspace root
+before finishing.
+
+The generated Rust carries zero ordinary code comments: no `//` line comments and
+no `/* */` block comments anywhere, in runtime code or tests. The code must be
+self-explanatory. Where a note earns its place it is a `///` doc-comment on a
+public item only, matching the workspace convention; every other explanation of
+how or why the code works is omitted rather than written as a comment.
+
+## Builds on three modules of this workspace
+
+Use each module's public API — do not reimplement its types or logic, and do not
+depend on any hand-written crate.
+
+- **`hash`** (`../hash`): `content_hash(content: &str) -> String` is the hash used
+  to compare a prompt and its generated files against what the map recorded.
+- **`schemas_map`** (`../schemas_map`): `NaplMap` is the module map, with an ordered
+  `prompts` map (keyed by module name, values `PromptRecord`) and an ordered
+  `files` map (keyed by file path, values `FileRecord` whose `hash` field is the
+  recorded content hash). A `PromptRecord` has an ordered `targets` map (keyed by
+  target name, values `PromptTargetRecord`); a `PromptTargetRecord` has `files`
+  (the generated file paths), `unattributed` (an optional flag), and
+  `prompt_hash_at_gen` (the prompt hash recorded at generation). Look up keys and
+  iterate these maps through their public API. `empty_map() -> NaplMap` builds an
+  empty map (used by the test).
+- **`statusclass_render`** (`../statusclass_render`): `StatusEntry` is the result,
+  with public `file: String`, `status: FileStatus`, and `detail: String` fields;
+  `FileStatus` is the status enum with variants `Clean`, `PromptStale`, `Drift`,
+  and `Unattributed`. Construct these directly.
+
+## `classify(root, rel_path, raw, module, targets, map)`
+
+`classify(root: &std::path::Path, rel_path: &str, raw: &str, module: &str, targets:
+&[String], map: &NaplMap) -> Result<StatusEntry, String>`: classify one prompt.
+Every returned `StatusEntry` has `file` set to `rel_path`. Compute the prompt hash
+as `content_hash(raw)`. Look up the prompt's record in `map`'s `prompts` by
+`module`. Then, in this exact order:
+
+1. **If the record exists, check for drift first.** Walk the record's `targets` in
+   order; for each target whose `unattributed` flag is not exactly `true`, walk its
+   `files` in order. For each file path, resolve it against `root` (join). If that
+   path does **not** exist on disk, the prompt has drifted: return a `Drift` entry
+   with detail `{target}: {file_path} is missing`. Otherwise read the file to a
+   string (propagating any I/O error as its display string), hash it with
+   `content_hash`, and compare against the hash recorded for that file path in
+   `map`'s `files` map. If they differ (including when the map has no record for
+   that path), the prompt has drifted: return a `Drift` entry with detail
+   `{target}: {file_path} was edited`. A target flagged `unattributed = true` is
+   skipped in this drift check.
+2. **If the record exists and did not drift, check attribution.** Walk the record's
+   `targets` in order; if any target's `unattributed` flag is exactly `true`,
+   return an `Unattributed` entry with detail `generated files lack prompt
+   attribution — run napl gen {target} --force`.
+3. **If the record does not exist**, the prompt was never generated: return a
+   `PromptStale` entry with detail `never generated`.
+4. **Otherwise check prompt-staleness against the declared targets.** Walk
+   `targets` (the prompt's declared target list) in order. For a declared target
+   with no entry in the record's `targets`, return a `PromptStale` entry with detail
+   `{target}: not generated`. For a declared target whose record entry's
+   `prompt_hash_at_gen` is not exactly the current prompt hash, return a
+   `PromptStale` entry with detail `prompt changed since gen`.
+5. **Otherwise the prompt is clean**: return a `Clean` entry with an empty detail.
+
+## Test to include
+
+Write the crate's own `#[cfg(test)]` test: classifying any prompt whose `module` is
+not present in an `empty_map()` returns a `PromptStale` entry whose `detail` is
+exactly `never generated` and whose `file` is the given `rel_path`.

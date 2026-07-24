@@ -1,0 +1,48 @@
+module: driftdetect_io
+deps:
+  - drift
+  - driftdetect_replay
+  - hash
+  - schemas_journal
+  - schemas_map
+  - text_diff
+  - schemas_ordered_map
+types: []
+functions:
+  - name: detect_gen_drift
+    signature: "detect_gen_drift(root: Path, target: string, map: NaplMap, journal: list<JournalEntry>, module_scope: optional<string>, prompt_paths: ordered-map<string, string>) -> Result<list<ModuleDrift>, string>"
+    behavior: "Detects drifted, attributed generated files for one target across every module in the map, reading current file content off disk. Walks the map's `prompts` in declared order. For each prompt record: skips it when `module_scope` is present and the record's module differs from the scope; skips it when the record has no entry for `target`; skips it when that target record's `unattributed` flag is exactly true (absent or false means walk it). Classifies each of the target record's `files` in declared order.\nClassification of one file path: `expected_hash` is the hash stored for that path in the map's `files` map, or absent when the path is not recorded; `baseline` is the journal replay of that path (`reconstruct_file_content`), absent when the journal has no history. If the path resolved against `root` does not exist on disk, the file is drifted with reason `Missing`, `actual_hash`/`current`/`diff` all absent. Otherwise the current content is read from disk — any I/O error aborts the whole detection and is returned as the error's bare display string — and hashed as `actual_hash`. When `expected_hash` is present and equals `actual_hash`, the file is clean and contributes nothing. Otherwise it is drifted with reason `Edited`, carrying `expected_hash`, `baseline`, `actual_hash`, `current` (the read content), and `diff` as the unified diff of baseline vs current when a baseline exists (absent otherwise).\nA `ModuleDrift` is emitted for a prompt record only when at least one of its files drifted: `module` is the record's module, `target` is the requested target, `files` are the drifted files in declared order, and `prompt_file` is `prompt_paths[module]` when present, otherwise the module name itself. Results are returned in map order. On success with no drift, an empty list."
+tests:
+  - name: clean_file_matching_recorded_hash_is_not_drifted
+    given: A file on disk whose content hashes to the hash recorded for it in the map's files map; empty journal.
+    expect: No module drifts returned.
+  - name: edited_file_reports_diff_against_journal_baseline
+    given: A file on disk edited away from its recorded content, with a journal entry establishing the generated baseline; no prompt_paths entry for the module.
+    expect: One ModuleDrift for the module with the requested target and prompt_file falling back to the module name; one drifted file with reason Edited, the recorded hash as expected_hash, the hash of the on-disk content as actual_hash, the journal-replayed baseline, the on-disk content as current, and diff equal to the unified diff of baseline vs current.
+  - name: edited_file_without_journal_history_has_no_diff_or_baseline
+    given: A file on disk differing from its recorded hash, with an empty journal.
+    expect: Drifted with reason Edited, baseline absent, diff absent, current set to the on-disk content.
+  - name: deleted_file_is_missing_with_baseline_but_no_current
+    given: A recorded, journal-backed file that does not exist on disk.
+    expect: Drifted with reason Missing, expected_hash from the map, actual_hash absent, baseline from the journal, current absent, diff absent.
+  - name: file_absent_from_the_files_map_has_no_expected_hash
+    given: A file attributed to a target but with no entry in the map's files map; the file exists on disk.
+    expect: Drifted with reason Edited and expected_hash absent.
+  - name: unattributed_targets_are_skipped
+    given: A prompt record whose target record has unattributed set to true, with an edited file on disk.
+    expect: No module drifts returned.
+  - name: explicitly_attributed_targets_are_walked
+    given: A prompt record whose target record has unattributed set to false, with an edited file on disk.
+    expect: One module drift returned.
+  - name: records_without_the_requested_target_are_skipped
+    given: A prompt record declaring only a different target than the one requested, with an edited file on disk.
+    expect: No module drifts returned.
+  - name: module_scope_limits_the_walk_and_prompt_paths_name_the_prompt
+    given: A map with two prompt records (alpha then beta), each with one edited file for the requested target, and prompt_paths supplying a path for beta only; run once with no scope and once scoped to beta.
+    expect: Unscoped, two drifts in map order (alpha then beta) with prompt_file falling back to "alpha" and using the supplied path for beta. Scoped to beta, exactly one drift for module beta.
+  - name: files_are_classified_in_declared_order
+    given: A target record declaring two edited files in a non-alphabetical order.
+    expect: The drifted files appear in the declared order, not sorted.
+  - name: unreadable_file_propagates_the_io_error_message
+    given: A path recorded as an attributed file but occupied on disk by a directory, so reading it fails.
+    expect: An error result carrying the non-empty I/O error display string.

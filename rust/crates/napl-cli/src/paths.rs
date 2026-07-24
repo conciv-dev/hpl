@@ -2,53 +2,18 @@
 //! `paths.ts`).
 //!
 //! Stage1: the pure path algebra (`NaplPaths`, `resolve_paths`, `rel_to`) is the
-//! NAPL-generated `paths_core` crate, re-exported here; this shell keeps only
-//! the filesystem walk that discovers prompt files. The unit corpus below rides
-//! along as the regression net.
-
-use std::path::{Path, PathBuf};
-
-use napl_core::extensions::is_prompt_file;
+//! NAPL-generated `paths_core` crate and the discovery filesystem walk
+//! (`find_prompt_files`) is the NAPL-generated `paths_walk` crate; both are
+//! re-exported here behind the unchanged public surface. The unit corpus below
+//! rides along as the regression net.
 
 pub use paths_core::{rel_to, resolve_paths, NaplPaths};
-
-const IGNORED_DIRS: [&str; 3] = ["node_modules", ".napl", ".git"];
-
-fn walk(dir: &Path, aliases: &[String], results: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error),
-    };
-    for entry in entries {
-        let entry = entry?;
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        let full = entry.path();
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
-            if IGNORED_DIRS.contains(&name.as_ref()) {
-                continue;
-            }
-            walk(&full, aliases, results)?;
-        } else if file_type.is_file() && is_prompt_file(&name, Some(aliases)) {
-            results.push(full);
-        }
-    }
-    Ok(())
-}
-
-/// Discover every prompt file under `root`, sorted, mirroring `findPromptFiles`.
-pub fn find_prompt_files(root: &Path, aliases: &[String]) -> std::io::Result<Vec<PathBuf>> {
-    let mut results = Vec::new();
-    walk(root, aliases, &mut results)?;
-    results.sort();
-    Ok(results)
-}
+pub use paths_walk::find_prompt_files;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn rel_to_produces_posix_paths() {

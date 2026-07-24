@@ -1,0 +1,267 @@
+module: snapshot_io
+target: rust
+entries:
+  - promptLines:
+      - 12
+      - 14
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 41
+      - 42
+    note: I/O errors rendered as bare strings
+  - promptLines:
+      - 36
+      - 37
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 1
+      - 1
+    note: imports content_hash from hash crate
+  - promptLines:
+      - 36
+      - 37
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 14
+      - 14
+    note: records content hash per file
+  - promptLines:
+      - 38
+      - 42
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 2
+      - 2
+    note: imports SnapshotFilter
+  - promptLines:
+      - 39
+      - 39
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 46
+      - 46
+    note: directory exclusion check
+  - promptLines:
+      - 40
+      - 43
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 49
+      - 49
+    note: file exclusion check with at_root flag
+  - promptLines:
+      - 43
+      - 44
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 60
+      - 60
+    note: tests import make_filter
+  - promptLines:
+      - 48
+      - 49
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 29
+      - 35
+    note: shared walk parameterized by per-file record fn
+  - promptLines:
+      - 51
+      - 53
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 36
+      - 39
+    note: unreadable dir treated as empty, not an error
+  - promptLines:
+      - 53
+      - 55
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 40
+      - 42
+    note: entry and file_type errors propagated as strings
+  - promptLines:
+      - 56
+      - 58
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 45
+      - 48
+    note: skip excluded dirs, descend with at_root=false
+  - promptLines:
+      - 59
+      - 62
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 49
+      - 51
+    note: skip excluded files, read to string, key by lossy path
+  - promptLines:
+      - 62
+      - 62
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 43
+      - 44
+    note: lossy name and entry path
+  - promptLines:
+      - 62
+      - 63
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 14
+      - 14
+    note: hash snapshot records content_hash
+  - promptLines:
+      - 62
+      - 63
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 25
+      - 25
+    note: content snapshot records raw content
+  - promptLines:
+      - 65
+      - 65
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 14
+      - 14
+    note: top-level call passes at_root=true
+  - promptLines:
+      - 65
+      - 65
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 25
+      - 25
+    note: top-level content call passes at_root=true
+  - promptLines:
+      - 65
+      - 66
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 3
+      - 3
+    note: BTreeMap gives path-sorted results
+  - promptLines:
+      - 70
+      - 72
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 7
+      - 16
+    note: snapshot_hashes signature and body
+  - promptLines:
+      - 76
+      - 79
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 18
+      - 27
+    note: snapshot_contents signature and body
+  - promptLines:
+      - 83
+      - 84
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 57
+      - 62
+    note: cfg(test) module setup
+  - promptLines:
+      - 83
+      - 83
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 64
+      - 93
+    note: unique temp dir helper with cleanup
+  - promptLines:
+      - 84
+      - 84
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 95
+      - 97
+    note: string vec helper for filter args
+  - promptLines:
+      - 86
+      - 89
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 99
+      - 120
+    note: excluded dirs/files/suffixes test
+  - promptLines:
+      - 86
+      - 87
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 101
+      - 105
+    note: creates keep.ts, AGENTS.md, types.d.ts, node_modules/dep.js
+  - promptLines:
+      - 87
+      - 89
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 107
+      - 113
+    note: filter excludes node_modules, AGENTS.md, .d.ts
+  - promptLines:
+      - 89
+      - 89
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 115
+      - 119
+    note: asserts only keep.ts recorded with its hash
+  - promptLines:
+      - 90
+      - 93
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 122
+      - 138
+    note: root-only exclusion test
+  - promptLines:
+      - 90
+      - 91
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 124
+      - 127
+    note: root Cargo.toml, member/Cargo.toml, member/lib.rs
+  - promptLines:
+      - 91
+      - 92
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 129
+      - 130
+    note: root-only excluded file filter
+  - promptLines:
+      - 92
+      - 93
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 132
+      - 137
+    note: asserts nested namesakes kept, root omitted
+  - promptLines:
+      - 78
+      - 79
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 140
+      - 151
+    note: content snapshot records raw content test
+  - promptLines:
+      - 51
+      - 53
+    file: snapshot_io/src/lib.rs
+    lines:
+      - 153
+      - 161
+    note: unreadable/missing root yields empty snapshot test

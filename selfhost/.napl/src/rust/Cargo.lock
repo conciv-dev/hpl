@@ -85,6 +85,19 @@ name = "drift"
 version = "0.1.0"
 
 [[package]]
+name = "driftdetect_io"
+version = "0.1.0"
+dependencies = [
+ "drift",
+ "driftdetect_replay",
+ "hash",
+ "schemas_journal",
+ "schemas_map",
+ "schemas_ordered_map",
+ "text_diff",
+]
+
+[[package]]
 name = "driftdetect_replay"
 version = "0.1.0"
 dependencies = [
@@ -204,6 +217,13 @@ name = "paths_core"
 version = "0.1.0"
 
 [[package]]
+name = "paths_walk"
+version = "0.1.0"
+dependencies = [
+ "extensions",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,6 +231,10 @@ checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "process_run"
+version = "0.1.0"
 
 [[package]]
 name = "prompts"
@@ -411,6 +435,35 @@ version = "0.1.0"
 [[package]]
 name = "snapshot_filter"
 version = "0.1.0"
+
+[[package]]
+name = "snapshot_io"
+version = "0.1.0"
+dependencies = [
+ "hash",
+ "snapshot_filter",
+]
+
+[[package]]
+name = "state_io"
+version = "0.1.0"
+dependencies = [
+ "extensions",
+ "fsutil_io",
+ "schemas_journal",
+ "schemas_lock",
+ "schemas_map",
+ "serde_json",
+]
+
+[[package]]
+name = "statusclass_io"
+version = "0.1.0"
+dependencies = [
+ "hash",
+ "schemas_map",
+ "statusclass_render",
+]
 
 [[package]]
 name = "statusclass_render"

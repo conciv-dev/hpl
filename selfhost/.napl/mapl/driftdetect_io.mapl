@@ -1,0 +1,42 @@
+module: driftdetect_io
+target: rust
+entries:
+  - promptLines:
+      - 1
+      - 97
+    kind: no-op
+    message: No changes — prompt diff empty, existing driftdetect_io crate already satisfies every clause.
+    reasoning: "Agent reported old and new prompt bodies identical, so no new behavior to realize. It verified existing code against the full body: Cargo.toml deps exactly the six runtime crates plus schemas_ordered_map dev-only; classify_file implements expected_hash/baseline/Missing/Edited/unified_diff rules; detect_gen_drift implements map-order walk, module_scope filter, unattributed skip, prompt_paths fallback, Result<_, String>. `cargo test -p driftdetect_io` 11 passed."
+  - promptLines:
+      - 86
+      - 88
+    kind: ambiguity
+    message: '"unattributed flag is exactly true" — "exactly" implies Option<bool>, never stated.'
+    reasoning: Prompt says skip if flag is "exactly `true`", wording that only makes sense if the field is Option<bool> or tri-state. The schemas_map bullet (lines 45-49) describes it as an "unattributed flag" with no type. Existing code uses `unattributed == Some(true)`, so None and Some(false) both fall through. Prompt should state the type.
+    suggestion: Skip it if that target record's `unattributed` flag (an `Option<bool>`) is `Some(true)`; `None` and `Some(false)` are both attributed.
+  - promptLines:
+      - 63
+      - 63
+    kind: ambiguity
+    message: '"Resolve `file_path` against `root`" unspecified for absolute paths.'
+    reasoning: No rule for what happens if file_path is absolute, or whether normalization/canonicalization applies. Rust's `Path::join` silently replaces root with an absolute operand. Existing code presumably uses plain join; that behavior is untested by the prompt.
+    suggestion: Resolve `file_path` against `root` with `root.join(file_path)` (an absolute `file_path` therefore ignores `root`).
+  - promptLines:
+      - 7
+      - 10
+    kind: note
+    message: Module declares no given/expect corpus; correctness pinned only by external conformance suite.
+    reasoning: Prompt explicitly waives an in-module corpus and defers to "the drift scenarios" of a conformance suite that lives outside this crate. Nothing in this module's own text pins the I/O edge cases (unreadable file, directory-at-path, non-UTF8 content). The agent's 11 passing crate tests are the only local evidence.
+  - promptLines:
+      - 69
+      - 70
+    kind: assumption
+    message: Non-UTF-8 file content behavior unspecified; treated as I/O error via read-to-string.
+    reasoning: Prompt says "read the current content off disk (propagating any I/O error as its display string)" and then hashes it as a `&str`. That forces `read_to_string`, which fails on invalid UTF-8 with an InvalidData error whose display string is propagated. Prompt never says whether that is intended or whether such a file should count as drifted.
+    suggestion: Read the current content as UTF-8 text; propagate any I/O error (including invalid UTF-8) as its display string.
+  - promptLines:
+      - 53
+      - 57
+    kind: note
+    message: Dependency closure is a hard constraint tied to `deps:` frontmatter not shown in the body.
+    reasoning: Line 56-57 forbids any dependency not declared in "this prompt's `deps:` frontmatter", but the frontmatter is not part of the numbered body given here. The six runtime crates plus the schemas_ordered_map dev-dependency were inferred from the prose sections; the agent confirmed Cargo.toml matches exactly that set.

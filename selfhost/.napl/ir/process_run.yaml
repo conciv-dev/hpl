@@ -1,0 +1,75 @@
+module: process_run
+deps: []
+types:
+  - name: RunOutput
+    description: 'Public record of a finished subprocess run. Two public fields: "output" (string, the captured process text) and "code" (32-bit integer, the process exit code). Uniform result of running the coding agent or a command.'
+  - name: GenLock
+    description: Public handle representing a held gen lock. Carries the lock file's path internally (not publicly readable). The gen lock file's contents are the holder's process id followed by a newline ("{pid}\n"); it is the CLI's single-writer guard so only one `napl gen` runs at a time per working directory. Exposes one public method, release().
+functions:
+  - name: run_command
+    signature: "run_command(command: string, args: list<string>, cwd: path) -> RunOutput"
+    behavior: Runs `command` with `args` in directory `cwd`, stdin connected to null, stdout and stderr captured. On a completed run, output is the lossy-UTF-8 stdout immediately followed by the lossy-UTF-8 stderr with no separator, and code is the process exit code, or 1 when the process reported no code. If the process cannot be spawned at all, returns output = "\n{error}" (a leading newline then the spawn error's display) and code = 1. Never returns an error value; spawn failure is encoded in the returned value.
+  - name: program_available
+    signature: "program_available(program: string) -> boolean"
+    behavior: Runs `program --version` with stdout and stderr discarded and returns whether it launched and exited successfully. Any spawn failure or non-success exit yields false. Used as the probe that a required CLI is installed on PATH.
+  - name: run_agent
+    signature: "run_agent(task: string, cwd: path, model: string, allowed_tools: list<string>) -> Result<RunOutput, string>"
+    behavior: "Runs the `claude` CLI as a coding agent: spawns `claude` in `cwd` with stdin, stdout and stderr piped, writes `task` to its stdin, and waits for completion. Arguments in order: \"-p\", \"--output-format\", \"text\", \"--model\", \"{model}\", \"--no-session-persistence\", \"--permission-mode\", \"acceptEdits\", \"--allowedTools\", then every entry of allowed_tools appended in order. Streams captured as lossy UTF-8. On success, output is stdout alone when the trimmed stderr is empty, otherwise \"{stdout}\\n{stderr}\"; code is the exit code or 1 when none. Precondition for reading output: the task must have been written to the child's stdin — a stdin-write failure is not swallowed and prevents reading output, returning the same launch-failure message as a spawn failure. Error string on spawn or stdin-write failure: 'failed to spawn the \"claude\" agent: {e}' with {e} the underlying error's display. Message bytes are load-bearing and reproduced verbatim by the wrapping CLI shell."
+  - name: run_codex
+    signature: "run_codex(task: string, cwd: path, model: string) -> Result<RunOutput, string>"
+    behavior: "Runs the `codex` CLI headless: spawns `codex` in `cwd` with stdin, stdout and stderr piped, writes `task` to stdin, waits, and captures both streams as lossy UTF-8. Arguments in order: \"exec\", \"--full-auto\", \"--model\", \"{model}\". output/code combined exactly as in run_agent (stdout alone when trimmed stderr is empty, else \"{stdout}\\n{stderr}\"; exit code or 1). A stdin-write failure is propagated, never swallowed, and yields the same launch-failure message as a spawn failure: 'failed to spawn the \"codex\" agent: {e}'."
+  - name: run_custom
+    signature: "run_custom(task: string, cwd: path, command: list<string>) -> Result<RunOutput, string>"
+    behavior: "Runs a user-supplied agent command template. Precondition: `command` is non-empty — an empty command returns the error string \"the custom agent command is empty\" with no filesystem or process effect. Otherwise writes `task` to a fresh temporary file named \"napl-agent-task-{pid}-{nanos}.txt\" in the system temp directory, where {pid} is the current process id and {nanos} is the current time in nanoseconds since the Unix epoch (0 if the clock is before the epoch); a write failure returns \"could not write the custom agent task file: {e}\". Then substitutes placeholders in every argument of `command`: \"{task}\" is replaced by the temp file's path and \"{dir}\" by cwd's path, both as lossy-UTF-8 strings. Spawns the first substituted argument as the program with the remaining substituted arguments, in `cwd`, stdin null, stdout and stderr piped, and collects the output. Postcondition: the temporary task file is always removed afterward on both the success and spawn-failure paths (removal errors ignored). On success, output is the merged streams (stdout alone when trimmed stderr is empty, else \"{stdout}\\n{stderr}\") and code is the exit code or 1. On spawn failure: 'failed to spawn the custom agent \"{program}\": {error}' where {program} is the first substituted argument."
+  - name: llm_complete
+    signature: "llm_complete(model: string, system: string, user: string) -> Result<string, string>"
+    behavior: "Runs the `claude` CLI as a one-shot completion with no working-directory override, stdin/stdout/stderr piped, writing `user` to stdin and waiting. Arguments in order: \"-p\", \"--output-format\", \"text\", \"--model\", \"{model}\", \"--no-session-persistence\"; and then, only if the trimmed `system` prompt is non-empty, \"--system-prompt\" followed by \"{system}\". Streams captured as lossy UTF-8. Failure ordering: if the process cannot be spawned (or the stdin write fails, which is never swallowed and blocks reading output), return 'failed to spawn the \"claude\" CLI: {e}'; else if the exit code is non-zero, return 'the \"claude\" CLI exited with code {code}: {detail}' where {detail} is the trimmed stderr, or the literal \"the claude CLI produced no stderr output\" when the trimmed stderr is empty; else if the trimmed stdout is empty, return 'the \"claude\" CLI returned an empty response'. Otherwise returns the raw, untrimmed stdout."
+  - name: GenLock.release
+    signature: "release(lock: GenLock) -> void"
+    behavior: "Removes the lock file if it still exists, ignoring any error. Never fails and never reports. Postcondition on the normal path: the lock file path no longer exists."
+  - name: is_alive
+    signature: "is_alive(pid: integer32) -> boolean"
+    behavior: Returns whether a process with the given id is alive by running `kill -0 {pid}` with stdout and stderr discarded and reporting whether that command launched and exited successfully. Spawn failure or non-success exit yields false. This exact `kill -0` probe is the contract; it is the liveness check used to decide whether a lock held by another pid is stale, and is pinned only transitively through lock contention.
+  - name: acquire_gen_lock_with
+    signature: "acquire_gen_lock_with(lock_path: path, pid: integer32, is_alive: function(integer32) -> boolean) -> Result<GenLock, string>"
+    behavior: "Acquires the gen lock atomically with the process id and the liveness check injected so callers/tests are deterministic. Step 1: ensure the parent directory of lock_path exists, creating it and all ancestors recursively when the parent component is non-empty; a parent-directory creation failure aborts acquisition immediately and is propagated as the bare I/O error display (no added wrapping) — acquisition must never continue on to create the lock file after such a failure, so a later error can never mask the real cause. Step 2: attempt to create the lock file exclusively (create-new, failing if it already exists). (a) If the exclusive create succeeds, write \"{pid}\\n\" through the very file handle the exclusive create returned, and return the held GenLock only after that write completes; this is a single-writer invariant — the exclusively created file must never be observable as empty by a competing acquirer, so the pid is never written by dropping that handle and reopening the path. A pid-write failure is propagated as its bare error display. (b) If the create fails because the file already exists, read the currently held pid (the file's trimmed contents parsed as a 32-bit integer; an unreadable or unparseable file means no held pid; an existing but empty file means a competing acquirer has not yet written its pid, so that write is given a bounded chance to land before the lock is called unheld). If a held pid was read, it differs from `pid`, and is_alive(held) is true, the lock is held by a live other process — return exactly: \"another napl gen is already running (pid {held}); the lock {path} is held. Wait for it to finish or remove the lock if the process is gone.\" where {path} is lock_path's lossy-UTF-8 string. Otherwise the lock is stale (no live holder, or held by this same pid): overwrite it with \"{pid}\\n\", propagating any write failure as its bare error display, and return the held GenLock (the lock is stolen). (c) If the create fails for any other reason, return \"could not acquire gen lock at {path}: {error}\" with {path} the lossy string and {error} the I/O error's display."
+  - name: acquire_gen_lock
+    signature: "acquire_gen_lock(lock_path: path) -> Result<GenLock, string>"
+    behavior: Acquires the gen lock with the real process id and the real is_alive probe, delegating to acquire_gen_lock_with. The pid is the current process id converted to a 32-bit integer, or 0 if it does not fit. All errors and messages are those of acquire_gen_lock_with.
+tests:
+  - name: run_command concatenates stdout then stderr
+    given: A shell command run in a fresh temporary directory that prints "OUT" to stdout, "ERR" to stderr, and exits with code 3.
+    expect: output equals "OUTERR" (no separator) and code equals 3.
+  - name: run_command reports a spawn failure as a leading newline
+    given: A command name that does not exist on PATH, with no arguments, in a temporary directory.
+    expect: output starts with a newline character and code equals 1.
+  - name: program_available reflects whether the program launches
+    given: A program known to be installed and a program name that does not exist.
+    expect: true for the installed program, false for the nonexistent one.
+  - name: run_custom rejects an empty command
+    given: run_custom called with an empty command list.
+    expect: an error whose message is exactly "the custom agent command is empty".
+  - name: run_custom substitutes the task file and the directory
+    given: run_custom with command ["cat", "{task}"] and task text "the task body"; then run_custom with command ["printf", "%s", "{dir}"] in a temporary directory.
+    expect: the first run yields output "the task body" and code 0 (proving {task} was replaced by the path of the temp file holding the task); the second yields output equal to the directory's lossy path string (proving {dir} was replaced by cwd).
+  - name: run_custom reports a spawn failure with the program name
+    given: run_custom with a single-element command naming a program that does not exist.
+    expect: "an error starting with 'failed to spawn the custom agent \"napl-no-such-program\": '."
+  - name: acquires a fresh lock and releases it
+    given: A lock path under a not-yet-existing nested subdirectory of a unique temporary directory, acquired with pid 4242 and a liveness closure that always reports dead.
+    expect: acquisition succeeds, the parent directories are created, the lock file contents are exactly "4242\n"; after release() the lock file no longer exists.
+  - name: refuses a lock held by a live other process
+    given: An existing lock file containing "9999\n", acquired with pid 4242 and a liveness closure that always reports alive.
+    expect: an error whose message contains "another napl gen is already running (pid 9999)", and the lock file is left untouched at "9999\n".
+  - name: steals a lock whose holder is dead
+    given: An existing lock file containing "9999\n", acquired with pid 4242 and a liveness closure that always reports dead.
+    expect: acquisition succeeds and the lock file is overwritten with "4242\n".
+  - name: reacquires a lock held by this same pid
+    given: An existing lock file containing "4242\n", acquired with pid 4242 and a liveness closure that always reports alive.
+    expect: acquisition succeeds and the lock file still contains "4242\n".
+  - name: only one racing thread acquires a fresh lock
+    given: Eight threads racing to acquire the same fresh lock path concurrently, each with a distinct pid and a liveness closure that reports every already-recorded holder as alive.
+    expect: exactly one thread comes away holding the lock; every other thread fails with the live-holder contention error naming a fully written holder pid (message contains "another napl gen is already running (pid 5"), and the lock file's trimmed contents always parse as an integer — it is never observable as empty or partially written.
+  - name: a broken child stdin pipe is an error
+    given: The crate's internal stdin-feeding path driven against a child that exits immediately without ever reading its stdin, fed an input far larger than the operating-system pipe buffer (4 MiB).
+    expect: the call surfaces an error rather than a successful RunOutput — the stdin-write failure is propagated, not swallowed.

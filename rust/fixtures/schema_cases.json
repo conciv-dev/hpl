@@ -6,15 +6,9 @@
       "target": "typescript",
       "entries": [
         {
-          "promptLines": [
-            2,
-            2
-          ],
+          "promptLines": [2, 2],
           "file": "g.ts",
-          "lines": [
-            1,
-            3
-          ],
+          "lines": [1, 3],
           "note": "x"
         }
       ]
@@ -28,14 +22,8 @@
       "target": "t",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
-          "lines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
+          "lines": [1, 1],
           "note": "x"
         }
       ]
@@ -49,15 +37,9 @@
       "target": "t",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "file": "a.ts",
-          "lines": [
-            1.5,
-            2
-          ],
+          "lines": [1.5, 2],
           "note": "x"
         }
       ]
@@ -85,9 +67,7 @@
     "schema": "attribution_entries",
     "input": [
       {
-        "promptLines": [
-          8
-        ],
+        "promptLines": [8],
         "file": "a.ts",
         "lines": 3,
         "note": "single"
@@ -101,10 +81,7 @@
       {
         "promptLines": "nope",
         "file": "a",
-        "lines": [
-          1,
-          2
-        ]
+        "lines": [1, 2]
       }
     ],
     "accepts": false
@@ -145,10 +122,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "ambiguity",
           "message": "x"
         }
@@ -163,10 +137,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "assumption",
           "message": "x"
         }
@@ -181,10 +152,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "note",
           "message": "x"
         }
@@ -199,10 +167,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "no-op",
           "message": "x"
         }
@@ -217,10 +182,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "bogus",
           "message": "x"
         }
@@ -235,10 +197,7 @@
       "target": "react",
       "entries": [
         {
-          "promptLines": [
-            1,
-            1
-          ],
+          "promptLines": [1, 1],
           "kind": "note",
           "message": ""
         }
@@ -313,10 +272,7 @@
     "schema": "lock",
     "input": {
       "model": "m",
-      "promptAliases": [
-        ".🧑",
-        ".🤠"
-      ]
+      "promptAliases": [".🧑", ".🤠"]
     },
     "accepts": true
   },
@@ -324,9 +280,7 @@
     "schema": "lock",
     "input": {
       "model": "m",
-      "promptAliases": [
-        "🧑"
-      ]
+      "promptAliases": ["🧑"]
     },
     "accepts": false
   },
@@ -334,9 +288,7 @@
     "schema": "lock",
     "input": {
       "model": "m",
-      "promptAliases": [
-        ".abc"
-      ]
+      "promptAliases": [".abc"]
     },
     "accepts": false
   },
@@ -344,9 +296,7 @@
     "schema": "lock",
     "input": {
       "model": "m",
-      "promptAliases": [
-        ".👨‍💻"
-      ]
+      "promptAliases": [".👨‍💻"]
     },
     "accepts": false
   },

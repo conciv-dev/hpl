@@ -1,0 +1,25 @@
+module: snapshot_io
+deps:
+  - hash
+  - snapshot_filter
+types: []
+functions:
+  - name: snapshot_hashes
+    signature: "snapshot_hashes(dir: Path, filter: SnapshotFilter) -> Result<SortedMap<String, String>, String>"
+    behavior: Recursively walks the directory tree rooted at `dir`, applying the exclusion filter, and records the content hash (as computed by hash.content_hash) of every surviving file, keyed by the file's absolute path rendered as a lossy-UTF-8 string. The top-level directory is treated as "at root"; anything reached by descent is not. A directory that cannot be read is treated as empty and contributes no records — not an error; snapshotting a nonexistent or unreadable path yields an empty map. Failure to read an individual directory entry, to query its file type, or to read a file's contents is returned as Err carrying the bare I/O error message string. Directories whose name is excluded by the filter are skipped entirely; files excluded by the filter (given whether they are at the root) are skipped. Result is a sorted map, so entries are ordered by path.
+  - name: snapshot_contents
+    signature: "snapshot_contents(dir: Path, filter: SnapshotFilter) -> Result<SortedMap<String, String>, String>"
+    behavior: "Identical walk and error semantics to snapshot_hashes, differing only in what is recorded: each surviving file's raw content string is stored under its absolute path key instead of a content hash. Unreadable directories yield no entries; per-entry and per-file I/O failures propagate as Err with the bare I/O error message. Result is ordered by path."
+tests:
+  - name: excluded_dirs_files_and_suffixes_are_omitted
+    given: A temporary directory containing keep.ts ("keep me"), AGENTS.md, types.d.ts, and node_modules/dep.js; a filter excluding the directory "node_modules", the file "AGENTS.md", and the suffix ".d.ts".
+    expect: snapshot_hashes returns exactly one entry, keyed by the absolute path of keep.ts, whose value equals content_hash("keep me").
+  - name: root_only_exclusions_keep_nested_namesakes
+    given: A temporary directory containing root Cargo.toml, member/Cargo.toml, and member/lib.rs; a filter with "Cargo.toml" as a root-only excluded file.
+    expect: snapshot_hashes omits the root Cargo.toml and records exactly the absolute paths of member/Cargo.toml and member/lib.rs.
+  - name: content_snapshot_records_raw_content
+    given: A temporary directory containing a.txt ("alpha") and nested/b.txt ("beta"); an empty filter excluding nothing.
+    expect: snapshot_contents maps the absolute path of a.txt to "alpha" and the absolute path of nested/b.txt to "beta".
+  - name: unreadable_root_yields_no_entries
+    given: A path that does not exist, with an empty filter.
+    expect: Both snapshot_hashes and snapshot_contents return Ok with an empty map rather than an error.

@@ -36,6 +36,12 @@ gen_mode = { path = "../../../selfhost/.napl/src/rust/gen_mode" }
 fsutil_io = { path = "../../../selfhost/.napl/src/rust/fsutil_io" }
 build_notice = { path = "../../../selfhost/.napl/src/rust/build_notice" }
 discovery_core = { path = "../../../selfhost/.napl/src/rust/discovery_core" }
+process_run = { path = "../../../selfhost/.napl/src/rust/process_run" }
+state_io = { path = "../../../selfhost/.napl/src/rust/state_io" }
+paths_walk = { path = "../../../selfhost/.napl/src/rust/paths_walk" }
+snapshot_io = { path = "../../../selfhost/.napl/src/rust/snapshot_io" }
+statusclass_io = { path = "../../../selfhost/.napl/src/rust/statusclass_io" }
+driftdetect_io = { path = "../../../selfhost/.napl/src/rust/driftdetect_io" }
 
 [lints]
 workspace = true

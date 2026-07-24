@@ -1,0 +1,220 @@
+# Subprocess orchestration and the gen lock
+
+This module is the CLI's subprocess seam: it spawns the coding agent and the LLM
+client, runs the target's test command, probes that a program exists on `PATH`,
+and holds the single-writer gen lock file. Every function shells out to a real
+binary or touches the real filesystem, so it is an **I/O shell**, not a pure
+module — it declares no given/expect corpus. Its behavior is pinned end-to-end by
+the conformance suite (which puts deterministic stub binaries on `PATH`) and by
+its own lock-file round-trip tests. It depends on nothing but the Rust standard
+library.
+
+The error-carrying functions return `Result<T, String>` where the `String` is the
+exact human-facing message; the CLI shell that wraps this module maps that string
+into its own error type unchanged, so the message bytes below are load-bearing and
+must be reproduced verbatim.
+
+For every function that feeds input to a child process on its stdin, writing that
+input is part of launching the child: a failure to write the input to the child's
+stdin is never swallowed and never allows the function to go on to read the
+child's output. Such a write failure returns the very same launch-failure error
+the function returns when the spawn itself fails, with the write error's display
+filling the same `{e}` slot as a spawn error would.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `process_run/`: `process_run/Cargo.toml` (package
+name `process_run`) and `process_run/src/lib.rs`. Touch nothing outside
+`process_run/`. Ensure `cargo test` passes from the workspace root before
+finishing. Add no external dependencies — the standard library is sufficient.
+
+The generated Rust carries zero ordinary code comments: no `//` line comments and
+no `/* */` block comments anywhere, in runtime code or tests. The code must be
+self-explanatory. Where a note earns its place it is a `///` or `//!`
+doc-comment on an item only, matching the workspace convention; every other
+explanation of how or why the code works is omitted rather than written as a
+comment.
+
+## `RunOutput`
+
+A public struct with two public fields: `output: String` (the captured process
+text) and `code: i32` (the process exit code). It is the uniform result of
+running the coding agent or a command.
+
+## `run_command(command, args, cwd)`
+
+`run_command(command: &str, args: &[String], cwd: &std::path::Path) -> RunOutput`:
+run `command` with `args` in directory `cwd`, with stdin connected to null and
+stdout+stderr captured. On success, the `output` is stdout **immediately followed
+by** stderr (the two lossy-UTF-8 streams concatenated with no separator between
+them), and `code` is the process exit code, or `1` if the process reported no
+code. If the process could not be spawned at all, return `RunOutput { output:
+format!("\n{error}"), code: 1 }` (a leading newline then the spawn error's
+display).
+
+## `program_available(program)`
+
+`program_available(program: &str) -> bool`: run `program --version` with stdout
+and stderr discarded and return whether it launched and exited successfully. Any
+spawn failure or non-success exit is `false`. This is the probe the shell uses to
+check that a required CLI is installed.
+
+## `run_agent(task, cwd, model, allowed_tools)`
+
+`run_agent(task: &str, cwd: &std::path::Path, model: &str, allowed_tools:
+&[String]) -> Result<RunOutput, String>`: run the `claude` CLI as a coding agent.
+Spawn `claude` in `cwd` with stdin, stdout and stderr piped, write `task` to its
+stdin, and wait for it to finish. The arguments are, in order: `-p`,
+`--output-format`, `text`, `--model`, `{model}`, `--no-session-persistence`,
+`--permission-mode`, `acceptEdits`, `--allowedTools`, then every entry of
+`allowed_tools` appended in order. Capture stdout and stderr as lossy UTF-8. The
+`output` is stdout when the trimmed stderr is empty, otherwise `{stdout}\n{stderr}`
+(stdout, a newline, then stderr). The `code` is the exit code or `1` if none. If
+the process cannot be spawned, return the error string `failed to spawn the
+"claude" agent: {e}` where `{e}` is the spawn error's display.
+
+## `run_codex(task, cwd, model)`
+
+`run_codex(task: &str, cwd: &std::path::Path, model: &str) -> Result<RunOutput,
+String>`: run the `codex` CLI in headless mode. Spawn `codex` in `cwd` with the
+three streams piped, write `task` to stdin, wait, and capture as above. The
+arguments are, in order: `exec`, `--full-auto`, `--model`, `{model}`. The
+`output`/`code` are combined exactly as in `run_agent` (stdout alone when trimmed
+stderr is empty, else `{stdout}\n{stderr}`; code or `1`). On spawn failure return
+`failed to spawn the "codex" agent: {e}`.
+
+## `run_custom(task, cwd, command)`
+
+`run_custom(task: &str, cwd: &std::path::Path, command: &[String]) ->
+Result<RunOutput, String>`: run a user-supplied agent command template. If
+`command` is empty, return the error string `the custom agent command is empty`.
+Otherwise write `task` to a fresh temporary file named
+`napl-agent-task-{pid}-{nanos}.txt` in the system temp directory, where `{pid}` is
+the current process id and `{nanos}` is the current time in nanoseconds since the
+Unix epoch (0 if the clock is before the epoch). If that write fails, return
+`could not write the custom agent task file: {e}`. Then substitute placeholders in
+every argument of `command`: replace `{task}` with the temp file's path and
+`{dir}` with `cwd`'s path (both as lossy-UTF-8 strings). Spawn the first
+substituted argument as the program with the remaining substituted arguments, in
+`cwd`, with stdin null and stdout+stderr piped, and collect its output. Always
+remove the temporary task file afterward (ignore any removal error). On success,
+the `output` is the merged streams (stdout alone when trimmed stderr is empty,
+else `{stdout}\n{stderr}`) and `code` is the exit code or `1`. On spawn failure
+return `failed to spawn the custom agent "{program}": {error}` where `{program}`
+is the first substituted argument.
+
+## `llm_complete(model, system, user)`
+
+`llm_complete(model: &str, system: &str, user: &str) -> Result<String, String>`:
+run the `claude` CLI as a one-shot completion. The arguments are, in order: `-p`,
+`--output-format`, `text`, `--model`, `{model}`, `--no-session-persistence`; and
+then, **only if** the trimmed `system` prompt is non-empty, `--system-prompt`
+followed by `{system}`. Spawn `claude` with no working-directory override, stdin,
+stdout and stderr piped, write `user` to stdin, and wait. Capture stdout and
+stderr as lossy UTF-8. If the process cannot be spawned, return `failed to spawn
+the "claude" CLI: {e}`. If the exit code is non-zero, return `the "claude" CLI
+exited with code {code}: {detail}` where `{detail}` is the trimmed stderr, or the
+literal `the claude CLI produced no stderr output` when the trimmed stderr is
+empty. If the exit code is zero but the trimmed stdout is empty, return `the
+"claude" CLI returned an empty response`. Otherwise return the raw (untrimmed)
+stdout.
+
+## The gen lock
+
+The gen lock is a single file whose contents are the holder's process id followed
+by a newline (`{pid}\n`). It is the CLI's single-writer guard: only one `napl
+gen` may run at a time against a working directory.
+
+### `GenLock`
+
+A public struct representing a held lock. It carries the lock file's path
+internally. Its one public method, `release(&self)`, removes the lock file if it
+still exists (ignoring any error).
+
+### `is_alive(pid)`
+
+`is_alive(pid: i32) -> bool`: return whether a process with the given id is
+alive, by running `kill -0 {pid}` with output discarded and reporting whether that
+command launched and exited successfully. This is the liveness probe used to
+decide whether a lock held by another pid is stale. (There is no observable
+scenario that spawns `kill` against a chosen live/dead pid directly — its contract
+is pinned only transitively through lock contention — so reproduce this exact
+`kill -0` probe rather than inventing a different liveness mechanism.)
+
+### `acquire_gen_lock_with(lock_path, pid, is_alive)`
+
+`acquire_gen_lock_with(lock_path: &std::path::Path, pid: i32, is_alive: &dyn
+Fn(i32) -> bool) -> Result<GenLock, String>`: acquire the lock atomically, with
+the process id and the liveness check injected (so tests are deterministic).
+First ensure the parent directory of `lock_path` exists (recursively create it and
+all ancestors when the parent component is non-empty). A failure to create the
+parent directory aborts acquisition at once and is propagated as its bare error
+display (the underlying I/O error's `to_string()`, with no added wrapping);
+acquisition must never continue on to create the lock file after a
+parent-directory failure, so a later error can never mask the real cause. Then try
+to create the lock file **exclusively** (create-new, failing if it already
+exists):
+
+- If the create succeeds, write `{pid}\n` **through the file handle the exclusive
+  create returned** and return the held `GenLock` only after that write has
+  completed. This is a single-writer concurrency invariant: the exclusively
+  created lock file must never be observable as empty by a competing acquirer, so
+  the holder pid is written through the same handle the exclusive create returned,
+  never by dropping that handle and reopening the path. A failure to write the pid
+  is propagated as its bare error display.
+- If the create fails because the file already exists, read the currently held pid
+  from the file (its trimmed contents parsed as an `i32`; treat an unreadable or
+  unparseable file as no held pid). If a held pid was read, it differs from `pid`,
+  **and** `is_alive(held)` is true, the lock is held by a live other process —
+  return the error string:
+
+      another napl gen is already running (pid {held}); the lock {path} is held. Wait for it to finish or remove the lock if the process is gone.
+
+  where `{path}` is `lock_path`'s lossy-UTF-8 string. Otherwise the lock is stale
+  (no live holder, or held by this same pid): overwrite it with `{pid}\n`,
+  propagating any write failure as its bare error display, and return the held
+  `GenLock` (the lock is stolen).
+- If the create fails for any other reason, return `could not acquire gen lock at
+  {path}: {error}` where `{path}` is `lock_path`'s lossy string and `{error}` is
+  the I/O error's display.
+
+### `acquire_gen_lock(lock_path)`
+
+`acquire_gen_lock(lock_path: &std::path::Path) -> Result<GenLock, String>`:
+acquire the lock with the real process id and the real `is_alive` probe. The pid
+is the current process id converted to `i32`, or `0` if it does not fit. Delegate
+to `acquire_gen_lock_with`.
+
+## Lock round-trip tests to include
+
+Write the crate's own `#[cfg(test)]` tests against a unique temporary directory,
+using an injected liveness closure:
+
+- Acquiring at a fresh path with a dead-holder closure creates the file with
+  contents `4242\n`, and after `release()` the file no longer exists.
+- When the file already holds a **live** other pid (`9999\n`, liveness closure
+  returns true), acquiring with pid `4242` returns an `Err` whose message contains
+  `another napl gen is already running (pid 9999)`, and the lock file is left
+  untouched (`9999\n`).
+- When the file holds a pid whose holder is **dead** (`9999\n`, liveness closure
+  returns false), acquiring with pid `4242` succeeds and overwrites the file with
+  `4242\n`.
+- When the file already holds this same pid (`4242\n`, liveness closure returns
+  true), acquiring with pid `4242` succeeds and the file stays `4242\n`.
+- A concurrency test that exercises the create/write boundary: several threads
+  race to acquire the same fresh `lock_path`, each with a distinct pid and a
+  liveness closure that reports every already-recorded holder as alive. Exactly
+  one thread acquires the lock; every other thread observes a fully written holder
+  pid — never an empty or unparseable lock file — and fails with the live-holder
+  contention error. No two threads may both come away holding the lock.
+
+## Subprocess stdin-write failure test to include
+
+Add a `#[cfg(test)]` test proving a broken stdin pipe is propagated, not swallowed.
+Drive the crate's internal stdin-feeding path against a child that exits without
+ever reading its stdin (for example a shell invoked to exit immediately), feeding
+an input larger than the operating-system pipe buffer so the write to the
+now-closed pipe must fail. Assert the call surfaces an error rather than a
+successful `RunOutput`.

@@ -55,27 +55,27 @@ the full gate numbers.
 ## Phase 1 — `napl-core` (pure; the active campaign)
 
 Waves are dependency layers. Wave 1 = pure leaves with **no intra-crate
-dependency**. Wave *n* depends only on waves `< n`. Every `napl-core` module is
+dependency**. Wave _n_ depends only on waves `< n`. Every `napl-core` module is
 pure, so the "pure/IO" axis is uniform here; the differentiator is dependency
 depth and corpus size.
 
 ### Wave 1 — pure leaves (no intra-crate deps)
 
-| Module | LOC | Unit tests | External crates | Self-host status |
-| --- | ---: | ---: | --- | --- |
-| `body_lines` | 111 | 5 | — | **done** (pilot, re-genned as workspace member in slice 2, 5/5) |
-| `extensions` | 141 | 7 | — | **done** (slice 1) |
-| `hash` | 44 | 4 | `sha2`, `hex` | **done** (slice 1) |
-| `parse_output` | 39 | 3 | — | **done** (slice 1) |
-| `text_diff` | 392 | 11 | — | **done** (slice 1) |
-| `drift` | 184 | 3 | — | **done** (slice 2, 3/3) |
-| `scanner` | 634 | 12 | — | **done** (slice 2, 12/12) |
-| `targets` | 272 | 6 | — | **done** (slice 2, 9/9 — corpus grew with the workspace fields) |
-| `guard` | 189 | 5 | `serde` | **done** (slice 2, 5/5) |
-| `schemas::frontmatter` | 180 | 6 | — | **done** (slice 2, 6/6) |
-| `schemas::ir` | 123 | 6 | — | **done** (slice 2, 6/6) |
-| `schemas::line_range` | 159 | 8 | — | **done** (slice 2, 8/8) |
-| `schemas::ordered_map` | 163 | 4 | — | **done** (slice 2, 4/4) |
+| Module                 | LOC | Unit tests | External crates | Self-host status                                                |
+| ---------------------- | --: | ---------: | --------------- | --------------------------------------------------------------- |
+| `body_lines`           | 111 |          5 | —               | **done** (pilot, re-genned as workspace member in slice 2, 5/5) |
+| `extensions`           | 141 |          7 | —               | **done** (slice 1)                                              |
+| `hash`                 |  44 |          4 | `sha2`, `hex`   | **done** (slice 1)                                              |
+| `parse_output`         |  39 |          3 | —               | **done** (slice 1)                                              |
+| `text_diff`            | 392 |         11 | —               | **done** (slice 1)                                              |
+| `drift`                | 184 |          3 | —               | **done** (slice 2, 3/3)                                         |
+| `scanner`              | 634 |         12 | —               | **done** (slice 2, 12/12)                                       |
+| `targets`              | 272 |          6 | —               | **done** (slice 2, 9/9 — corpus grew with the workspace fields) |
+| `guard`                | 189 |          5 | `serde`         | **done** (slice 2, 5/5)                                         |
+| `schemas::frontmatter` | 180 |          6 | —               | **done** (slice 2, 6/6)                                         |
+| `schemas::ir`          | 123 |          6 | —               | **done** (slice 2, 6/6)                                         |
+| `schemas::line_range`  | 159 |          8 | —               | **done** (slice 2, 8/8)                                         |
+| `schemas::ordered_map` | 163 |          4 | —               | **done** (slice 2, 4/4)                                         |
 
 Wave 1 is fully self-hosted: **13/13 modules**, 83 equivalence cases green.
 
@@ -89,14 +89,14 @@ each generated on attempt 1 of 3. Every generated wave-2 crate **path-deps the
 generated wave-1 crate(s)** it builds on — it composes on the generated code, not
 on hand-written napl-core.
 
-| Module | LOC | Unit tests | Intra-crate deps | Self-host status |
-| --- | ---: | ---: | --- | --- |
-| `blame` | 303 | 13 | `text_diff` | **done** (slice 3, 13/13 — path-deps generated `text_diff`) |
-| `reverse` | 297 | 12 | `body_lines`, `schemas` | **done** (slice 3, 12/12 — path-deps generated `body_lines` + `schemas_attribution` + `schemas_line_range`) |
-| `schemas::attribution` | 173 | 9 | `line_range` | **done** (slice 3, 9/9 — path-deps generated `schemas_line_range`) |
-| `schemas::lock` | 290 | 19 | `extensions` | **done** (slice 3, 20/20 — path-deps generated `extensions`; +1 empty-model case) |
-| `schemas::map` | 553 | 10 | `ordered_map` | **done** (slice 3, 10/10 — path-deps generated `schemas_ordered_map`) |
-| `schemas::ml` | 185 | 8 | `line_range` | **done** (slice 3, 8/8 — path-deps generated `schemas_line_range`) |
+| Module                 | LOC | Unit tests | Intra-crate deps        | Self-host status                                                                                            |
+| ---------------------- | --: | ---------: | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `blame`                | 303 |         13 | `text_diff`             | **done** (slice 3, 13/13 — path-deps generated `text_diff`)                                                 |
+| `reverse`              | 297 |         12 | `body_lines`, `schemas` | **done** (slice 3, 12/12 — path-deps generated `body_lines` + `schemas_attribution` + `schemas_line_range`) |
+| `schemas::attribution` | 173 |          9 | `line_range`            | **done** (slice 3, 9/9 — path-deps generated `schemas_line_range`)                                          |
+| `schemas::lock`        | 290 |         19 | `extensions`            | **done** (slice 3, 20/20 — path-deps generated `extensions`; +1 empty-model case)                           |
+| `schemas::map`         | 553 |         10 | `ordered_map`           | **done** (slice 3, 10/10 — path-deps generated `schemas_ordered_map`)                                       |
+| `schemas::ml`          | 185 |          8 | `line_range`            | **done** (slice 3, 8/8 — path-deps generated `schemas_line_range`)                                          |
 
 `blame` was confirmed to depend **only** on `text_diff`: its `BlameSourceEntry`
 is a blame-local struct, not a `schemas::journal` type, so no wave-3 journal
@@ -108,12 +108,12 @@ Wave 3 is fully self-hosted: **4/4 modules, 34 equivalence cases green** (slice 
 each generated on **attempt 1 of 3**. Every generated wave-3 crate path-deps the
 generated wave-1/2 crate(s) it builds on.
 
-| Module | LOC | Unit tests | Builds on (generated crate) | Self-host status |
-| --- | ---: | ---: | --- | --- |
-| `schemas::journal` | 228 | 8 | `blame`, `text_diff` | **done** (slice 4, 8/8) — **escape-hatch at stage1 swap-in** (warning-text divergence; hand-written body ships) |
-| `incremental` | 235 | 2 | `schemas_attribution`, `schemas_line_range` | **done** (slice 4, 3/3 — 2 corpus + 1 composition case) |
-| `yaml` | 535 | 9 | `schemas_attribution`, `schemas_ir`, `schemas_ml`, `schemas_line_range` | **done** (slice 4, 9/9 — byte-exact block goldens) |
-| `prompts` | 523 | 7 | `schemas_attribution`, `schemas_frontmatter`, `schemas_line_range`, `targets` | **done** (slice 4, 14/14 — 7 corpus + 7 byte-exact pins) |
+| Module             | LOC | Unit tests | Builds on (generated crate)                                                   | Self-host status                                                                                                |
+| ------------------ | --: | ---------: | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `schemas::journal` | 228 |          8 | `blame`, `text_diff`                                                          | **done** (slice 4, 8/8) — **escape-hatch at stage1 swap-in** (warning-text divergence; hand-written body ships) |
+| `incremental`      | 235 |          2 | `schemas_attribution`, `schemas_line_range`                                   | **done** (slice 4, 3/3 — 2 corpus + 1 composition case)                                                         |
+| `yaml`             | 535 |          9 | `schemas_attribution`, `schemas_ir`, `schemas_ml`, `schemas_line_range`       | **done** (slice 4, 9/9 — byte-exact block goldens)                                                              |
+| `prompts`          | 523 |          7 | `schemas_attribution`, `schemas_frontmatter`, `schemas_line_range`, `targets` | **done** (slice 4, 14/14 — 7 corpus + 7 byte-exact pins)                                                        |
 
 `lib.rs` (23 LOC, 0 tests) is a pure re-export root and is not a self-host unit.
 
@@ -143,23 +143,23 @@ swap; then the swap must keep it byte-identical again.
 
 ### Per-module pure/IO split (the plan)
 
-| Module | LOC | Pure core (self-host unit) | I/O shell (stays hand-written) | Pure unit tests | Status |
-| --- | ---: | --- | --- | ---: | --- |
-| `clock` | 65 | `iso_from_millis` (millis → ISO-8601) + civil-date math | `now()` (reads wall clock / `NAPL_FIXED_NOW`) | 3 | **swapped** (`clock_fmt`, batch 1) |
-| `paths` | 126 | `resolve_paths` + `NaplPaths` + `rel_to` (path algebra) | `find_prompt_files`/`walk` (readdir) | 1 (`rel_to`) | **swapped** (`paths_core`, batch 1) |
-| `statusclass` | 213 | `FileStatus` + `StatusEntry` + `line`/`is_error` (render) | `classify_prompt`/`detect_drift` (fs read + hash) | 2 | **swapped** (`statusclass_render`, batch 1) |
-| `driftdetect` | 146 | `reconstruct_file_content` (journal patch replay) | `classify_file`/`detect_gen_drift` (fs read) | 2 | **swapped** (`driftdetect_replay`, batch 1 — composes on generated `schemas_journal` + `text_diff`) |
-| `snapshot` | 154 | `diff_snapshots` (hash diff) + `SnapshotFilter`/`make_filter`/`is_excluded_*` (exclusion predicate) | `walk`/`snapshot_hashes`/`snapshot_contents` (readdir) | 2 | **swapped** (`snapshot_diff` batch 1; `snapshot_filter` batch 2) |
-| `fsutil` | 70 | — (only the mode constants are pure; every fn is fs I/O) | all (`read_opt`/`write`/`set_mode`/`exists`/`mkdir_parent`) | 0 pure | **shell** (no pure slice with a unit test) |
-| `error` | 35 | msg-extraction from `SchemaError` | type + `From` trait glue over hand-written `SchemaError`/`io::Error` | 0 | **shell** (inseparable from caller types) |
-| `process` | 435 | — | subprocess spawn + lockfile (all 4 tests are fs I/O) | 0 pure | **shell** |
-| `state` | 89 | in-memory state | — | 0 | **shell** |
-| `cmd_blame` | 208 | `mode_str`/`format_blame_row`/`why_line`/`render_blame_gen` (byte-exact rendering) | journal read + `blame_file` compute + printing | 7 | **swapped** (`blame_render`, batch 2 — composes on generated `blame` + `schemas_journal`) |
-| `cmd_reconcile` | 269 | `editable_drifted`/`build_reconcile_files` (drift → reconcile-input derivation) | drift detect + agent run + journal/map writes | 4 | **swapped** (`reconcile_derive`, batch 2 — composes on generated `drift` + `prompts` + `text_diff`) |
-| `cmd_watch` | 191 | `is_ignored` (ignored-dir path predicate) | watcher event loop + debounce + gen dispatch | 2 | **swapped** (`watch_filter`, batch 2) |
-| `cmd_gen` | 1,133 | `gen_classify` (`is_source_file`/`first_meaningful_line`/`split_body_lines`), `gen_prompt_diff` (`compute_prompt_diff`), `gen_attribution_check` (`assert_attribution_sane`), `gen_mode` (`can_incremental` + `mode:` renderers) | process spawn + LLM derivation loops + fs/journal/manifest writes + `run_gen_locked` | 11 | **batch 3 — 4 pure cores swapped** (shell ~1,088 LOC) |
-| `cmd_status`/`cmd_init`/`cmd_build`/`cmd_test` | ~240 | orchestration (`cmd_status`/`cmd_init` compose on already-swapped pure cores; no separable untested slice) | I/O + orchestration | 0 | **shell** (conformance-gated) |
-| `main` | 184 | — | arg parsing / dispatch | 0 | **shell** |
+| Module                                         |   LOC | Pure core (self-host unit)                                                                                                                                                                                                       | I/O shell (stays hand-written)                                                       | Pure unit tests | Status                                                                                              |
+| ---------------------------------------------- | ----: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------: | --------------------------------------------------------------------------------------------------- |
+| `clock`                                        |    65 | `iso_from_millis` (millis → ISO-8601) + civil-date math                                                                                                                                                                          | `now()` (reads wall clock / `NAPL_FIXED_NOW`)                                        |               3 | **swapped** (`clock_fmt`, batch 1)                                                                  |
+| `paths`                                        |   126 | `resolve_paths` + `NaplPaths` + `rel_to` (path algebra)                                                                                                                                                                          | `find_prompt_files`/`walk` (readdir)                                                 |    1 (`rel_to`) | **swapped** (`paths_core`, batch 1)                                                                 |
+| `statusclass`                                  |   213 | `FileStatus` + `StatusEntry` + `line`/`is_error` (render)                                                                                                                                                                        | `classify_prompt`/`detect_drift` (fs read + hash)                                    |               2 | **swapped** (`statusclass_render`, batch 1)                                                         |
+| `driftdetect`                                  |   146 | `reconstruct_file_content` (journal patch replay)                                                                                                                                                                                | `classify_file`/`detect_gen_drift` (fs read)                                         |               2 | **swapped** (`driftdetect_replay`, batch 1 — composes on generated `schemas_journal` + `text_diff`) |
+| `snapshot`                                     |   154 | `diff_snapshots` (hash diff) + `SnapshotFilter`/`make_filter`/`is_excluded_*` (exclusion predicate)                                                                                                                              | `walk`/`snapshot_hashes`/`snapshot_contents` (readdir)                               |               2 | **swapped** (`snapshot_diff` batch 1; `snapshot_filter` batch 2)                                    |
+| `fsutil`                                       |    70 | — (only the mode constants are pure; every fn is fs I/O)                                                                                                                                                                         | all (`read_opt`/`write`/`set_mode`/`exists`/`mkdir_parent`)                          |          0 pure | **shell** (no pure slice with a unit test)                                                          |
+| `error`                                        |    35 | msg-extraction from `SchemaError`                                                                                                                                                                                                | type + `From` trait glue over hand-written `SchemaError`/`io::Error`                 |               0 | **shell** (inseparable from caller types)                                                           |
+| `process`                                      |   435 | —                                                                                                                                                                                                                                | subprocess spawn + lockfile (all 4 tests are fs I/O)                                 |          0 pure | **shell**                                                                                           |
+| `state`                                        |    89 | in-memory state                                                                                                                                                                                                                  | —                                                                                    |               0 | **shell**                                                                                           |
+| `cmd_blame`                                    |   208 | `mode_str`/`format_blame_row`/`why_line`/`render_blame_gen` (byte-exact rendering)                                                                                                                                               | journal read + `blame_file` compute + printing                                       |               7 | **swapped** (`blame_render`, batch 2 — composes on generated `blame` + `schemas_journal`)           |
+| `cmd_reconcile`                                |   269 | `editable_drifted`/`build_reconcile_files` (drift → reconcile-input derivation)                                                                                                                                                  | drift detect + agent run + journal/map writes                                        |               4 | **swapped** (`reconcile_derive`, batch 2 — composes on generated `drift` + `prompts` + `text_diff`) |
+| `cmd_watch`                                    |   191 | `is_ignored` (ignored-dir path predicate)                                                                                                                                                                                        | watcher event loop + debounce + gen dispatch                                         |               2 | **swapped** (`watch_filter`, batch 2)                                                               |
+| `cmd_gen`                                      | 1,133 | `gen_classify` (`is_source_file`/`first_meaningful_line`/`split_body_lines`), `gen_prompt_diff` (`compute_prompt_diff`), `gen_attribution_check` (`assert_attribution_sane`), `gen_mode` (`can_incremental` + `mode:` renderers) | process spawn + LLM derivation loops + fs/journal/manifest writes + `run_gen_locked` |              11 | **batch 3 — 4 pure cores swapped** (shell ~1,088 LOC)                                               |
+| `cmd_status`/`cmd_init`/`cmd_build`/`cmd_test` |  ~240 | orchestration (`cmd_status`/`cmd_init` compose on already-swapped pure cores; no separable untested slice)                                                                                                                       | I/O + orchestration                                                                  |               0 | **shell** (conformance-gated)                                                                       |
+| `main`                                         |   184 | —                                                                                                                                                                                                                                | arg parsing / dispatch                                                               |               0 | **shell**                                                                                           |
 
 `cmd_gen` (1133 LOC) is the stage0 orchestrator itself — the last thing to
 self-host, and the true fixpoint when it does. The shells shrink as more pure cores
@@ -173,13 +173,13 @@ pure unit corpus in the shared equivalence harness, each swapped into `napl-cli`
 behind its existing call sites (thin re-export; hand-written pure body deleted;
 the unit corpus rides along as the regression net):
 
-| Generated crate | Replaces (napl-cli module's pure slice) | Deps | Equivalence |
-| --- | --- | --- | --- |
-| `clock_fmt` | `clock::iso_from_millis` | — | 3/3 (byte-exact ISO strings) |
-| `paths_core` | `paths::{resolve_paths, NaplPaths, rel_to}` | — | 2/2 (rel_to + full layout) |
-| `statusclass_render` | `statusclass::{FileStatus, StatusEntry, line, is_error}` | — | 2/2 (byte-exact status lines) |
-| `driftdetect_replay` | `driftdetect::reconstruct_file_content` | `schemas_journal`, `text_diff` | 2/2 (composes on generated phase-1 crates) |
-| `snapshot_diff` | `snapshot::diff_snapshots` | — | 1/1 |
+| Generated crate      | Replaces (napl-cli module's pure slice)                  | Deps                           | Equivalence                                |
+| -------------------- | -------------------------------------------------------- | ------------------------------ | ------------------------------------------ |
+| `clock_fmt`          | `clock::iso_from_millis`                                 | —                              | 3/3 (byte-exact ISO strings)               |
+| `paths_core`         | `paths::{resolve_paths, NaplPaths, rel_to}`              | —                              | 2/2 (rel_to + full layout)                 |
+| `statusclass_render` | `statusclass::{FileStatus, StatusEntry, line, is_error}` | —                              | 2/2 (byte-exact status lines)              |
+| `driftdetect_replay` | `driftdetect::reconstruct_file_content`                  | `schemas_journal`, `text_diff` | 2/2 (composes on generated phase-1 crates) |
+| `snapshot_diff`      | `snapshot::diff_snapshots`                               | —                              | 1/1                                        |
 
 **Batch-1 evidence:** `driftdetect_replay` is the notable one — a phase-2 pure core
 composing on **generated phase-1** crates by path (`schemas_journal::JournalEntry`
@@ -202,12 +202,12 @@ meaningful corpus was added first (test-only, conformance byte-identical), then 
 extraction refactor split the pure core from the I/O shell (conformance byte-
 identical again) before the generated swap:
 
-| Generated crate | Replaces (napl-cli pure slice) | Extraction? | Deps | Equivalence |
-| --- | --- | --- | --- | --- |
-| `snapshot_filter` | `snapshot::{SnapshotFilter, make_filter, is_excluded_dir, is_excluded_file}` | added direct filter unit test; made predicates `pub` | — | 1/1 |
-| `blame_render` | `cmd_blame::{mode_str, format_blame_row, why_line, render_blame_gen}` | added 7-case corpus; extracted `render_blame_gen` (was inline `blame_gen` I/O) | `blame`, `schemas_journal` | 7/7 (byte-exact blocks) |
-| `watch_filter` | `cmd_watch::{is_ignored, IGNORED_DIRS}` | added 2-case corpus | — | 2/2 |
-| `reconcile_derive` | `cmd_reconcile::{editable_drifted, build_reconcile_files}` | added 4-case corpus; extracted the two helpers (were inline in the reconcile loop) | `drift`, `prompts`, `text_diff` | 4/4 |
+| Generated crate    | Replaces (napl-cli pure slice)                                               | Extraction?                                                                        | Deps                            | Equivalence             |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------- | ----------------------- |
+| `snapshot_filter`  | `snapshot::{SnapshotFilter, make_filter, is_excluded_dir, is_excluded_file}` | added direct filter unit test; made predicates `pub`                               | —                               | 1/1                     |
+| `blame_render`     | `cmd_blame::{mode_str, format_blame_row, why_line, render_blame_gen}`        | added 7-case corpus; extracted `render_blame_gen` (was inline `blame_gen` I/O)     | `blame`, `schemas_journal`      | 7/7 (byte-exact blocks) |
+| `watch_filter`     | `cmd_watch::{is_ignored, IGNORED_DIRS}`                                      | added 2-case corpus                                                                | —                               | 2/2                     |
+| `reconcile_derive` | `cmd_reconcile::{editable_drifted, build_reconcile_files}`                   | added 4-case corpus; extracted the two helpers (were inline in the reconcile loop) | `drift`, `prompts`, `text_diff` | 4/4                     |
 
 **Batch-2 evidence:** `blame_render` and `reconcile_derive` are the notable ones —
 two more **phase-2** pure cores composing on **generated phase-1** crates by path.
@@ -235,24 +235,24 @@ batch-1/stage1 pure cores; their remaining logic is fs orchestration).
 3,437 LOC total across 18 modules; the pure cores of six are now generated crates
 re-exported behind unchanged shells. Hand-written LOC left, by module:
 
-| Module | LOC | Character |
-| --- | ---: | --- |
-| `cmd_gen` | ~1,088 | the stage0 orchestrator — 4 pure cores now generated (batch 3); shell is the irreducible I/O + `run_gen_locked` |
-| `process` | 435 | subprocess spawn + lockfile (all I/O) |
-| `cmd_reconcile` | 269 | reconcile orchestration shell (pure derivation swapped to `reconcile_derive`) |
-| `cmd_blame` | 208 | blame I/O shell (pure rendering swapped to `blame_render`) |
-| `cmd_watch` | 191 | watcher loop shell (pure predicate swapped to `watch_filter`) |
-| `main` | 184 | arg parsing / dispatch |
-| `statusclass` | 168 | fs classifier shell (pure render swapped to `statusclass_render`, batch 1) |
-| `cmd_init` | 162 | scaffold I/O (composes on generated `guard`/`targets`) |
-| `snapshot` | 154 | fs walk shell (pure diff + filter swapped to `snapshot_diff`/`snapshot_filter`) |
-| `driftdetect` | 138 | fs classifier shell (pure replay swapped to `driftdetect_replay`, batch 1) |
-| `state` | 89 | in-memory state + fs read/write glue |
-| `paths` | 83 | path shell (pure algebra swapped to `paths_core`, batch 1) |
-| `fsutil` | 70 | fs primitives (all I/O) |
-| `clock` | 47 | wall-clock read (pure format swapped to `clock_fmt`, batch 1) |
-| `error` | 35 | error type + `From` glue (inseparable from caller types) |
-| `cmd_test` / `cmd_status` / `cmd_build` | 71 | thin command shells |
+| Module                                  |    LOC | Character                                                                                                       |
+| --------------------------------------- | -----: | --------------------------------------------------------------------------------------------------------------- |
+| `cmd_gen`                               | ~1,088 | the stage0 orchestrator — 4 pure cores now generated (batch 3); shell is the irreducible I/O + `run_gen_locked` |
+| `process`                               |    435 | subprocess spawn + lockfile (all I/O)                                                                           |
+| `cmd_reconcile`                         |    269 | reconcile orchestration shell (pure derivation swapped to `reconcile_derive`)                                   |
+| `cmd_blame`                             |    208 | blame I/O shell (pure rendering swapped to `blame_render`)                                                      |
+| `cmd_watch`                             |    191 | watcher loop shell (pure predicate swapped to `watch_filter`)                                                   |
+| `main`                                  |    184 | arg parsing / dispatch                                                                                          |
+| `statusclass`                           |    168 | fs classifier shell (pure render swapped to `statusclass_render`, batch 1)                                      |
+| `cmd_init`                              |    162 | scaffold I/O (composes on generated `guard`/`targets`)                                                          |
+| `snapshot`                              |    154 | fs walk shell (pure diff + filter swapped to `snapshot_diff`/`snapshot_filter`)                                 |
+| `driftdetect`                           |    138 | fs classifier shell (pure replay swapped to `driftdetect_replay`, batch 1)                                      |
+| `state`                                 |     89 | in-memory state + fs read/write glue                                                                            |
+| `paths`                                 |     83 | path shell (pure algebra swapped to `paths_core`, batch 1)                                                      |
+| `fsutil`                                |     70 | fs primitives (all I/O)                                                                                         |
+| `clock`                                 |     47 | wall-clock read (pure format swapped to `clock_fmt`, batch 1)                                                   |
+| `error`                                 |     35 | error type + `From` glue (inseparable from caller types)                                                        |
+| `cmd_test` / `cmd_status` / `cmd_build` |     71 | thin command shells                                                                                             |
 
 The `cmd_*` handlers, `process`, `fsutil`, `error`, `state`, and `main` stay
 hand-written shells; the next pure-core extractions with real corpora are scarce
@@ -264,49 +264,49 @@ when it self-hosts.
 `cmd_gen.rs` (1,133 LOC) is the stage0 orchestrator itself. Batch 3 surveys it
 function-by-function into (a) **pure decision/derivation slices** the equivalence
 harness can gate, and (b) the **irreducible I/O shell** (process spawn, fs, LLM
-calls, journal writes) that stays hand-written. The pure decision logic *of the
-generator* becoming generated code is the true-fixpoint push.
+calls, journal writes) that stays hand-written. The pure decision logic _of the
+generator_ becoming generated code is the true-fixpoint push.
 
 **The decomposition table.** Every `cmd_gen.rs` function classified; LOC approximate.
 
-| Function | LOC | Class | Pure core / notes |
-| --- | ---: | --- | --- |
-| `run` | 24 | shell | lock read, engine resolve, gen-lock, prints the `generated N, skipped M` summary line (byte-load-bearing) |
-| `to_posix` | 3 | pure (trivial) | path-separator replace; too small to slice |
-| `first_meaningful_line` | 10 | **PURE slice** | description extraction from a prompt body (strip `#`, trim, first non-empty, 120-char cap) → `gen_classify` |
-| `is_source_file` | 12 | **PURE slice** | source-file classification (extension set, `.config.*` exclusion) → `gen_classify` |
-| `split_body_lines` | 6 | **PURE slice** | CRLF-aware line split → `gen_classify` |
-| `build_numbered_files` | 31 | shell (pure fmt core) | `std::fs::read_to_string` per file; the `is_source_file` gate + cap constants are the pure part |
-| `load_prior_body` / `load_prior_attribution` / `write_prior_body` | 22 | shell | fs read/write + parse |
-| `collect_summaries` | 21 | shell (pure core) | fs read; pure core is `first_meaningful_line` + rel keying |
-| `yaml_to_json` | 5 | shell-glue | serde bridge |
-| `build_task` | 14 | pure dispatch | thin match over `prompts` builders |
-| `build_task_builder` | 68 | shell + **PURE decision** | full-vs-incremental **mode selection** (`can_incremental` predicate + the `mode:` message lines, byte-load-bearing) → `gen_mode`; the rest is fs (load prior) + generated `incremental` calls + path algebra |
-| `unlock_files` / `lock_attributed` | 14 | shell | `set_mode` fs I/O |
-| `run_attempts` | 27 | shell | coding-agent spawn + test-command run (attempt accounting is I/O-bound) |
-| `retry_for_change` | 15 | shell | agent spawn |
-| `derive_ir` | 46 | shell | `llm_complete` loop |
-| `assert_attribution_sane` | 16 | **PURE slice** | attribution sanity check with byte-exact error strings → `gen_attribution_check` |
-| `derive_attribution_gated` | 62 | shell + pure | `llm_complete` retry loop; the pure gate is `assert_attribution_sane` (sliced out) |
-| `derive_ml` / `try_derive_ml` / `write_ml` | 86 | shell | `llm_complete` + fs write |
-| `enforce_no_op` | 37 | shell + pure decision | `has_no_op` decision + failure-reason string is pure (candidate `gen_no_op`); wraps fs writes |
-| `run_gen_locked` | 360 | shell | the top-level I/O orchestrator |
-| `record_journal` | 35 | shell | journal append + print |
-| `build_journal_files` | 31 | shell | fs read + `file_patch` (generated) |
-| `compute_prompt_diff` | 6 | **PURE slice** | prompt-diff derivation over generated `incremental::diff_body_lines` → `gen_prompt_diff` |
-| `write_guard_files` | 7 | shell | fs write |
-| `member_crate_dirs` | 15 | shell | `read_dir` |
-| `refresh_workspace_manifest` | 22 | shell + pure decision | member-set merge (add-current/sort/dedup) is pure; wraps fs write + generated `workspace_manifest_toml` |
+| Function                                                          | LOC | Class                     | Pure core / notes                                                                                                                                                                                            |
+| ----------------------------------------------------------------- | --: | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `run`                                                             |  24 | shell                     | lock read, engine resolve, gen-lock, prints the `generated N, skipped M` summary line (byte-load-bearing)                                                                                                    |
+| `to_posix`                                                        |   3 | pure (trivial)            | path-separator replace; too small to slice                                                                                                                                                                   |
+| `first_meaningful_line`                                           |  10 | **PURE slice**            | description extraction from a prompt body (strip `#`, trim, first non-empty, 120-char cap) → `gen_classify`                                                                                                  |
+| `is_source_file`                                                  |  12 | **PURE slice**            | source-file classification (extension set, `.config.*` exclusion) → `gen_classify`                                                                                                                           |
+| `split_body_lines`                                                |   6 | **PURE slice**            | CRLF-aware line split → `gen_classify`                                                                                                                                                                       |
+| `build_numbered_files`                                            |  31 | shell (pure fmt core)     | `std::fs::read_to_string` per file; the `is_source_file` gate + cap constants are the pure part                                                                                                              |
+| `load_prior_body` / `load_prior_attribution` / `write_prior_body` |  22 | shell                     | fs read/write + parse                                                                                                                                                                                        |
+| `collect_summaries`                                               |  21 | shell (pure core)         | fs read; pure core is `first_meaningful_line` + rel keying                                                                                                                                                   |
+| `yaml_to_json`                                                    |   5 | shell-glue                | serde bridge                                                                                                                                                                                                 |
+| `build_task`                                                      |  14 | pure dispatch             | thin match over `prompts` builders                                                                                                                                                                           |
+| `build_task_builder`                                              |  68 | shell + **PURE decision** | full-vs-incremental **mode selection** (`can_incremental` predicate + the `mode:` message lines, byte-load-bearing) → `gen_mode`; the rest is fs (load prior) + generated `incremental` calls + path algebra |
+| `unlock_files` / `lock_attributed`                                |  14 | shell                     | `set_mode` fs I/O                                                                                                                                                                                            |
+| `run_attempts`                                                    |  27 | shell                     | coding-agent spawn + test-command run (attempt accounting is I/O-bound)                                                                                                                                      |
+| `retry_for_change`                                                |  15 | shell                     | agent spawn                                                                                                                                                                                                  |
+| `derive_ir`                                                       |  46 | shell                     | `llm_complete` loop                                                                                                                                                                                          |
+| `assert_attribution_sane`                                         |  16 | **PURE slice**            | attribution sanity check with byte-exact error strings → `gen_attribution_check`                                                                                                                             |
+| `derive_attribution_gated`                                        |  62 | shell + pure              | `llm_complete` retry loop; the pure gate is `assert_attribution_sane` (sliced out)                                                                                                                           |
+| `derive_ml` / `try_derive_ml` / `write_ml`                        |  86 | shell                     | `llm_complete` + fs write                                                                                                                                                                                    |
+| `enforce_no_op`                                                   |  37 | shell + pure decision     | `has_no_op` decision + failure-reason string is pure (candidate `gen_no_op`); wraps fs writes                                                                                                                |
+| `run_gen_locked`                                                  | 360 | shell                     | the top-level I/O orchestrator                                                                                                                                                                               |
+| `record_journal`                                                  |  35 | shell                     | journal append + print                                                                                                                                                                                       |
+| `build_journal_files`                                             |  31 | shell                     | fs read + `file_patch` (generated)                                                                                                                                                                           |
+| `compute_prompt_diff`                                             |   6 | **PURE slice**            | prompt-diff derivation over generated `incremental::diff_body_lines` → `gen_prompt_diff`                                                                                                                     |
+| `write_guard_files`                                               |   7 | shell                     | fs write                                                                                                                                                                                                     |
+| `member_crate_dirs`                                               |  15 | shell                     | `read_dir`                                                                                                                                                                                                   |
+| `refresh_workspace_manifest`                                      |  22 | shell + pure decision     | member-set merge (add-current/sort/dedup) is pure; wraps fs write + generated `workspace_manifest_toml`                                                                                                      |
 
 **Pure slices generated this batch (4), all converged on attempt 1 of 3, all
 swapped in:**
 
-| Slice (generated crate) | Extracts | Deps | Equivalence |
-| --- | --- | --- | --- |
-| `gen_classify` | `is_source_file` (+`SOURCE_FILE_EXTENSIONS`), `first_meaningful_line`, `split_body_lines` | — | **3/3** |
-| `gen_prompt_diff` | `compute_prompt_diff` | `incremental` | **2/2** |
-| `gen_attribution_check` | `assert_attribution_sane` (byte-exact error strings) | `schemas_attribution` | **4/4** |
-| `gen_mode` | `can_incremental` + the byte-exact `mode:` message renderers | — | **2/2** |
+| Slice (generated crate) | Extracts                                                                                  | Deps                  | Equivalence |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------------- | ----------- |
+| `gen_classify`          | `is_source_file` (+`SOURCE_FILE_EXTENSIONS`), `first_meaningful_line`, `split_body_lines` | —                     | **3/3**     |
+| `gen_prompt_diff`       | `compute_prompt_diff`                                                                     | `incremental`         | **2/2**     |
+| `gen_attribution_check` | `assert_attribution_sane` (byte-exact error strings)                                      | `schemas_attribution` | **4/4**     |
+| `gen_mode`              | `can_incremental` + the byte-exact `mode:` message renderers                              | —                     | **2/2**     |
 
 `gen_prompt_diff` and `gen_attribution_check` are the notable ones: two more
 phase-2 pure cores composing on **generated phase-1** crates by path
@@ -350,11 +350,11 @@ Gated by the LSP `integration` suite (12 tests). `classify`, `ml`, `convert`,
 `context` are pure enough to be pulled forward; `backend`/`navigation`/`hover`/
 `diagnostics` are server plumbing.
 
-| Module | LOC | Unit/integration tests | Character |
-| --- | ---: | ---: | --- |
-| `integration` | 154 | 12 | end-to-end LSP corpus |
-| `ml` | 144 | 4 | pure machine-layer parsing |
-| `hover` / `navigation` / `diagnostics` / `backend` / `context` / `classify` / `convert` / `state` / `testkit` / `lib` | ~1500 | 0 | server plumbing |
+| Module                                                                                                                |   LOC | Unit/integration tests | Character                  |
+| --------------------------------------------------------------------------------------------------------------------- | ----: | ---------------------: | -------------------------- |
+| `integration`                                                                                                         |   154 |                     12 | end-to-end LSP corpus      |
+| `ml`                                                                                                                  |   144 |                      4 | pure machine-layer parsing |
+| `hover` / `navigation` / `diagnostics` / `backend` / `context` / `classify` / `convert` / `state` / `testkit` / `lib` | ~1500 |                      0 | server plumbing            |
 
 ## Fixpoint definition
 
@@ -394,20 +394,20 @@ Modules that stay hand-written because current stage0 + prompt cannot reproduce
 their behavior under the equivalence gate. A module leaves the list only when its
 prompt drives a passing generation.
 
-- **Generation:** *(empty)* — no module (phase 1 or phase-2 batch 1) has failed to
+- **Generation:** _(empty)_ — no module (phase 1 or phase-2 batch 1) has failed to
   converge (28/28 generated modules on attempt 1).
-- **Stage1 swap-in:** *(empty)* — `schemas::journal` was **cleared**: the prompt now
+- **Stage1 swap-in:** _(empty)_ — `schemas::journal` was **cleared**: the prompt now
   pins the byte-exact corrupt-line warning (`journal: skipping corrupt line {n}
-  (invalid JSON)`) as behavior prose + a given/expect case, the crate re-genned on
+(invalid JSON)`) as behavior prose + a given/expect case, the crate re-genned on
   attempt 1 to produce those bytes, and the equivalence gate now asserts the warning
   text (9/9). All 23 `napl-core` modules ship generated code with no seam left on
   the hatch.
-- **Phase 2 swap-in:** *(empty)* — batch-1's five pure cores all swapped in with
+- **Phase 2 swap-in:** _(empty)_ — batch-1's five pure cores all swapped in with
   conformance 40/40 byte-identical.
-- **Fixpoint run (2026-07-24):** *(empty)* — all 36 modules force-regenerated under
+- **Fixpoint run (2026-07-24):** _(empty)_ — all 36 modules force-regenerated under
   the opus engine, every one on attempt 1, byte-identical no-ops; stage2 passed the
   full battery (conformance 47/47, equivalence 226/226). No module left stale.
-- **Deps-enforcement slice (2026-07-24):** *(empty)* — the 14 prompt-stale modules
+- **Deps-enforcement slice (2026-07-24):** _(empty)_ — the 14 prompt-stale modules
   (9 prompt-restored + 5 kept-trimmed but never-regenned) all regenerated as clean
   no-ops (journal gens #93–#106, 0 file patches). No module left stale, no escape-hatch
   opened; `incremental` regenerated depending on its siblings.
@@ -458,7 +458,7 @@ harness (`selfhost/equivalence/`) remains the behavioral cross-module gate.
 
 Phases 1–2 (batches 1–3) extracted every cleanly-separable **pure core** out of
 `napl-cli` and generated it, keeping the surrounding I/O shell hand-written. The
-**shell wave** goes the rest of the way: it self-hosts the *shells themselves* —
+**shell wave** goes the rest of the way: it self-hosts the _shells themselves_ —
 the filesystem, subprocess, and orchestration plumbing — so that ultimately every
 hand-written `.rs` body under `rust/crates/napl-cli` (and then `napl-lsp`) can be
 deleted (the **rust-final** endgame). A shell module does I/O, so its given/expect
@@ -471,33 +471,33 @@ after each swap.
 ### Remaining hand-written `napl-cli` inventory (LOC from `wc -l`, 2026-07-24)
 
 Class: **(a)** pure-decision residue that slipped through (immediate prompt
-candidate *with* a unit corpus, gated by the equivalence harness); **(b)** thin
+candidate _with_ a unit corpus, gated by the equivalence harness); **(b)** thin
 I/O shell whose behavior the conformance corpus fully pins (prompt candidate gated
 by corpus); **(c)** architectural glue (arg-parse / error plumbing / binary entry)
 that collapses **last**.
 
-| Module | LOC | Already-swapped pure core | Residual hand-written surface | Class | Conformance pin |
-| --- | ---: | --- | --- | --- | --- |
-| `cmd_build` | 12 | — | prints the deprecation notice, returns 0 | **(b)** thinnest shell | `04-build-deprecated` |
-| `cmd_test` | 30 | — | `get_adapter`+`resolve_paths`+`create_dir`+`run_command`+print | (b) shell (needs `process`) | `51-test-passthrough` |
-| `cmd_status` | 35 | — | orchestration: map/journal read → heal → aliases → find prompts → dup-check → classify → print | (b) orchestration shell | `20`–`24`,`76` |
-| `error` | 35 | — | `CliError` type + `From<SchemaError>`/`From<io::Error>` | **(c)** glue | all (stderr `napl: {msg}`) |
-| `clock` | 47 | `clock_fmt` | `now()` reads `NAPL_FIXED_NOW`/wall clock | (b)/(c) tiny env shell | fixed-now branch only (**gap:** wall-clock branch untestable) |
-| `discovery` | 69 | — | `declared_crate` (**pure**), `check_duplicate_modules` (dup-detect verdict is **pure**; fs-read is shell), `module_paths` (**pure** mapping; fs-read is shell) | **(a)** pure stragglers in a (b) fs shell | `27-duplicate-module` |
-| `fsutil` | 70 | — | `read_opt`/`write`/`set_mode`/`exists`/`mkdir_parent` + mode consts (all fs I/O over `std`) | **(b)** thinnest I/O shell (leaf) | transitively every fs scenario (**no isolated pin**) |
-| `paths` | 83 | `paths_core` | `find_prompt_files`/`walk` (readdir + alias filter) | (b) fs-walk shell | `40`,`41` (alias discovery), all |
-| `state` | 89 | schema cores | `read_map`/`write_map`/`read_journal`/`append_journal_entry`/`read_lock`/`write_lock` (fs over generated parsers); `default_lock` is (c) schema glue | (b) fs state shell | `25` (lock contention), all gen |
-| `driftdetect` | 143 | `driftdetect_replay` | `classify_file`/`detect_gen_drift` (fs read + hash) | (b) fs classifier shell | `23`,`60`,`61` |
-| `snapshot` | 154 | `snapshot_diff`,`snapshot_filter` | `walk`/`snapshot_hashes`/`snapshot_contents` (readdir + hash) | (b) fs-walk shell | via drift/heal scenarios |
-| `cmd_init` | 162 | — | scaffold: writes `.napl/` tree, `lock.json`, example prompt, guard files, hook (composes on generated `guard`/`targets`) | (b) scaffold-I/O shell | `01`,`02`,`62`,`63` |
-| `statusclass` | 168 | `statusclass_render` | `classify_prompt`/`detect_drift` (fs read + hash + scan) | (b) fs classifier shell | `20`–`24`,`76` |
-| `main` | 186 | — | clap parse + `--version` + dispatch + top-level `napl: {err}` | **(c)** binary entry glue | `03-version`, all (dispatch/exit codes) |
-| `cmd_watch` | 191 | `watch_filter` | `notify` watcher loop + debounce + gen dispatch | (b) shell — **external `notify` crate + threads** | `80-watch-once` only (**gap:** live loop uncovered; likely escape-hatch) |
-| `cmd_blame` | 208 | `blame_render` | journal read + `blame_file` compute + print | (b) blame-I/O shell | `30`–`33` |
-| `healing` | 262 | — | `heal_moved_files`: **pure** LCS move-match decision (`lcs_len`, clean/drifted/ambiguous verdict) wrapped in fs walk + journal write | **(a)** pure decision in a (b) fs shell | `28`,`29`,`35` |
-| `cmd_reconcile` | 280 | `reconcile_derive` | drift-detect + agent run + journal/map writes | (b) reconcile orchestration shell | `72`,`73` |
-| `process` | 435 | — | `run_command` (subprocess spawn + capture), gen lockfile (`flock`) — all over `std::process`, leaf | **(b)** subprocess/lock shell (leaf) | `25` (contention), all gen/test (spawn) |
-| `cmd_gen` | 1483 | 4 gen_* cores | `run_gen_locked` orchestrator + `run_attempts`/`retry_for_change`/`derive_*` LLM loops + fs/journal/manifest writes; `check_declared_deps` deps-gate verdict is **pure** (flagged future module) | (b) irreducible I/O shell + **(a)** `check_declared_deps` | all gen scenarios; `81-gen-undeclared-dep` |
+| Module          |  LOC | Already-swapped pure core         | Residual hand-written surface                                                                                                                                                                    | Class                                                     | Conformance pin                                                          |
+| --------------- | ---: | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `cmd_build`     |   12 | —                                 | prints the deprecation notice, returns 0                                                                                                                                                         | **(b)** thinnest shell                                    | `04-build-deprecated`                                                    |
+| `cmd_test`      |   30 | —                                 | `get_adapter`+`resolve_paths`+`create_dir`+`run_command`+print                                                                                                                                   | (b) shell (needs `process`)                               | `51-test-passthrough`                                                    |
+| `cmd_status`    |   35 | —                                 | orchestration: map/journal read → heal → aliases → find prompts → dup-check → classify → print                                                                                                   | (b) orchestration shell                                   | `20`–`24`,`76`                                                           |
+| `error`         |   35 | —                                 | `CliError` type + `From<SchemaError>`/`From<io::Error>`                                                                                                                                          | **(c)** glue                                              | all (stderr `napl: {msg}`)                                               |
+| `clock`         |   47 | `clock_fmt`                       | `now()` reads `NAPL_FIXED_NOW`/wall clock                                                                                                                                                        | (b)/(c) tiny env shell                                    | fixed-now branch only (**gap:** wall-clock branch untestable)            |
+| `discovery`     |   69 | —                                 | `declared_crate` (**pure**), `check_duplicate_modules` (dup-detect verdict is **pure**; fs-read is shell), `module_paths` (**pure** mapping; fs-read is shell)                                   | **(a)** pure stragglers in a (b) fs shell                 | `27-duplicate-module`                                                    |
+| `fsutil`        |   70 | —                                 | `read_opt`/`write`/`set_mode`/`exists`/`mkdir_parent` + mode consts (all fs I/O over `std`)                                                                                                      | **(b)** thinnest I/O shell (leaf)                         | transitively every fs scenario (**no isolated pin**)                     |
+| `paths`         |   83 | `paths_core`                      | `find_prompt_files`/`walk` (readdir + alias filter)                                                                                                                                              | (b) fs-walk shell                                         | `40`,`41` (alias discovery), all                                         |
+| `state`         |   89 | schema cores                      | `read_map`/`write_map`/`read_journal`/`append_journal_entry`/`read_lock`/`write_lock` (fs over generated parsers); `default_lock` is (c) schema glue                                             | (b) fs state shell                                        | `25` (lock contention), all gen                                          |
+| `driftdetect`   |  143 | `driftdetect_replay`              | `classify_file`/`detect_gen_drift` (fs read + hash)                                                                                                                                              | (b) fs classifier shell                                   | `23`,`60`,`61`                                                           |
+| `snapshot`      |  154 | `snapshot_diff`,`snapshot_filter` | `walk`/`snapshot_hashes`/`snapshot_contents` (readdir + hash)                                                                                                                                    | (b) fs-walk shell                                         | via drift/heal scenarios                                                 |
+| `cmd_init`      |  162 | —                                 | scaffold: writes `.napl/` tree, `lock.json`, example prompt, guard files, hook (composes on generated `guard`/`targets`)                                                                         | (b) scaffold-I/O shell                                    | `01`,`02`,`62`,`63`                                                      |
+| `statusclass`   |  168 | `statusclass_render`              | `classify_prompt`/`detect_drift` (fs read + hash + scan)                                                                                                                                         | (b) fs classifier shell                                   | `20`–`24`,`76`                                                           |
+| `main`          |  186 | —                                 | clap parse + `--version` + dispatch + top-level `napl: {err}`                                                                                                                                    | **(c)** binary entry glue                                 | `03-version`, all (dispatch/exit codes)                                  |
+| `cmd_watch`     |  191 | `watch_filter`                    | `notify` watcher loop + debounce + gen dispatch                                                                                                                                                  | (b) shell — **external `notify` crate + threads**         | `80-watch-once` only (**gap:** live loop uncovered; likely escape-hatch) |
+| `cmd_blame`     |  208 | `blame_render`                    | journal read + `blame_file` compute + print                                                                                                                                                      | (b) blame-I/O shell                                       | `30`–`33`                                                                |
+| `healing`       |  262 | —                                 | `heal_moved_files`: **pure** LCS move-match decision (`lcs_len`, clean/drifted/ambiguous verdict) wrapped in fs walk + journal write                                                             | **(a)** pure decision in a (b) fs shell                   | `28`,`29`,`35`                                                           |
+| `cmd_reconcile` |  280 | `reconcile_derive`                | drift-detect + agent run + journal/map writes                                                                                                                                                    | (b) reconcile orchestration shell                         | `72`,`73`                                                                |
+| `process`       |  435 | —                                 | `run_command` (subprocess spawn + capture), gen lockfile (`flock`) — all over `std::process`, leaf                                                                                               | **(b)** subprocess/lock shell (leaf)                      | `25` (contention), all gen/test (spawn)                                  |
+| `cmd_gen`       | 1483 | 4 gen\_\* cores                   | `run_gen_locked` orchestrator + `run_attempts`/`retry_for_change`/`derive_*` LLM loops + fs/journal/manifest writes; `check_declared_deps` deps-gate verdict is **pure** (flagged future module) | (b) irreducible I/O shell + **(a)** `check_declared_deps` | all gen scenarios; `81-gen-undeclared-dep`                               |
 
 ### Linking architecture — least-glue integration of generated shell crates
 
@@ -511,11 +511,11 @@ pattern:
    exposes the operation it performs (`read_opt(&Path) -> io::Result<Option<String>>`,
    `run() -> i32`, `run_command(cmd, args, cwd) -> RunOutput`, …). It does its **own**
    I/O with `std::fs`/`std::process` — the rust target idiom ("a Rust library crate,
-   modern idiomatic Rust") does not forbid `std`; only the *agent's* tools are scoped
+   modern idiomatic Rust") does not forbid `std`; only the _agent's_ tools are scoped
    to `cargo`/`rustc`/`rustfmt`. It path-deps generated siblings for any composition
    and **never** a hand-written crate.
 2. **Hand-written module becomes a thin re-export/wrap adapter.** `mod fsutil { pub
-   use fsutil_io::*; }`; `pub fn run() -> CliResult<i32> { Ok(build_notice::run()) }`.
+use fsutil_io::*; }`; `pub fn run() -> CliResult<i32> { Ok(build_notice::run()) }`.
    Call sites and `main.rs` are unchanged — the same "preserve the public surface"
    discipline that made the stage1 core a zero-edit swap.
 3. **Keep hand-written types out of generated crates (the boundary rule).** Prefer
@@ -542,7 +542,7 @@ a golden change = revert and investigate.
   boundary), `discovery_core` (the pure `declared_crate`/dup-detect-verdict/
   `module_paths` stragglers → `schemas_frontmatter`). Pins: broad fs coverage +
   `04` + `27`.
-- **Batch 2 — the subprocess/state leaves.** `process_run` (subprocess spawn +
+- **Batch 2 (DONE) — the subprocess/state leaves.** `process_run` (subprocess spawn +
   capture + gen lockfile, leaf) and `state_io` (fs map/journal/lock over generated
   schema parsers + `fsutil_io`). Unblocks `cmd_test`. Pins: `25`, `51`, all gen.
 - **Batch 3 — the fs-walk / classifier shells.** `paths_walk` (`find_prompt_files`),
@@ -582,11 +582,11 @@ Three modules, each `napl gen rust --module <m>` from `selfhost/cli/`, each
 conformance **48/48 byte-identical** after each swap. Totals: **39/39 generated
 modules**, escape-hatch list still empty.
 
-| Generated crate | Replaces (napl-cli surface) | Class | Deps | Gate |
-| --- | --- | --- | --- | --- |
-| `fsutil_io` | `fsutil::{read_opt,mkdir_parent,write,set_mode,exists,*_MODE}` | (b) I/O shell (leaf) | — | conformance (fs) + crate temp-file tests |
-| `build_notice` | `cmd_build::run` (the deprecation notice + exit 0) | (b) thinnest shell | — | `04` + equivalence `notice()` |
-| `discovery_core` | `discovery::{declared_crate, find_duplicate_module, module_paths_from}` | (a) pure stragglers | `schemas_frontmatter` | `27` + equivalence |
+| Generated crate  | Replaces (napl-cli surface)                                             | Class                | Deps                  | Gate                                     |
+| ---------------- | ----------------------------------------------------------------------- | -------------------- | --------------------- | ---------------------------------------- |
+| `fsutil_io`      | `fsutil::{read_opt,mkdir_parent,write,set_mode,exists,*_MODE}`          | (b) I/O shell (leaf) | —                     | conformance (fs) + crate temp-file tests |
+| `build_notice`   | `cmd_build::run` (the deprecation notice + exit 0)                      | (b) thinnest shell   | —                     | `04` + equivalence `notice()`            |
+| `discovery_core` | `discovery::{declared_crate, find_duplicate_module, module_paths_from}` | (a) pure stragglers  | `schemas_frontmatter` | `27` + equivalence                       |
 
 The first **shell** self-hosts of the campaign. `fsutil_io` proves the linking
 architecture's boundary rule end-to-end: the generated crate does its own
@@ -615,3 +615,102 @@ returns `i32`, `discovery_core` returns `Option<String>`/`BTreeMap`, and each
 adapter maps to the caller's expected shape (or is a bare re-export). This validates
 the linking-architecture boundary rule: keep the hand-written `error` glue on the
 shell side, generated crates speak `std` types.
+
+### Batch 2 — results (DONE)
+
+Two modules, each `napl gen rust --module <m>` from `selfhost/cli/`, each
+**converged on attempt 1 of 3**, swapped in behind unchanged call sites,
+conformance **48/48 byte-identical** after each swap. Totals: **41/41 generated
+modules**, escape-hatch list still empty.
+
+| Generated crate | Replaces (napl-cli surface)                                                                                                                  | Class                            | Deps                                                                        | Gate                                                      |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `process_run`   | `process::{run_command, run_agent, run_codex, run_custom, llm_complete, program_available, GenLock, RunOutput, is_alive, acquire_gen_lock*}` | (b) subprocess/lock shell (leaf) | —                                                                           | `25` + `51` + all gen/spawn + crate lock round-trip tests |
+| `state_io`      | `state::{read_map, write_map, read_journal, append_journal_entry, read_lock, write_lock, default_lock, load_prompt_aliases}`                 | (b) fs state shell               | `fsutil_io`, `schemas_map`, `schemas_lock`, `schemas_journal`, `extensions` | `25` + all gen + crate fs round-trip tests                |
+
+`process_run` is the first **subprocess** self-host: the generated crate owns all
+`std::process` spawning (coding-agent runners, the LLM client, the test-command
+runner, the `--version` availability probe, the `kill -0` liveness probe) and the
+exclusive-create gen lockfile, returning `std` types (`RunOutput`, `bool`,
+`GenLock`) or a plain message `String` for the error-carrying operations. The
+error strings — the spawn-failure messages and the byte-exact lock-contention
+message (`another napl gen is already running (pid {held}); the lock {path} is
+held. …`, pinned by `25`) — are produced in the generated crate and the
+`process.rs` shell wraps them with `.map_err(CliError::new)`. The schema-coupled
+engine dispatch (`AgentEngine`/`resolve_engine(&AgentConfig)`/`require_engine`/
+`run_coding_agent`) stays hand-written in the shell, calling the generated
+primitives — the boundary rule again: no schema/`CliError` type crosses into the
+generated leaf, which stays `deps: []`. The four lock round-trip tests ride along
+in **both** the generated crate (its behavioral corpus) and the shell (a
+regression net over the wrappers). Two seam notes: the generated `GenLock` does not
+derive `Debug` (not a behavior), so the shell's contention test matches on the
+`Err` instead of `unwrap_err()`; and routing the shell's `acquire_gen_lock`
+through its own `acquire_gen_lock_with(.., &process_run::is_alive)` keeps that
+wrapper live (no dead-code).
+
+`state_io` is the first generated crate to **compose on another generated cli
+crate** (`fsutil_io`) alongside four generated `napl-core` schema crates. It reads
+and writes the map, journal, and lock, doing the filesystem I/O over the generated
+parsers/serializers (`schemas_map::{parse_map, map_to_json, empty_map}`,
+`schemas_lock::parse_lock`, `schemas_journal::read_journal_str`,
+`extensions::default_prompt_aliases`). The error-byte contract is the load-bearing
+part: the generated crate returns the **bare underlying message** as a `String`
+(the parser's error, the I/O error's `to_string`, or the one hard-coded `missing
+.napl/lock.json — run 'napl init' first`), which is exactly what the shell's
+`From<SchemaError>`/`From<io::Error>` glue already produced — so the `state.rs`
+shell wraps each with `.map_err(CliError::new)` and the bytes are identical. The
+returned schema types (`NaplMap`/`HlLock`/`JournalEntry`) are the same generated
+types `napl_core::schemas` re-exports, so they unify and the shell's callers are
+untouched (`default_lock` is a bare re-export). Swapping it also removed the now-
+unused `fsutil::mkdir_parent` re-export from the batch-1 `fsutil` adapter (neither
+`process` nor `state` calls it anymore).
+
+**Gate numbers (post-batch-2):** conformance **48/48 byte-identical** · equivalence
+**231/231** (unchanged — both batch-2 modules are I/O shells with no pure
+equivalence surface; their corpus is the crates' own fs/lock round-trip tests) ·
+`cargo test --workspace` **247/247** (181 napl-core + 45 napl-cli + 16 napl-lsp + 5
+cross_check) · clippy **clean** · `napl status` (selfhost) **41/41 clean** ·
+generated tree drift-clean.
+
+### Batch 3 — results (4 of 5 DONE; `healing_io` deferred)
+
+Four of the five planned fs-walk / classifier shells self-hosted, each swapped in
+behind unchanged call sites, conformance **48/48 byte-identical** after each swap.
+Totals: **45/45 generated modules**, escape-hatch list still empty. `healing_io`
+(the `heal_moved_files` LCS-verdict shell) is **not** yet started — its prompt is
+unauthored and it carries a structural split decision (extract the pure LCS verdict
+crate first), left for the next run.
+
+| Generated crate  | Replaces (napl-cli surface)                                                              | Class               | Deps                                                                | Gate                                            |
+| ---------------- | --------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| `paths_walk`     | `paths::find_prompt_files`                                                               | (b) fs-walk shell   | `extensions`                                                        | broad discovery + crate walk test               |
+| `snapshot_io`    | `snapshot::{snapshot_hashes, snapshot_contents}`                                        | (b) fs-walk shell   | `hash`, `snapshot_filter`                                          | `20`–`24`, `76` + crate fs tests                |
+| `statusclass_io` | `statusclass::classify`                                                                  | (b) classifier shell| `hash`, `schemas_map`, `statusclass_render`                        | `20`–`24` + crate fs tests                      |
+| `driftdetect_io` | `driftdetect::{classify_file (internal), detect_gen_drift}`                              | (b) fs-drift shell  | `drift`, `driftdetect_replay`, `hash`, `schemas_journal`, `schemas_map`, `text_diff` | `23`, `28`–`29`, `35`, `60`–`61`, `72` + crate tests |
+
+`paths_walk` owns the prompt-file discovery walk (`IGNORED_DIRS`
+`node_modules`/`.napl`/`.git`, missing dir → empty, sorted), converting the shell's
+`&[String]` extension list to the `Option<&[&str]>` its `extensions::is_prompt_file`
+dep expects; the `paths.rs` shell is a bare `pub use paths_core::{rel_to,
+resolve_paths, NaplPaths}; pub use paths_walk::find_prompt_files;`. `snapshot_io`
+walks a tree into an ordered `BTreeMap` of hashes or contents behind a
+`SnapshotFilter`, any `read_dir` error mapping to an empty snapshot; the shell wraps
+its `Result<_, String>` with `.map_err(CliError::new)` and keeps re-exporting the
+pure `snapshot_diff`/`snapshot_filter`. `statusclass_io` classifies one prompt's
+status (drift → unattributed → never-generated → prompt-stale → clean, in that
+order) with the **frontmatter parse deliberately kept in the shell** (so the bridged
+`FrontmatterError` bytes are preserved) — the shell passes the already-parsed
+`module` + `targets` in and only I/O read errors cross as `String`. `driftdetect_io`
+owns the generation-drift walk: it reconstructs each attributed file's journal
+baseline, reads the current file off disk, and reports `Edited`/`Missing` drift as
+`Vec<ModuleDrift>`; the private `classify_file` moved into the generated crate and
+the `driftdetect.rs` shell shrank to a `detect_gen_drift` wrapper
+(`.map_err(CliError::new)`) plus the still-needed `pub use
+driftdetect_replay::reconstruct_file_content` re-export (consumed by `healing`). The
+returned `ModuleDrift`/`JournalEntry`/`NaplMap` are the same generated types
+`napl_core` re-exports, so `cmd_gen`/`cmd_reconcile` call sites are untouched.
+
+**Gate numbers (post-batch-3, 4 modules):** conformance **48/48 byte-identical** ·
+equivalence **231/231** (unchanged — all four are I/O shells with no pure
+equivalence surface) · `cargo test --workspace` **247/247** · clippy **clean** ·
+`napl status` (selfhost) **45/45 clean** · generated tree drift-clean.

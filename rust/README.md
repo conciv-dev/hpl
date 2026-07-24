@@ -59,7 +59,7 @@ Rust port reproduces:
 - `text_diff`: same greedy LCS + tie-break (`dp[i+1][j] >= dp[i][j+1]` → delete),
   same `context = 3` hunk grouping, same `@@ -a,b +c,d @@` headers, same
   `toLines` trailing-newline / empty-input behavior. Output is byte-identical
-  (hand-rolled LCS — the `similar` crate is *not* used, so nothing can drift the
+  (hand-rolled LCS — the `similar` crate is _not_ used, so nothing can drift the
   format).
 - `blame`: identical patch-replay (added / modified / moved-by-insertion /
   created-then-edited / untouched-keeps-oldest-gen), same fallback-gen rule.
@@ -70,7 +70,7 @@ Rust port reproduces:
   regex `.index` semantics; verified against TS spans including multibyte content.
 - schemas: acceptance set matches the zod schemas (line-range `[n]`/`n` → `[n,n]`,
   `no-op` kind, ZWJ + 1-2-codepoint alias rules, map v2 `unattributed` marker,
-  journal corrupt-line skipping, IR contract union). Error *messages* differ (as
+  journal corrupt-line skipping, IR contract union). Error _messages_ differ (as
   allowed); accept/reject decisions are identical and cross-checked.
 - `extensions`: codepoint-correct suffix matching; the curated emoji list and the
   `machineExtensionForPrompt` mirror rule are reproduced exactly.
@@ -78,7 +78,7 @@ Rust port reproduces:
 **Intentional deviations (scope, not blockers)**
 
 - File-system entry points (`readMap`/`writeMap`, `readJournal`/`appendJournalEntry`
-  from disk, `findPromptFiles`) are out of phase-1 scope. Their pure cores *are*
+  from disk, `findPromptFiles`) are out of phase-1 scope. Their pure cores _are_
   ported: `parse_map` / `map_to_json`, `read_journal_str` (string in, warnings
   out), and `is_prompt_file` / `prompt_extensions`.
 - Validation error strings are new Rust messages; only accept/reject parity is

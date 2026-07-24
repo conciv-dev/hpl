@@ -1,0 +1,323 @@
+module: driftdetect_io
+target: rust
+entries:
+  - promptLines:
+      - 3
+      - 10
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 2
+      - 9
+    note: module doc describing the I/O shell role
+  - promptLines:
+      - 30
+      - 36
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 14
+      - 14
+    note: imports drift report types
+  - promptLines:
+      - 37
+      - 40
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 15
+      - 15
+    note: imports journal replay reconstructor
+  - promptLines:
+      - 37
+      - 40
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 28
+      - 28
+    note: rebuilds baseline from journal patches
+  - promptLines:
+      - 41
+      - 42
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 44
+      - 44
+    note: hashes current content
+  - promptLines:
+      - 43
+      - 44
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 16
+      - 16
+    note: imports JournalEntry
+  - promptLines:
+      - 45
+      - 49
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 17
+      - 17
+    note: imports NaplMap
+  - promptLines:
+      - 45
+      - 49
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 77
+      - 77
+    note: iterates ordered prompts map via public API
+  - promptLines:
+      - 50
+      - 51
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 49
+      - 51
+    note: renders unified diff baseline vs current
+  - promptLines:
+      - 53
+      - 57
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 120
+      - 120
+    note: test-only OrderedMap dependency
+  - promptLines:
+      - 59
+      - 61
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 19
+      - 26
+    note: internal per-file classifier signature
+  - promptLines:
+      - 12
+      - 14
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 26
+      - 26
+    note: Result with bare String error
+  - promptLines:
+      - 63
+      - 63
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 29
+      - 29
+    note: resolves file_path against root
+  - promptLines:
+      - 63
+      - 65
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 27
+      - 27
+    note: expected_hash from map files map
+  - promptLines:
+      - 64
+      - 65
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 28
+      - 28
+    note: baseline via reconstruct_file_content
+  - promptLines:
+      - 66
+      - 68
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 31
+      - 41
+    note: missing path yields Missing DriftedFile
+  - promptLines:
+      - 69
+      - 70
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 43
+      - 44
+    note: reads file, maps I/O error to display string, hashes
+  - promptLines:
+      - 70
+      - 71
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 45
+      - 47
+    note: hash match means clean, no drift
+  - promptLines:
+      - 71
+      - 75
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 52
+      - 60
+    note: Edited DriftedFile with current and diff
+  - promptLines:
+      - 73
+      - 75
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 49
+      - 51
+    note: diff only when baseline exists
+  - promptLines:
+      - 79
+      - 82
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 67
+      - 74
+    note: detect_gen_drift signature
+  - promptLines:
+      - 82
+      - 83
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 75
+      - 77
+    note: walks prompts in map order
+  - promptLines:
+      - 85
+      - 86
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 78
+      - 82
+    note: module_scope filter
+  - promptLines:
+      - 87
+      - 88
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 83
+      - 85
+    note: skips records lacking the target
+  - promptLines:
+      - 88
+      - 88
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 86
+      - 88
+    note: skips unattributed == Some(true)
+  - promptLines:
+      - 89
+      - 90
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 90
+      - 95
+    note: classifies files in order, collects drifted
+  - promptLines:
+      - 91
+      - 91
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 96
+      - 98
+    note: no drifted files means no ModuleDrift
+  - promptLines:
+      - 92
+      - 94
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 100
+      - 103
+    note: prompt_file from prompt_paths, falls back to module name
+  - promptLines:
+      - 91
+      - 94
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 104
+      - 109
+    note: pushes ModuleDrift for this module
+  - promptLines:
+      - 96
+      - 96
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 112
+      - 112
+    note: returns collected drifts in map order
+  - promptLines:
+      - 8
+      - 9
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 226
+      - 235
+    note: scenario test — clean file not drifted
+  - promptLines:
+      - 71
+      - 75
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 237
+      - 269
+    note: scenario test — edited file diff vs baseline
+  - promptLines:
+      - 74
+      - 75
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 271
+      - 285
+    note: scenario test — no baseline means no diff
+  - promptLines:
+      - 66
+      - 68
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 287
+      - 303
+    note: scenario test — deleted file is Missing
+  - promptLines:
+      - 63
+      - 64
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 305
+      - 318
+    note: scenario test — unrecorded file has no expected_hash
+  - promptLines:
+      - 88
+      - 88
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 320
+      - 354
+    note: scenario tests — unattributed skipped, false walked
+  - promptLines:
+      - 87
+      - 88
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 356
+      - 369
+    note: scenario test — other-target records skipped
+  - promptLines:
+      - 85
+      - 94
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 371
+      - 418
+    note: scenario test — module_scope and prompt_paths
+  - promptLines:
+      - 89
+      - 90
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 420
+      - 445
+    note: scenario test — declared file order preserved
+  - promptLines:
+      - 12
+      - 14
+    file: driftdetect_io/src/lib.rs
+    lines:
+      - 447
+      - 457
+    note: scenario test — I/O error propagates as string

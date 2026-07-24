@@ -1,77 +1,20 @@
 //! Per-prompt status classification (the I/O counterpart of `status-core.ts`).
 //!
 //! Stage1: the pure status enum and one-line rendering (`FileStatus`,
-//! `StatusEntry`, `line`, `is_error`) are the NAPL-generated
-//! `statusclass_render` crate, re-exported here; this shell reads generated
-//! files off disk to classify each prompt into a `StatusEntry`. The unit corpus
-//! below rides along as the regression net.
+//! `StatusEntry`, `line`, `is_error`) are the NAPL-generated `statusclass_render`
+//! crate and the fs classification (`classify`, reading generated files off disk)
+//! is the NAPL-generated `statusclass_io` crate — both re-exported/wrapped here
+//! behind the unchanged public surface. The frontmatter parse (and its bridged
+//! error text) stays in this shell. The unit corpus below rides along as the
+//! regression net.
 
 use std::path::Path;
 
-use napl_core::hash::content_hash;
-use napl_core::schemas::{parse_frontmatter, NaplMap, PromptRecord};
+use napl_core::schemas::{parse_frontmatter, NaplMap};
 
-use crate::error::CliResult;
-use crate::fsutil;
+use crate::error::{CliError, CliResult};
 
-pub use statusclass_render::{FileStatus, StatusEntry};
-
-struct DriftResult {
-    detail: Option<String>,
-}
-
-fn detect_drift(root: &Path, record: &PromptRecord, map: &NaplMap) -> CliResult<DriftResult> {
-    for (target, target_record) in record.targets.iter() {
-        if target_record.unattributed == Some(true) {
-            continue;
-        }
-        for file_path in &target_record.files {
-            let abs = root.join(file_path);
-            if !fsutil::exists(&abs) {
-                return Ok(DriftResult {
-                    detail: Some(format!("{target}: {file_path} is missing")),
-                });
-            }
-            let expected = map.files.get(file_path).map(|f| &f.hash);
-            let actual = content_hash(&std::fs::read_to_string(&abs)?);
-            if expected != Some(&actual) {
-                return Ok(DriftResult {
-                    detail: Some(format!("{target}: {file_path} was edited")),
-                });
-            }
-        }
-    }
-    Ok(DriftResult { detail: None })
-}
-
-fn detect_unattributed(record: &PromptRecord) -> Option<String> {
-    for (target, target_record) in record.targets.iter() {
-        if target_record.unattributed == Some(true) {
-            return Some(format!(
-                "generated files lack prompt attribution — run napl gen {target} --force"
-            ));
-        }
-    }
-    None
-}
-
-fn detect_prompt_stale(
-    record: &PromptRecord,
-    declared_targets: &[String],
-    prompt_hash: &str,
-) -> Option<String> {
-    for target in declared_targets {
-        match record.targets.get(target) {
-            None => return Some(format!("{target}: not generated")),
-            Some(target_record) => {
-                if target_record.prompt_hash_at_gen.as_deref() != Some(prompt_hash) {
-                    return Some("prompt changed since gen".to_string());
-                }
-            }
-        }
-    }
-    None
-}
+pub use statusclass_render::StatusEntry;
 
 /// Classify one prompt, mirroring `classifyPrompt`.
 pub fn classify_prompt(
@@ -81,54 +24,21 @@ pub fn classify_prompt(
     map: &NaplMap,
 ) -> CliResult<StatusEntry> {
     let parsed = parse_frontmatter(raw)?;
-    let frontmatter = parsed.frontmatter;
-    let prompt_hash = content_hash(raw);
-    let record = map.prompts.get(&frontmatter.module);
-
-    if let Some(record) = record {
-        let drift = detect_drift(root, record, map)?;
-        if let Some(detail) = drift.detail {
-            return Ok(StatusEntry {
-                file: rel_path.to_string(),
-                status: FileStatus::Drift,
-                detail,
-            });
-        }
-        if let Some(detail) = detect_unattributed(record) {
-            return Ok(StatusEntry {
-                file: rel_path.to_string(),
-                status: FileStatus::Unattributed,
-                detail,
-            });
-        }
-    }
-
-    let Some(record) = record else {
-        return Ok(StatusEntry {
-            file: rel_path.to_string(),
-            status: FileStatus::PromptStale,
-            detail: "never generated".to_string(),
-        });
-    };
-
-    if let Some(detail) = detect_prompt_stale(record, &frontmatter.targets, &prompt_hash) {
-        return Ok(StatusEntry {
-            file: rel_path.to_string(),
-            status: FileStatus::PromptStale,
-            detail,
-        });
-    }
-
-    Ok(StatusEntry {
-        file: rel_path.to_string(),
-        status: FileStatus::Clean,
-        detail: String::new(),
-    })
+    statusclass_io::classify(
+        root,
+        rel_path,
+        raw,
+        &parsed.frontmatter.module,
+        &parsed.frontmatter.targets,
+        map,
+    )
+    .map_err(CliError::new)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use statusclass_render::FileStatus;
 
     fn entry(status: FileStatus, detail: &str) -> StatusEntry {
         StatusEntry {

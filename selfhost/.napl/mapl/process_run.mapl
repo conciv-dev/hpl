@@ -1,0 +1,73 @@
+module: process_run
+target: rust
+entries:
+  - promptLines:
+      - 7
+      - 8
+    kind: note
+    message: Prompt says module declares no given/expect corpus and is pinned by an external conformance suite, but no such suite exists in this crate.
+    reasoning: The module is described as verified end-to-end by a conformance suite with stub binaries on PATH. The agent only wrote in-crate `#[cfg(test)]` tests (lock round-trip, stdin-write failure, plus extra tests it added for run_command/program_available/run_custom). Nothing in the delivered crate provides or invokes the conformance suite, so the claimed external pinning is unverified here.
+  - promptLines:
+      - 190
+      - 211
+    kind: note
+    message: Agent added six tests beyond the two test sections the prompt required.
+    reasoning: Prompt requires only lock round-trip tests and one stdin-write-failure test. Agent additionally added tests for run_command (concat, spawn failure), program_available, and run_custom (empty command, {task}/{dir} substitution, spawn-failure message). These use real `sh`, `cat`, `printf`, and `cargo` binaries from PATH, which adds an environment dependency the prompt did not sanction.
+  - promptLines:
+      - 206
+      - 211
+    kind: assumption
+    message: Race test determinism required a retry loop when reading the holder pid; prompt never authorized that behavior.
+    reasoning: The prompt says an unreadable or unparseable file is treated as no held pid (line 168-169), which would let a racing acquirer steal a lock whose creator has not yet written its pid — contradicting the requirement at 209-211 that every loser observes a fully written pid. The agent resolved this by making `read_holder` poll up to 100 times at 1ms intervals on an empty file before returning None. That is an added, unspecified runtime behavior (up to 100ms of blocking) in production code, driven by a test requirement.
+    suggestion: "State explicitly: an existing but empty lock file means a competing acquirer has not yet written its pid; retry the read for up to N ms before treating it as no held pid."
+  - promptLines:
+      - 160
+      - 166
+    kind: ambiguity
+    message: '"Never observable as empty by a competing acquirer" is not achievable by the writer alone.'
+    reasoning: Exclusive create and write-through-the-same-handle are two syscalls; between them the file is genuinely empty on disk. The invariant as worded can only be satisfied by reader-side tolerance, not by the writer. The prompt frames it purely as a writer-side rule, which is why the agent had to invent reader-side retry.
+    suggestion: "Split the invariant: (writer) write the pid through the handle the exclusive create returned, never by reopening; (reader) tolerate a transient empty file by retrying before concluding no holder."
+  - promptLines:
+      - 17
+      - 22
+    kind: assumption
+    message: Applied the stdin-write-failure rule to run_agent, run_codex, run_custom, and llm_complete; only three actually feed stdin.
+    reasoning: "`run_custom` writes the task to a temp file, not the child's stdin (stdin is null), so the rule is vacuous there. The agent mapped write failure to the launch error in the shared `run_piped` helper (used by run_agent/run_codex) and inline in `llm_complete`. Also assumed `wait_with_output` failure maps to the same launch-failure string, which the prompt does not state."
+  - promptLines:
+      - 136
+      - 144
+    kind: ambiguity
+    message: "`is_alive` spawns `kill -0` as an external program, which is a shell builtin on many systems."
+    reasoning: '`Command::new("kill")` requires a standalone `/bin/kill` binary on PATH; in shells `kill` is a builtin. On systems without the binary the probe silently returns false, making every foreign lock look stale. The prompt explicitly forbids inventing a different mechanism (lines 142-144), so this was reproduced verbatim — but the parenthetical itself reads like an authored defense of a known-questionable choice.'
+    suggestion: If `kill -0` is required, note whether it must resolve to a PATH binary and what should happen when no `kill` binary exists.
+  - promptLines:
+      - 117
+      - 119
+    kind: ambiguity
+    message: Error message quotes `"claude"` in one clause but writes bare `claude` in the no-stderr detail.
+    reasoning: Line 117 uses `the "claude" CLI exited with code {code}` (quoted) while line 119's fallback detail is `the claude CLI produced no stderr output` (unquoted). Inconsistent, but the prompt says the message bytes are load-bearing and verbatim, so the agent reproduced both exactly as written. Flagging in case one of them is a typo.
+  - promptLines:
+      - 52
+      - 55
+    kind: ambiguity
+    message: run_command spawn failure yields output `"\n{error}"` — a leading newline with no prefix — which reads like an artifact.
+    reasoning: For a spawn failure the output is a bare newline followed by the error display. This looks like a degenerate case of the `{stdout}\n{stderr}` merge shape with empty stdout, rather than an intentional message format. Reproduced verbatim as specified, but a caller printing this gets a blank first line with no indication a spawn failed.
+  - promptLines:
+      - 42
+      - 44
+    kind: assumption
+    message: "`RunOutput` given no derives (no Debug/Clone/PartialEq)."
+    reasoning: Prompt says "a public struct with two public fields" and nothing about traits. The agent derived nothing, which forced its own tests to use `match` instead of `unwrap_err`/`assert_eq!` on the struct, and means downstream callers cannot `{:?}` it. `Debug` at minimum is the usual default.
+    suggestion: State which traits `RunOutput` derives (e.g. `#[derive(Debug, Clone)]`), or state explicitly that it derives none.
+  - promptLines:
+      - 26
+      - 31
+    kind: note
+    message: Agent reports the working tree is NAPL-generated, where hand edits to `process_run/src/lib.rs` count as drift.
+    reasoning: Per the agent's final message, `CLAUDE.md`/`AGENTS.md` in the tree declare that direct source edits are drift and that `process_run.napl` is the real source. The agent edited `lib.rs` directly as instructed and flagged that the change must be mirrored into `process_run.napl` before running `napl gen`. The prompt (lines 26-31) describes the destination purely as a Cargo member crate and never mentions this.
+  - promptLines:
+      - 93
+      - 96
+    kind: assumption
+    message: Temp task file created with default permissions in the shared system temp dir.
+    reasoning: Prompt specifies the filename pattern and location but not permissions. The task body — the full agent prompt — is written world-readable into `/tmp` on a typical Unix system. The pid+nanos name also makes collisions unlikely but not impossible across concurrent processes.

@@ -1,0 +1,67 @@
+module: state_io
+deps:
+  - fsutil_io
+  - schemas_map
+  - schemas_lock
+  - schemas_journal
+  - extensions
+  - serde_json
+types:
+  - name: NaplMap
+    description: The module map document, re-exported from schemas_map. Constructed by empty_map(), parsed by parse_map(), serialized by map_to_json(). This module does not define its structure, only reads and writes it.
+  - name: HlLock
+    description: "The lock document, from schemas_lock. Public fields used here: model (a model-name string), backend (a Backend enum value), prompt_aliases (an optional list of prompt-file alias strings), agent (an optional agent config). Serde-serializable for pretty-JSON output."
+  - name: JournalEntry
+    description: "One generation-journal record, from schemas_journal. Serde-serializable to a single compact JSON line. Fields observed in use: generation number, timestamp string, module name, target name, prompt hash, prompt diff, mode, and file list."
+  - name: MISSING_LOCK
+    description: Module-private constant holding the only hard-coded error message in this module, the exact text "missing .napl/lock.json — run 'napl init' first". Not exported; observable only as read_lock's error string.
+functions:
+  - name: read_map
+    signature: "read_map(map_path: Path) -> Result<NaplMap, String>"
+    behavior: Reads the file at map_path. If present, parses it with the map schema parser and returns that result, propagating the parser's bare error string unchanged on failure. If absent, returns the empty default map. A non-absence I/O error is returned as the I/O error's display string. No prefixes or wrapping on any error.
+  - name: write_map
+    signature: "write_map(map_path: Path, map: NaplMap) -> Result<(), String>"
+    behavior: "Serializes map with the map schema serializer (which supplies its own trailing newline) and writes it to map_path, creating parent directories as needed. Postcondition: the file at map_path holds exactly that serialization. An I/O error is returned as its display string."
+  - name: read_journal
+    signature: "read_journal(journal_path: Path) -> Result<(List<JournalEntry>, List<String>), String>"
+    behavior: "Reads the file at journal_path. If present, returns the journal parser's output for its contents: the valid entries plus the skip-warnings for malformed lines, which the caller decides how to surface. If absent, returns two empty lists. A non-absence I/O error is returned as its display string. Never fails on malformed journal lines — those become warnings, not errors."
+  - name: append_journal_entry
+    signature: "append_journal_entry(journal_path: Path, entry: JournalEntry) -> Result<(), String>"
+    behavior: "Ensures the journal's parent directory exists, serializes entry to a compact single-line JSON string, reads the existing journal contents (absent file treated as empty), and writes back the existing contents followed by the serialized line and exactly one newline. Postcondition: the file gains exactly one line; prior lines are preserved byte-for-byte and repeated appends accumulate. A serialization failure is returned as the serializer's display string; an I/O failure as the I/O error's display string."
+  - name: read_lock
+    signature: "read_lock(lock_path: Path) -> Result<HlLock, String>"
+    behavior: Reads the file at lock_path. If present, parses and validates it with the lock parser and returns the lock, returning the lock error rendered via its display as the error string on failure. If absent, returns the error string "missing .napl/lock.json — run 'napl init' first" exactly. A non-absence I/O error is returned as its display string.
+  - name: write_lock
+    signature: "write_lock(lock_path: Path, lock: HlLock) -> Result<(), String>"
+    behavior: "Serializes lock to pretty (multi-line, indented) JSON, appends exactly one trailing newline, and writes it to lock_path, creating parent directories. Postcondition: the file exists, ends with a newline, and read_lock on the same path succeeds and yields an equal lock. A serialization failure is returned as the serializer's display string; an I/O failure as the I/O error's display string."
+  - name: default_lock
+    signature: default_lock() -> HlLock
+    behavior: "Builds the default lock document written by init: model is the schema's default model constant, backend is the ClaudeCli variant, prompt_aliases is absent (no aliases carried), and agent is the schema's default agent config. Total — cannot fail, touches no filesystem."
+  - name: load_prompt_aliases
+    signature: "load_prompt_aliases(lock_path: Path) -> List<String>"
+    behavior: Total, never fails. Reads the file at lock_path; if it is present and parses as a valid lock, returns the lock's resolved effective prompt-file aliases. In every other case — file absent, unreadable for any I/O reason, or failing to parse or validate — returns the extension defaults (default_prompt_aliases()).
+tests:
+  - name: read_map_defaults_to_the_empty_map
+    given: A path under a fresh temporary directory that does not exist (including a missing intermediate directory).
+    expect: read_map returns Ok, and the returned map serialized by map_to_json equals map_to_json of empty_map().
+  - name: read_lock_reports_the_missing_lock_message
+    given: A path under a fresh temporary directory where no lock file exists.
+    expect: read_lock returns Err whose message is exactly "missing .napl/lock.json — run 'napl init' first".
+  - name: write_lock_round_trips_the_default_lock
+    given: write_lock is called with default_lock() on a path whose parent directory does not yet exist.
+    expect: The file exists, its contents end with a newline, and read_lock on that path returns Ok with a lock equal to default_lock().
+  - name: write_map_round_trips_the_empty_map
+    given: write_map is called with empty_map() on a path whose parent directory does not yet exist.
+    expect: read_map on that path returns Ok, and its map_to_json equals map_to_json of empty_map().
+  - name: read_map_propagates_a_parse_error
+    given: A file containing the non-JSON text "{ not json".
+    expect: read_map returns Err (the schema parser's own bare message).
+  - name: read_journal_defaults_to_empty
+    given: A journal path that does not exist.
+    expect: read_journal returns Ok with an empty entry list and an empty warning list.
+  - name: append_journal_entry_appends_one_line_each_time
+    given: Two journal entries differing only in generation number (1 then 2), appended in order to a path whose parent directory does not yet exist.
+    expect: The file contains exactly two lines, no line contains an embedded newline (each entry is compact single-line JSON), and read_journal returns the two entries in append order with no warnings.
+  - name: load_prompt_aliases_falls_back_and_resolves
+    given: Three paths — one absent, one holding the unparseable text "{ not json", and one written by write_lock from a lock whose prompt_aliases is a custom single-element list containing a non-ASCII alias.
+    expect: The absent and unparseable paths both yield default_prompt_aliases(); the custom path yields resolve_prompt_aliases of that same lock.

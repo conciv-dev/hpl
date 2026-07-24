@@ -1,0 +1,47 @@
+module: statusclass_io
+deps:
+  - hash
+  - schemas_map
+  - statusclass_render
+types:
+  - name: StatusEntry
+    description: 'Re-used from statusclass_render, not defined here: a record with "file" (string prompt path), "status" (FileStatus), and "detail" (string explanation).'
+  - name: FileStatus
+    description: 'Re-used from statusclass_render, not defined here: status enum with variants "Clean", "PromptStale", "Drift", "Unattributed".'
+  - name: NaplMap
+    description: 'Re-used from schemas_map, not defined here: module map with an ordered "prompts" map keyed by module name to PromptRecord, and an ordered "files" map keyed by file path to FileRecord whose "hash" is the recorded content hash. A PromptRecord holds an ordered "targets" map keyed by target name to PromptTargetRecord; a PromptTargetRecord holds "files" (generated file paths), "unattributed" (optional flag), and "prompt_hash_at_gen" (optional prompt hash recorded at generation).'
+functions:
+  - name: classify
+    signature: "classify(root: Path, rel_path: string, raw: string, module: string, targets: list<string>, map: NaplMap) -> Result<StatusEntry, string>"
+    behavior: "I/O shell: classifies one prompt by reading its generated files off disk. Computes the prompt hash as content_hash(raw) and looks up the prompt record in map.prompts by module. Every returned entry has \"file\" equal to rel_path. Decision order: (1) if the record exists, drift check first — walk record targets in order, skipping any target whose \"unattributed\" flag is exactly true; for each of that target's files in order, join the path onto root; if the joined path does not exist return Drift with detail \"{target}: {file_path} is missing\"; otherwise read the file to a string, hash it, and compare with the hash recorded for that path in map.files; if they differ, or the map has no record for that path, return Drift with detail \"{target}: {file_path} was edited\". (2) If no drift, walk record targets in order and if any has \"unattributed\" exactly true return Unattributed with detail \"generated files lack prompt attribution — run napl gen {target} --force\". (3) If the record does not exist return PromptStale with detail \"never generated\". (4) Otherwise walk the declared targets list in order: a declared target absent from the record's targets yields PromptStale with detail \"{target}: not generated\"; a declared target whose recorded prompt_hash_at_gen is not exactly the current prompt hash yields PromptStale with detail \"prompt changed since gen\". (5) Otherwise return Clean with an empty detail. Any I/O error while reading a generated file is returned as Err holding the error's display string, unchanged."
+tests:
+  - name: unknown_module_is_never_generated
+    given: An empty map, rel_path "examples/greeting.napl", module "greeting", declared targets ["ts"], and any root.
+    expect: Ok entry with file "examples/greeting.napl", status PromptStale, detail "never generated".
+  - name: matching_hashes_are_clean
+    given: Map records module "greeting" with target "ts" whose files are ["src/ts/greeting.ts"], unattributed unset, prompt_hash_at_gen equal to content_hash(raw); map.files records "src/ts/greeting.ts" with the hash of the on-disk content, and that file exists on disk with matching content.
+    expect: Ok entry with status Clean and detail "".
+  - name: missing_generated_file_is_drift
+    given: Same map as the clean case, but the generated file is absent from disk.
+    expect: 'Ok entry with status Drift and detail "ts: src/ts/greeting.ts is missing".'
+  - name: edited_generated_file_is_drift
+    given: Generated file exists on disk but its content differs from the content whose hash the map recorded.
+    expect: 'Ok entry with status Drift and detail "ts: src/ts/greeting.ts was edited".'
+  - name: unrecorded_generated_file_is_drift
+    given: Generated file exists on disk with the expected content, but map.files has no record for that path.
+    expect: 'Ok entry with status Drift and detail "ts: src/ts/greeting.ts was edited".'
+  - name: unattributed_target_skips_the_drift_check_and_reports_attribution
+    given: Record's target "ts" has unattributed = true, its file is absent from disk, and map.files has no record for it.
+    expect: Ok entry with status Unattributed and detail "generated files lack prompt attribution — run napl gen ts --force".
+  - name: changed_prompt_is_stale
+    given: No drift (file present and hash matches the map) but the target's prompt_hash_at_gen is the hash of a different prompt text.
+    expect: Ok entry with status PromptStale and detail "prompt changed since gen".
+  - name: declared_target_absent_from_the_record_is_stale
+    given: Record has only target "ts" (clean, hashes match) while the declared target list is ["ts", "rust"].
+    expect: 'Ok entry with status PromptStale and detail "rust: not generated".'
+  - name: drift_wins_over_a_changed_prompt
+    given: The target's prompt_hash_at_gen is a stale value AND its generated file is missing from disk.
+    expect: Ok entry with status Drift, showing the drift check runs before the prompt-staleness check.
+  - name: io_error_is_propagated_as_its_display_string
+    given: The recorded generated file path exists on disk as a directory, so reading it to a string fails.
+    expect: Err holding a non-empty I/O error display string.

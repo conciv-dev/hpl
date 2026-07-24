@@ -2,62 +2,23 @@
 //! `snapshot.ts`.
 //!
 //! Stage1: the pure snapshot comparison (`diff_snapshots`) is the NAPL-generated
-//! `snapshot_diff` crate and the pure exclusion filter (`SnapshotFilter`,
-//! `make_filter`) is the NAPL-generated `snapshot_filter` crate, both re-exported
-//! here; this shell keeps the filesystem walk. The unit corpus below rides along
-//! as the regression net.
+//! `snapshot_diff` crate, the pure exclusion filter (`SnapshotFilter`,
+//! `make_filter`) is the NAPL-generated `snapshot_filter` crate, and the
+//! filesystem walk (`snapshot_hashes`/`snapshot_contents`) is the NAPL-generated
+//! `snapshot_io` crate — all re-exported here behind the unchanged public
+//! surface. The unit corpus below rides along as the regression net.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use napl_core::hash::content_hash;
-
-use crate::error::CliResult;
+use crate::error::{CliError, CliResult};
 
 pub use snapshot_diff::diff_snapshots;
 pub use snapshot_filter::{make_filter, SnapshotFilter};
 
-fn walk(
-    current: &Path,
-    filter: &SnapshotFilter,
-    with_content: bool,
-    at_root: bool,
-    out: &mut BTreeMap<String, String>,
-) -> CliResult<()> {
-    let Ok(entries) = std::fs::read_dir(current) else {
-        return Ok(());
-    };
-    for entry in entries {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let full = entry.path();
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
-            if filter.is_excluded_dir(&name) {
-                continue;
-            }
-            walk(&full, filter, with_content, false, out)?;
-        } else if file_type.is_file() {
-            if filter.is_excluded_file(&name, at_root) {
-                continue;
-            }
-            let content = std::fs::read_to_string(&full)?;
-            let key = full.to_string_lossy().into_owned();
-            if with_content {
-                out.insert(key, content);
-            } else {
-                out.insert(key, content_hash(&content));
-            }
-        }
-    }
-    Ok(())
-}
-
 /// Snapshot the content hashes of a tree, mirroring `snapshotHashes`.
 pub fn snapshot_hashes(dir: &Path, filter: &SnapshotFilter) -> CliResult<BTreeMap<String, String>> {
-    let mut out = BTreeMap::new();
-    walk(dir, filter, false, true, &mut out)?;
-    Ok(out)
+    snapshot_io::snapshot_hashes(dir, filter).map_err(CliError::new)
 }
 
 /// Snapshot the contents of a tree, mirroring `snapshotContents`.
@@ -65,9 +26,7 @@ pub fn snapshot_contents(
     dir: &Path,
     filter: &SnapshotFilter,
 ) -> CliResult<BTreeMap<String, String>> {
-    let mut out = BTreeMap::new();
-    walk(dir, filter, true, true, &mut out)?;
-    Ok(out)
+    snapshot_io::snapshot_contents(dir, filter).map_err(CliError::new)
 }
 
 #[cfg(test)]

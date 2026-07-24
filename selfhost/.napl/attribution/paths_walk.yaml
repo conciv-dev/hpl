@@ -1,0 +1,155 @@
+module: paths_walk
+target: rust
+entries:
+  - promptLines:
+      - 3
+      - 5
+    file: paths_walk/src/lib.rs
+    lines:
+      - 1
+      - 9
+    note: module doc describing the discovery seam and I/O shell
+  - promptLines:
+      - 30
+      - 31
+    file: paths_walk/src/lib.rs
+    lines:
+      - 15
+      - 17
+    note: the three never-descended directory names
+  - promptLines:
+      - 35
+      - 36
+    file: paths_walk/src/lib.rs
+    lines:
+      - 29
+      - 29
+    note: find_prompt_files signature (root, aliases) -> io::Result<Vec<PathBuf>>
+  - promptLines:
+      - 25
+      - 26
+    file: paths_walk/src/lib.rs
+    lines:
+      - 30
+      - 30
+    note: borrows &[String] into Vec<&str> for is_prompt_file
+  - promptLines:
+      - 37
+      - 39
+    file: paths_walk/src/lib.rs
+    lines:
+      - 31
+      - 34
+    note: work stack seeded with root; walk loop
+  - promptLines:
+      - 43
+      - 45
+    file: paths_walk/src/lib.rs
+    lines:
+      - 35
+      - 37
+    note: NotFound on read_dir treated as empty directory
+  - promptLines:
+      - 46
+      - 47
+    file: paths_walk/src/lib.rs
+    lines:
+      - 38
+      - 38
+    note: other read_dir errors propagated
+  - promptLines:
+      - 46
+      - 47
+    file: paths_walk/src/lib.rs
+    lines:
+      - 41
+      - 42
+    note: entry and file_type errors propagated via ?
+  - promptLines:
+      - 39
+      - 40
+    file: paths_walk/src/lib.rs
+    lines:
+      - 45
+      - 48
+    note: descend into dirs except ignored names
+  - promptLines:
+      - 37
+      - 39
+    file: paths_walk/src/lib.rs
+    lines:
+      - 49
+      - 51
+    note: collect files whose name is a prompt file per is_prompt_file with aliases
+  - promptLines:
+      - 41
+      - 41
+    file: paths_walk/src/lib.rs
+    lines:
+      - 55
+      - 56
+    note: sort collected paths in default order and return
+  - promptLines:
+      - 51
+      - 51
+    file: paths_walk/src/lib.rs
+    lines:
+      - 59
+      - 61
+    note: crate's own
+  - promptLines:
+      - 51
+      - 51
+    file: paths_walk/src/lib.rs
+    lines:
+      - 64
+      - 75
+    note: unique temp directory helper (pid + nanos)
+  - promptLines:
+      - 52
+      - 52
+    file: paths_walk/src/lib.rs
+    lines:
+      - 81
+      - 84
+    note: creates examples/ with a.napl, b.napl, notprompt.txt
+  - promptLines:
+      - 53
+      - 53
+    file: paths_walk/src/lib.rs
+    lines:
+      - 86
+      - 87
+    note: creates .napl/src/ignored.napl
+  - promptLines:
+      - 53
+      - 53
+    file: paths_walk/src/lib.rs
+    lines:
+      - 89
+      - 90
+    note: creates node_modules/dep.napl
+  - promptLines:
+      - 54
+      - 55
+    file: paths_walk/src/lib.rs
+    lines:
+      - 92
+      - 93
+    note: discovers under temp dir with default_prompt_aliases()
+  - promptLines:
+      - 55
+      - 57
+    file: paths_walk/src/lib.rs
+    lines:
+      - 95
+      - 98
+    note: asserts exactly the two example prompts, sorted
+  - promptLines:
+      - 43
+      - 45
+    file: paths_walk/src/lib.rs
+    lines:
+      - 103
+      - 113
+    note: missing root yields empty list, not Err

@@ -1,0 +1,133 @@
+# On-disk state: the map, the journal, and the lock
+
+This module is the CLI's persistent-state seam: it reads and writes the module
+map, appends to and reads the generation journal, and reads and writes the lock
+document. The pure parsing, serialization, and validation live in the generated
+schema crates; this module adds the filesystem I/O around them. Every function
+touches the real filesystem, so it is an **I/O shell**, not a pure module — it
+declares no given/expect corpus. Its behavior is pinned end-to-end by the
+conformance suite and by its own filesystem round-trip tests.
+
+The error-carrying functions return `Result<T, String>` where the `String` is the
+exact message text; the CLI shell that wraps this module maps that string into its
+own error type **unchanged**, and that string must be byte-identical to what the
+CLI already surfaces. The rule for every parse/serialize/io failure is therefore
+precise: **the error string is the bare underlying message** — a parse failure is
+the schema parser's error rendered as a string, an I/O failure is the I/O error's
+display (`to_string`), a serialization failure is the serializer's error display.
+No prefixes, no wrapping. The one hard-coded message is the missing-lock message
+below.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `state_io/`: `state_io/Cargo.toml` (package name
+`state_io`) and `state_io/src/lib.rs`. Touch nothing outside `state_io/`. Ensure
+`cargo test` passes from the workspace root before finishing. For compact and
+pretty JSON of journal entries and the lock document, add the `serde_json` crate
+(a standard serialization dependency).
+
+## Builds on five modules of this workspace
+
+Use each module's public API — do not reimplement its types or logic, and do not
+depend on any hand-written crate.
+
+- **`fsutil_io`** (`../fsutil_io`): the filesystem primitives. `read_opt(path:
+  &Path) -> std::io::Result<Option<String>>` reads a file, returning `Ok(None)`
+  only when it is absent; `write(path: &Path, content: &str) ->
+  std::io::Result<()>` writes a file creating parent directories; `mkdir_parent(
+  path: &Path) -> std::io::Result<()>` creates a path's parent directory tree.
+- **`schemas_map`** (`../schemas_map`): the module map. `NaplMap` is the map type;
+  `empty_map() -> NaplMap` builds the empty default map; `parse_map(raw: &str) ->
+  Result<NaplMap, String>` parses one (its `Err` is already the bare message);
+  `map_to_json(map: &NaplMap) -> String` serializes it (with its trailing
+  newline).
+- **`schemas_lock`** (`../schemas_lock`): the lock. `HlLock` is the lock type;
+  `parse_lock(raw: &str) -> Result<HlLock, LockError>` parses and validates one
+  (`LockError` implements `Display`); `resolve_prompt_aliases(lock: &HlLock) ->
+  Vec<String>` resolves the effective prompt-file aliases; `default_agent_config()
+  -> AgentConfig` builds the default agent config; the constant `DEFAULT_MODEL` is
+  the default model string and `Backend` is the backend enum (its `ClaudeCli`
+  variant is the default backend). Read `HlLock`'s public fields to construct one.
+- **`schemas_journal`** (`../schemas_journal`): the journal. `JournalEntry` is one
+  entry (serde-serializable); `read_journal_str(raw: &str) -> (Vec<JournalEntry>,
+  Vec<String>)` parses a whole journal into its valid entries and its
+  skip-warnings.
+- **`extensions`** (`../extensions`): `default_prompt_aliases() -> Vec<String>` is
+  the fallback set of prompt-file aliases.
+
+## `read_map(map_path)`
+
+`read_map(map_path: &Path) -> Result<NaplMap, String>`: read the file at
+`map_path`. If it is present, parse it with `parse_map` and return the result
+(propagating the parser's error string on failure). If it is absent, return
+`empty_map()`. An I/O error other than absence is returned as its display string.
+
+## `write_map(map_path, map)`
+
+`write_map(map_path: &Path, map: &NaplMap) -> Result<(), String>`: write `map`
+serialized by `map_to_json` to `map_path`, creating parent directories. An I/O
+error is returned as its display string.
+
+## `read_journal(journal_path)`
+
+`read_journal(journal_path: &Path) -> Result<(Vec<JournalEntry>, Vec<String>),
+String>`: read the file at `journal_path`. If it is present, return
+`read_journal_str` applied to its contents (the valid entries and the
+skip-warnings, which the caller decides how to surface). If it is absent, return
+two empty vectors. An I/O error other than absence is returned as its display
+string.
+
+## `append_journal_entry(journal_path, entry)`
+
+`append_journal_entry(journal_path: &Path, entry: &JournalEntry) -> Result<(),
+String>`: append one journal line. First ensure the journal's parent directory
+exists. Serialize `entry` to a **compact** single-line JSON string (a
+serialization failure is returned as its display string). Read the existing
+journal contents (treating an absent file as empty), append the serialized line
+followed by a single `\n`, and write the whole thing back to `journal_path`. An
+I/O error is returned as its display string.
+
+## `read_lock(lock_path)`
+
+`read_lock(lock_path: &Path) -> Result<HlLock, String>`: read the file at
+`lock_path`. If it is present, parse and validate it with `parse_lock` and return
+the lock, returning the `LockError` rendered as a string on failure. If it is
+absent, return the error string:
+
+    missing .napl/lock.json — run 'napl init' first
+
+An I/O error other than absence is returned as its display string.
+
+## `write_lock(lock_path, lock)`
+
+`write_lock(lock_path: &Path, lock: &HlLock) -> Result<(), String>`: serialize
+`lock` to **pretty** JSON, append a single trailing `\n`, and write it to
+`lock_path`, creating parent directories. A serialization failure is returned as
+its display string; an I/O error is returned as its display string.
+
+## `default_lock()`
+
+`default_lock() -> HlLock`: build the default lock document written by `init`. Its
+model is `DEFAULT_MODEL`, its backend is the `ClaudeCli` backend, it carries no
+prompt aliases, and its agent is `default_agent_config()`.
+
+## `load_prompt_aliases(lock_path)`
+
+`load_prompt_aliases(lock_path: &Path) -> Vec<String>`: resolve the prompt-file
+aliases, never failing. Read the file at `lock_path`; if it is present and parses
+as a lock, return `resolve_prompt_aliases` of it; in every other case — the file
+absent, unreadable, or failing to parse — return `default_prompt_aliases()`.
+
+## Filesystem round-trip tests to include
+
+Write the crate's own `#[cfg(test)]` tests against a unique temporary directory:
+
+- `read_map` on a path that does not exist returns `Ok`, and serializing that map
+  with `map_to_json` equals `map_to_json(&empty_map())`.
+- `read_lock` on a path that does not exist returns an `Err` whose message is
+  exactly `missing .napl/lock.json — run 'napl init' first`.
+- After `write_lock(path, &default_lock())`, the file exists and ends with a
+  newline, and `read_lock(path)` returns `Ok`.
+- After `write_map(path, &empty_map())`, `read_map(path)` returns `Ok`.
