@@ -1,5 +1,0 @@
-{
-  "title": "Language guide",
-  "icon": "BookOpen",
-  "pages": ["prompt-format", "gen-loop", "playground", "drift-and-reconcile", "machine-layer", "emoji-aliases"]
-}

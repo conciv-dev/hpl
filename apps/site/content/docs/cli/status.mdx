@@ -1,14 +1,7 @@
 ---
 title: napl status
-description: Report clean / prompt-stale / DRIFT / unattributed per prompt. Exits non-zero on drift or unattributed, so it works as a CI gate.
-icon: ListChecks
+description: Report clean / prompt-stale / DRIFT / unattributed per prompt. Non-zero exit on drift, so it works as a CI gate.
 ---
-
-Report `clean` / `prompt-stale` / `DRIFT` / `unattributed` per prompt.
-
-```bash
-napl status
-```
 
 ```text title="usage"
 Usage: napl status
@@ -17,29 +10,15 @@ Options:
   -h, --help  Print help
 ```
 
-## The states
+| State | Meaning | Exit |
+| --- | --- | --- |
+| `clean` | Prompt unchanged since last gen, locked files intact | 0 |
+| `prompt-stale` | Prompt changed; regen pending | 0 |
+| `DRIFT` | A locked file was edited by hand | 1 |
+| `unattributed` | Generated files exist but attribution failed | 1 |
 
-<TypeTable
-  type={{
-    clean: {
-      description: "The prompt is unchanged since its last gen and its locked files are intact.",
-      type: "exit 0",
-    },
-    "prompt-stale": {
-      description: "The prompt changed since the last gen; a regen is pending.",
-      type: "exit 0",
-    },
-    DRIFT: {
-      description: "A locked, attributed file was edited by hand — forbidden.",
-      type: "exit 1",
-    },
-    unattributed: {
-      description: "Generated files exist but attribution derivation failed; the tree is tracked, not orphaned.",
-      type: "exit 1",
-    },
-  }}
-/>
+```bash
+napl status
+```
 
-`napl status` exits `1` on any drift or unattributed prompt, so it works directly as a CI gate. The
-`pre-commit` hook that `napl init` installs runs `napl status` and blocks the commit on drift (WIP
-escape hatch: `git commit --no-verify`).
+Exit `1` makes it a direct CI gate; the `pre-commit` hook from `napl init` runs it and blocks the commit (escape hatch: `git commit --no-verify`).

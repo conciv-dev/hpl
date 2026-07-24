@@ -1,0 +1,83 @@
+---
+title: Prompt files
+description: The .napl format, frontmatter fields, emoji aliases, the .mapl reply, and the .napl/ state directory.
+---
+
+A prompt is a `.napl` file: YAML frontmatter for machine-facing metadata, markdown prose as the contract handed to the coding agent.
+
+```napl title="auth/session.napl"
+---
+module: auth/session
+deps: [auth/tokens]
+targets: [typescript]
+tests:
+  - name: expired token rejected
+    given: { token: expired }
+    expect: { error: SESSION_EXPIRED }
+---
+Manage user sessions. Sessions expire after 30 minutes of inactivity.
+Refreshing a session extends it. An expired token is rejected with
+SESSION_EXPIRED, never silently renewed.
+```
+
+The prompt tab is editable against the CLI's own validator — misspell a field or break the YAML and the squiggle appears as you type. The code tab shows what this prompt generated; hover a sentence to light up its lines.
+
+## Frontmatter fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `module` | `string` | Required. The module's identity — a name, which may be path-like (`auth/session`). |
+| `deps` | `string[]` | Dependency module names, forming the import graph. |
+| `targets` | `string[]` | Target languages to generate for, e.g. `typescript`, `react`, `rust`. |
+| `tests` | `Test[]` | `given`/`expect` cases as data. They gate every generation. |
+| `crate` | `string` | Rust target: modules sharing a `crate` value share one member crate with a toolchain-owned manifest. |
+
+Behavior that can't be expressed as `given`/`expect` data belongs in the prose contract.
+
+## Identity is the name, not the path
+
+Discovery walks the tree and resolves modules wherever their files live; `map.json` is keyed by module name and stores no prompt path. Prompt files move freely. Two files declaring the same module is a hard error. See [Modules, not paths](/docs/thinking#modules-not-paths) for how moved generated files heal.
+
+## Emoji aliases
+
+| Side | Canonical | Aliases | Voice |
+| --- | --- | --- | --- |
+| Human | `.napl` | `.🧑` `.🧓` `.👤` `.👨` `.👩` `.🧒` | what you write |
+| Machine | `.mapl` | `.🤖` | its margin notes |
+
+Both spellings in a pair are byte-identical to every tool — discovery, LSP, grammar, VS Code extension. Aliases are single code points; ZWJ sequences are rejected so filenames stay filesystem-safe. Override the human list in `.napl/lock.json`:
+
+```json title=".napl/lock.json"
+{
+  "model": "claude-sonnet-5",
+  "promptAliases": [".🧑", ".🧓"]
+}
+```
+
+The mirror rule: `napl gen` writes `.mapl` for a `.napl` prompt and `.🤖` for an emoji-spelled one. Reading accepts both spellings on both sides.
+
+## The .mapl reply
+
+Each entry records the prompt lines it refers to, a `kind` ([`ambiguity`, `assumption`, `no-op`, `note`](/docs/thinking#the-machine-answers-back)), a message, the model's reasoning, and optionally a suggested rewording:
+
+```mapl title="greeting.mapl"
+- promptLines: [12, 14]
+  kind: assumption
+  message: Return type left unspecified
+  reasoning: >
+    The prose does not name the return type. Chose a plain string.
+```
+
+## The .napl/ directory
+
+Committed by design — the durable record of every gen.
+
+| Path | Contents |
+| --- | --- |
+| `src/<target>/` | Generated code, per target. Locked `0444` after tests pass. |
+| `map.json` | Per-module attribution of generated files and locked content hashes. |
+| `lock.json` | Pinned model id, backend, alias overrides. |
+| `ir/<module>.yaml` | Derived contracts: signatures, types, tests. Best-effort. |
+| `attribution/<module>.yaml` | Prompt-line to code-line span mappings. |
+| `mapl/<module>.mapl` | The machine layer's reply. |
+| `journal.jsonl` | Append-only gen history: prompt diff and per-file patch per gen. |
