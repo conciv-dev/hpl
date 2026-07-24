@@ -157,7 +157,8 @@ swap; then the swap must keep it byte-identical again.
 | `cmd_blame` | 208 | `mode_str`/`format_blame_row`/`why_line`/`render_blame_gen` (byte-exact rendering) | journal read + `blame_file` compute + printing | 7 | **swapped** (`blame_render`, batch 2 — composes on generated `blame` + `schemas_journal`) |
 | `cmd_reconcile` | 269 | `editable_drifted`/`build_reconcile_files` (drift → reconcile-input derivation) | drift detect + agent run + journal/map writes | 4 | **swapped** (`reconcile_derive`, batch 2 — composes on generated `drift` + `prompts` + `text_diff`) |
 | `cmd_watch` | 191 | `is_ignored` (ignored-dir path predicate) | watcher event loop + debounce + gen dispatch | 2 | **swapped** (`watch_filter`, batch 2) |
-| `cmd_gen`/`cmd_status`/`cmd_init`/`cmd_build`/`cmd_test` | ~1370 | orchestration (`cmd_status`/`cmd_init` compose on already-swapped pure cores; no separable untested slice) | I/O + orchestration | 0 | **shell** (conformance-gated) |
+| `cmd_gen` | 1,133 | `gen_classify` (`is_source_file`/`first_meaningful_line`/`split_body_lines`), `gen_prompt_diff` (`compute_prompt_diff`), `gen_attribution_check` (`assert_attribution_sane`), `gen_mode` (`can_incremental` + `mode:` renderers) | process spawn + LLM derivation loops + fs/journal/manifest writes + `run_gen_locked` | 11 | **batch 3 — 4 pure cores swapped** (shell ~1,088 LOC) |
+| `cmd_status`/`cmd_init`/`cmd_build`/`cmd_test` | ~240 | orchestration (`cmd_status`/`cmd_init` compose on already-swapped pure cores; no separable untested slice) | I/O + orchestration | 0 | **shell** (conformance-gated) |
 | `main` | 184 | — | arg parsing / dispatch | 0 | **shell** |
 
 `cmd_gen` (1133 LOC) is the stage0 orchestrator itself — the last thing to
@@ -236,7 +237,7 @@ re-exported behind unchanged shells. Hand-written LOC left, by module:
 
 | Module | LOC | Character |
 | --- | ---: | --- |
-| `cmd_gen` | 1,133 | the stage0 orchestrator — the eventual fixpoint |
+| `cmd_gen` | ~1,088 | the stage0 orchestrator — 4 pure cores now generated (batch 3); shell is the irreducible I/O + `run_gen_locked` |
 | `process` | 435 | subprocess spawn + lockfile (all I/O) |
 | `cmd_reconcile` | 269 | reconcile orchestration shell (pure derivation swapped to `reconcile_derive`) |
 | `cmd_blame` | 208 | blame I/O shell (pure rendering swapped to `blame_render`) |
@@ -257,6 +258,91 @@ The `cmd_*` handlers, `process`, `fsutil`, `error`, `state`, and `main` stay
 hand-written shells; the next pure-core extractions with real corpora are scarce
 outside `cmd_gen`, which is conformance-gated orchestration and the true fixpoint
 when it self-hosts.
+
+### Batch 3 — the `cmd_gen` decomposition (the fixpoint push)
+
+`cmd_gen.rs` (1,133 LOC) is the stage0 orchestrator itself. Batch 3 surveys it
+function-by-function into (a) **pure decision/derivation slices** the equivalence
+harness can gate, and (b) the **irreducible I/O shell** (process spawn, fs, LLM
+calls, journal writes) that stays hand-written. The pure decision logic *of the
+generator* becoming generated code is the true-fixpoint push.
+
+**The decomposition table.** Every `cmd_gen.rs` function classified; LOC approximate.
+
+| Function | LOC | Class | Pure core / notes |
+| --- | ---: | --- | --- |
+| `run` | 24 | shell | lock read, engine resolve, gen-lock, prints the `generated N, skipped M` summary line (byte-load-bearing) |
+| `to_posix` | 3 | pure (trivial) | path-separator replace; too small to slice |
+| `first_meaningful_line` | 10 | **PURE slice** | description extraction from a prompt body (strip `#`, trim, first non-empty, 120-char cap) → `gen_classify` |
+| `is_source_file` | 12 | **PURE slice** | source-file classification (extension set, `.config.*` exclusion) → `gen_classify` |
+| `split_body_lines` | 6 | **PURE slice** | CRLF-aware line split → `gen_classify` |
+| `build_numbered_files` | 31 | shell (pure fmt core) | `std::fs::read_to_string` per file; the `is_source_file` gate + cap constants are the pure part |
+| `load_prior_body` / `load_prior_attribution` / `write_prior_body` | 22 | shell | fs read/write + parse |
+| `collect_summaries` | 21 | shell (pure core) | fs read; pure core is `first_meaningful_line` + rel keying |
+| `yaml_to_json` | 5 | shell-glue | serde bridge |
+| `build_task` | 14 | pure dispatch | thin match over `prompts` builders |
+| `build_task_builder` | 68 | shell + **PURE decision** | full-vs-incremental **mode selection** (`can_incremental` predicate + the `mode:` message lines, byte-load-bearing) → `gen_mode`; the rest is fs (load prior) + generated `incremental` calls + path algebra |
+| `unlock_files` / `lock_attributed` | 14 | shell | `set_mode` fs I/O |
+| `run_attempts` | 27 | shell | coding-agent spawn + test-command run (attempt accounting is I/O-bound) |
+| `retry_for_change` | 15 | shell | agent spawn |
+| `derive_ir` | 46 | shell | `llm_complete` loop |
+| `assert_attribution_sane` | 16 | **PURE slice** | attribution sanity check with byte-exact error strings → `gen_attribution_check` |
+| `derive_attribution_gated` | 62 | shell + pure | `llm_complete` retry loop; the pure gate is `assert_attribution_sane` (sliced out) |
+| `derive_ml` / `try_derive_ml` / `write_ml` | 86 | shell | `llm_complete` + fs write |
+| `enforce_no_op` | 37 | shell + pure decision | `has_no_op` decision + failure-reason string is pure (candidate `gen_no_op`); wraps fs writes |
+| `run_gen_locked` | 360 | shell | the top-level I/O orchestrator |
+| `record_journal` | 35 | shell | journal append + print |
+| `build_journal_files` | 31 | shell | fs read + `file_patch` (generated) |
+| `compute_prompt_diff` | 6 | **PURE slice** | prompt-diff derivation over generated `incremental::diff_body_lines` → `gen_prompt_diff` |
+| `write_guard_files` | 7 | shell | fs write |
+| `member_crate_dirs` | 15 | shell | `read_dir` |
+| `refresh_workspace_manifest` | 22 | shell + pure decision | member-set merge (add-current/sort/dedup) is pure; wraps fs write + generated `workspace_manifest_toml` |
+
+**Pure slices generated this batch (4), all converged on attempt 1 of 3, all
+swapped in:**
+
+| Slice (generated crate) | Extracts | Deps | Equivalence |
+| --- | --- | --- | --- |
+| `gen_classify` | `is_source_file` (+`SOURCE_FILE_EXTENSIONS`), `first_meaningful_line`, `split_body_lines` | — | **3/3** |
+| `gen_prompt_diff` | `compute_prompt_diff` | `incremental` | **2/2** |
+| `gen_attribution_check` | `assert_attribution_sane` (byte-exact error strings) | `schemas_attribution` | **4/4** |
+| `gen_mode` | `can_incremental` + the byte-exact `mode:` message renderers | — | **2/2** |
+
+`gen_prompt_diff` and `gen_attribution_check` are the notable ones: two more
+phase-2 pure cores composing on **generated phase-1** crates by path
+(`incremental::diff_body_lines`; `schemas_attribution::{Attribution,
+AttributionEntry}`), the types unifying with the napl-core re-exports so the shell
+passes its data straight through. One seam: the generated `gen_mode::
+full_mode_message` takes `FullModeReason` **by value** where the hand-written
+helper took it by reference — bridged at the three call sites (pass by value); the
+equivalence is behavioral (identical strings). Only `gen_mode` needed an
+extraction refactor first (the `can_incremental` predicate and the `mode:` lines
+were inlined in `build_task_builder`); the other three were already separable
+functions, so the swap is a bare re-export behind unchanged call sites. Every
+extraction and swap kept conformance 40/40 byte-identical.
+
+**Deferred / declined:** `gen_no_op` (the `has_no_op` decision is pure but small and
+tightly wrapped in `enforce_no_op`'s fs writes — a later extraction); the
+workspace-member-set merge (pure but a two-line sort/dedup with no independent
+corpus); `run_gen_locked`/`run_attempts`/`derive_*`/journal/fs helpers are the
+**irreducible I/O shell** and stay hand-written.
+
+**`state.rs` — surveyed, declined (honestly).** Every reader/writer (`read_map`,
+`write_map`, `read_journal`, `append_journal_entry`, `read_lock`, `write_lock`,
+`load_prompt_aliases`) is fs I/O; the pure cores they wrap (`parse_map`,
+`read_journal_str`, `parse_lock`, `resolve_prompt_aliases`, `next_gen_number`) are
+**already generated** phase-1 `napl-core` modules. `default_lock()` is pure but is
+a literal constructor of an `HlLock` from schema constants (`DEFAULT_MODEL`,
+`Backend::ClaudeCli`, `default_agent_config()`) — schema glue with no derivation or
+branching and no independent behavioral corpus, the same class as `error` (declined
+in batches 1–2). No corpus-worthy pure slice; `state.rs` stays a shell.
+
+After batch 3 the `cmd_gen.rs` hand-written shell is **~1,088 LOC** (down from
+1,133; +137 LOC of unit corpus rides along as the regression net). The remaining
+shell is the irreducible I/O: process spawn (`run_attempts`, `retry_for_change`),
+LLM derivation loops (`derive_ir`, `derive_attribution_gated`, `derive_ml`), fs
+reads/writes (numbered-files, prior-body/attribution, journal, guard, manifest),
+and the top-level `run_gen_locked` orchestrator.
 
 ## Phase 3 — `napl-lsp` (JSON-RPC server; later)
 

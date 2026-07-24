@@ -376,6 +376,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "gen_attribution_check"
+version = "0.1.0"
+dependencies = [
+ "schemas_attribution",
+]
+
+[[package]]
+name = "gen_classify"
+version = "0.1.0"
+
+[[package]]
+name = "gen_mode"
+version = "0.1.0"
+
+[[package]]
+name = "gen_prompt_diff"
+version = "0.1.0"
+dependencies = [
+ "incremental",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -571,6 +593,10 @@ dependencies = [
  "clock_fmt",
  "ctrlc",
  "driftdetect_replay",
+ "gen_attribution_check",
+ "gen_classify",
+ "gen_mode",
+ "gen_prompt_diff",
  "napl-core",
  "napl-lsp",
  "notify",

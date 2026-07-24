@@ -36,6 +36,10 @@ snapshot_filter = { path = "../.napl/src/rust/snapshot_filter" }
 blame_render = { path = "../.napl/src/rust/blame_render" }
 watch_filter = { path = "../.napl/src/rust/watch_filter" }
 reconcile_derive = { path = "../.napl/src/rust/reconcile_derive" }
+gen_classify = { path = "../.napl/src/rust/gen_classify" }
+gen_prompt_diff = { path = "../.napl/src/rust/gen_prompt_diff" }
+gen_attribution_check = { path = "../.napl/src/rust/gen_attribution_check" }
+gen_mode = { path = "../.napl/src/rust/gen_mode" }
 
 [dev-dependencies]
 serde_json = "1"

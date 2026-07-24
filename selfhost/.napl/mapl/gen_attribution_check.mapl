@@ -1,0 +1,9 @@
+module: gen_attribution_check
+target: rust
+entries:
+  - promptLines:
+      - 39
+      - 47
+    kind: note
+    message: Rules 1 and 2 implemented exactly as spec'd, error strings match verbatim.
+    reasoning: Agent's code matches message text char-for-char including quoting style, order of checks, and iteration-stops-at-first-violation behavior. No ambiguity here, just confirming correct compile.

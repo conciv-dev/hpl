@@ -1,0 +1,71 @@
+---
+module: gen_attribution_check
+deps: [schemas_attribution]
+targets: [rust]
+tests:
+  - name: no attributed files and no entries is fine
+    given: { allowed: [], entries: [] }
+    expect: { ok: true }
+  - name: attributed files but no entries is an error
+    given: { allowed: ["a.ts"], entries: [] }
+    expect: { error: "attribution has no entries but the module has attributed source files" }
+  - name: an entry inside the allowed set is fine
+    given: { allowed: ["a.ts"], entries: [{ file: "a.ts" }] }
+    expect: { ok: true }
+  - name: an entry outside the allowed set is an error
+    given: { allowed: ["a.ts"], entries: [{ file: "b.ts" }] }
+    expect: { error: "attribution entry references file \"b.ts\" which is outside the attributed file set" }
+---
+# The attribution sanity gate
+
+This module is the **pure** sanity check the code-generation command runs on a
+derived attribution before it accepts it: it rejects an attribution that claims no
+mappings when the module actually has attributed source files, and rejects any
+entry pointing at a file outside the attributed set. It is pure — no filesystem
+access, no process spawning. The I/O shell derives the attribution from the LLM,
+then gates it with this check before locking and recording.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `gen_attribution_check/`:
+`gen_attribution_check/Cargo.toml` (package name `gen_attribution_check`) and
+`gen_attribution_check/src/lib.rs`. Touch nothing outside
+`gen_attribution_check/`. Ensure `cargo test` passes from the workspace root
+before finishing.
+
+## Builds on the `schemas_attribution` module of this workspace
+
+This module composes on a **generated sibling member crate** in the same
+workspace — not a crates.io dependency and not a hand-written crate. Add a path
+dependency on it in your `Cargo.toml`:
+
+- `schemas_attribution` lives at `../schemas_attribution`. Use its public
+  `Attribution` struct (which has a public `entries: Vec<AttributionEntry>` field)
+  and its public `AttributionEntry` struct (which has a public `file: String`
+  field, among others). Do not reimplement them.
+
+Depending on a sibling by path only reads it; leave the `schemas_attribution`
+crate untouched.
+
+## `assert_attribution_sane(attribution: &Attribution, allowed: &[String]) -> Result<(), String>`
+
+Validate a derived attribution against the set of file paths that are actually
+allowed to be attributed:
+
+1. If `allowed` is **non-empty** and `attribution.entries` is **empty**, return
+   `Err` with exactly this message:
+   `attribution has no entries but the module has attributed source files`
+2. For each entry in `attribution.entries`, if the entry's `file` is **not**
+   contained in `allowed`, return `Err` with exactly this message (with the
+   offending file path substituted, wrapped in straight double quotes):
+   `attribution entry references file "<file>" which is outside the attributed file set`
+   — for a file `b.ts` the message is exactly
+   `attribution entry references file "b.ts" which is outside the attributed file set`.
+3. If neither rule fires, return `Ok(())`.
+
+So an empty `allowed` with empty `entries` → `Ok(())`; a non-empty `allowed` with
+empty `entries` → the first error; an entry whose file is in `allowed` → `Ok(())`;
+an entry whose file is not in `allowed` → the second error naming that file. Check
+the entries in order and return on the first violation.

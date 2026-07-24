@@ -1,0 +1,83 @@
+module: gen_classify
+target: rust
+entries:
+  - promptLines:
+      - 20
+      - 22
+    file: gen_classify/src/lib.rs
+    lines:
+      - 4
+      - 5
+    note: recognized source-file extensions const array
+  - promptLines:
+      - 24
+      - 28
+    file: gen_classify/src/lib.rs
+    lines:
+      - 11
+      - 15
+    note: is_source_file signature, base name extraction
+  - promptLines:
+      - 31
+      - 33
+    file: gen_classify/src/lib.rs
+    lines:
+      - 7
+      - 19
+    note: config suffix check returns false
+  - promptLines:
+      - 34
+      - 35
+    file: gen_classify/src/lib.rs
+    lines:
+      - 21
+      - 23
+    note: find last dot, no dot -> false
+  - promptLines:
+      - 36
+      - 38
+    file: gen_classify/src/lib.rs
+    lines:
+      - 25
+      - 26
+    note: extension slice, membership check
+  - promptLines:
+      - 40
+      - 42
+    file: gen_classify/src/lib.rs
+    lines:
+      - 65
+      - 91
+    note: worked-decision tests for is_source_file
+  - promptLines:
+      - 44
+      - 50
+    file: gen_classify/src/lib.rs
+    lines:
+      - 30
+      - 41
+    note: first_meaningful_line impl - split, strip CR/#, trim, cap 120, default
+  - promptLines:
+      - 52
+      - 55
+    file: gen_classify/src/lib.rs
+    lines:
+      - 100
+      - 116
+    note: worked-decision tests for first_meaningful_line
+  - promptLines:
+      - 57
+      - 63
+    file: gen_classify/src/lib.rs
+    lines:
+      - 44
+      - 49
+    note: split_body_lines CRLF-aware split impl
+  - promptLines:
+      - 61
+      - 63
+    file: gen_classify/src/lib.rs
+    lines:
+      - 129
+      - 147
+    note: worked-decision tests for split_body_lines

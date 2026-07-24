@@ -1,0 +1,10 @@
+[package]
+name = "gen_attribution_check"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+schemas_attribution = { path = "../schemas_attribution" }
+
+[dev-dependencies]
+schemas_line_range = { path = "../schemas_line_range" }

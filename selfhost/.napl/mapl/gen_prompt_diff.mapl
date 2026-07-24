@@ -1,0 +1,9 @@
+module: gen_prompt_diff
+target: rust
+entries:
+  - promptLines:
+      - 36
+      - 40
+    kind: note
+    message: Match logic straightforward, mirrors spec exactly.
+    reasoning: Code use match with guard `Some(prior) if prior != body => ... , _ => empty`. Covers all 3 cases stated (None; Some equal; Some differ) correctly, no gaps found.

@@ -1,0 +1,27 @@
+module: gen_classify
+target: rust
+entries:
+  - promptLines:
+      - 11
+      - 16
+    kind: note
+    message: Crate scaffolded correctly under gen_classify/, workspace untouched.
+    reasoning: Prompt say root manifest owned by toolchain, leave alone, new crate at gen_classify/Cargo.toml + src/lib.rs. Agent output shows only lib.rs touched (Cargo.toml presumably added too); no workspace edits reported. Matches spec.
+  - promptLines:
+      - 24
+      - 42
+    kind: note
+    message: is_source_file logic matches spec exactly, incl. worked examples as tests.
+    reasoning: Base-name extraction, config-suffix check, last-dot extension check all implemented per steps; test suite covers each worked decision line-for-line.
+  - promptLines:
+      - 44
+      - 55
+    kind: note
+    message: first_meaningful_line matches spec, 120-char cap uses char count not byte len.
+    reasoning: chars().take(120) correctly handles Unicode char cap as required; worked examples covered by tests.
+  - promptLines:
+      - 57
+      - 63
+    kind: note
+    message: split_body_lines matches CRLF-aware spec exactly, worked examples covered.
+    reasoning: split('\n') + strip_suffix('\r') matches; empty string and trailing-newline cases tested per spec.

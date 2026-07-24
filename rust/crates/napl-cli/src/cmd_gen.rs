@@ -26,6 +26,11 @@ use napl_core::schemas::{
 use napl_core::targets::{get_adapter, TargetAdapter};
 use napl_core::yaml::{attribution_to_yaml, ir_to_yaml, ml_to_yaml};
 
+use gen_attribution_check::assert_attribution_sane;
+use gen_classify::{first_meaningful_line, is_source_file, split_body_lines};
+use gen_mode::{can_incremental, full_mode_message, incremental_mode_message, FullModeReason};
+use gen_prompt_diff::compute_prompt_diff;
+
 use crate::clock::now;
 use crate::driftdetect::detect_gen_drift;
 use crate::error::{CliError, CliResult};
@@ -43,7 +48,6 @@ use crate::state::{load_prompt_aliases, read_journal, read_lock, read_map, write
 const MAX_ATTEMPTS: usize = 3;
 const MAX_ATTRIBUTION_FILES: usize = 24;
 const MAX_FILE_LINES: usize = 500;
-const SOURCE_EXTENSIONS: [&str; 7] = [".ts", ".tsx", ".js", ".jsx", ".css", ".html", ".rs"];
 
 /// Arguments for the gen command.
 pub struct GenArgs<'a> {
@@ -90,37 +94,6 @@ pub fn run(root: &Path, args: &GenArgs) -> CliResult<i32> {
 
 fn to_posix(path: &str) -> String {
     path.replace(std::path::MAIN_SEPARATOR, "/")
-}
-
-fn first_meaningful_line(body: &str) -> String {
-    for line in body.split('\n') {
-        let line = line.strip_suffix('\r').unwrap_or(line);
-        let trimmed = line.trim_start_matches('#').trim();
-        if !trimmed.is_empty() {
-            return trimmed.chars().take(120).collect();
-        }
-    }
-    "(no description)".to_string()
-}
-
-fn is_source_file(rel_to_target: &str) -> bool {
-    let base = rel_to_target.rsplit('/').next().unwrap_or(rel_to_target);
-    for suffix in [".config.ts", ".config.tsx", ".config.js", ".config.jsx"] {
-        if base.ends_with(suffix) {
-            return false;
-        }
-    }
-    let Some(dot) = base.rfind('.') else {
-        return false;
-    };
-    SOURCE_EXTENSIONS.contains(&&base[dot..])
-}
-
-fn split_body_lines(content: &str) -> Vec<String> {
-    content
-        .split('\n')
-        .map(|s| s.strip_suffix('\r').unwrap_or(s).to_string())
-        .collect()
 }
 
 struct Attributed {
@@ -259,14 +232,16 @@ fn build_task_builder(
     let target = args.target;
     let target_record = map.prompts.get(rel).and_then(|r| r.targets.get(target));
     let owned_files: Vec<String> = target_record.map(|r| r.files.clone()).unwrap_or_default();
-    let can_incremental = !args.full
-        && target_record.is_some()
-        && target_record.map(|r| r.unattributed) != Some(Some(true))
-        && target_record
+    let use_incremental = can_incremental(
+        args.full,
+        target_record.is_some(),
+        target_record.map(|r| r.unattributed) == Some(Some(true)),
+        target_record
             .and_then(|r| r.prompt_hash_at_gen.as_ref())
-            .is_some();
+            .is_some(),
+    );
 
-    if can_incremental {
+    if use_incremental {
         let prior_body = load_prior_body(&paths.prompts_at_gen_dir, module);
         let prior_attribution = load_prior_attribution(&paths.attribution_dir, module, target);
         if let (Some(prior_body), Some(prior_attribution)) = (prior_body, prior_attribution) {
@@ -277,9 +252,11 @@ fn build_task_builder(
             let target_rel_to_root = rel_to(root, &target_dir);
             let unlock = incremental_unlock_list(&owned_files, &intersecting, &target_rel_to_root);
             println!(
-                "  mode: INCREMENTAL — {} changed prompt line(s), {} owned region(s) affected",
-                diff.changed_old_lines.len() + diff.changed_new_lines.len(),
-                intersecting.len()
+                "{}",
+                incremental_mode_message(
+                    diff.changed_old_lines.len() + diff.changed_new_lines.len(),
+                    intersecting.len()
+                )
             );
             let owned_rel: Vec<String> = owned_files
                 .iter()
@@ -301,11 +278,11 @@ fn build_task_builder(
                 unlock,
             };
         }
-        println!("  mode: full (no prior prompt body or attribution on disk to diff against)");
+        println!("{}", full_mode_message(FullModeReason::NoPriorOnDisk));
     } else if args.full {
-        println!("  mode: full (forced --full)");
+        println!("{}", full_mode_message(FullModeReason::ForcedFull));
     } else {
-        println!("  mode: full (no prior successful gen for this target)");
+        println!("{}", full_mode_message(FullModeReason::NoPriorGen));
     }
     TaskBuilder {
         mode: JournalMode::Full,
@@ -429,23 +406,6 @@ fn derive_ir(
     println!(
         "  warn: IR derivation for '{module}' failed (best-effort, IR skipped, gen continues): {last_error}"
     );
-    Ok(())
-}
-
-fn assert_attribution_sane(attribution: &Attribution, allowed: &[String]) -> Result<(), String> {
-    if !allowed.is_empty() && attribution.entries.is_empty() {
-        return Err(
-            "attribution has no entries but the module has attributed source files".to_string(),
-        );
-    }
-    for entry in &attribution.entries {
-        if !allowed.contains(&entry.file) {
-            return Err(format!(
-                "attribution entry references file \"{}\" which is outside the attributed file set",
-                entry.file
-            ));
-        }
-    }
     Ok(())
 }
 
@@ -1071,13 +1031,6 @@ fn build_journal_files(
     files
 }
 
-fn compute_prompt_diff(prior_body: Option<&str>, body: &str) -> String {
-    match prior_body {
-        Some(prior) if prior != body => diff_body_lines(prior, body).unified,
-        _ => String::new(),
-    }
-}
-
 fn write_guard_files(target_dir: &Path) -> CliResult<()> {
     std::fs::create_dir_all(target_dir)?;
     for name in napl_core::guard::GUARD_FILE_NAMES {
@@ -1130,4 +1083,143 @@ fn refresh_workspace_manifest(
         &napl_core::targets::workspace_manifest_toml(&members),
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use napl_core::incremental::diff_body_lines;
+    use napl_core::schemas::{AttributionEntry, LineRange};
+
+    fn entry(file: &str) -> AttributionEntry {
+        AttributionEntry {
+            prompt_lines: LineRange::new(1, 1),
+            file: file.to_string(),
+            lines: LineRange::new(1, 1),
+            note: String::new(),
+        }
+    }
+
+    // --- gen_classify: is_source_file ---
+
+    #[test]
+    fn is_source_file_accepts_known_extensions_and_rejects_config_and_others() {
+        assert!(is_source_file("src/lib.rs"));
+        assert!(is_source_file("app.tsx"));
+        assert!(is_source_file("styles.css"));
+        assert!(is_source_file("dir/x.jsx"));
+        assert!(is_source_file("page.html"));
+        assert!(!is_source_file("vite.config.ts"));
+        assert!(!is_source_file("tailwind.config.js"));
+        assert!(!is_source_file("README.md"));
+        assert!(!is_source_file("noext"));
+    }
+
+    // --- gen_classify: first_meaningful_line ---
+
+    #[test]
+    fn first_meaningful_line_strips_headings_and_caps_length() {
+        assert_eq!(first_meaningful_line("# Title\n\nBody line"), "Title");
+        assert_eq!(first_meaningful_line("\n\n  hello world  \n"), "hello world");
+        assert_eq!(first_meaningful_line("### Deep\nmore"), "Deep");
+        assert_eq!(first_meaningful_line(""), "(no description)");
+        assert_eq!(first_meaningful_line("   \n\t\n"), "(no description)");
+        let long = "x".repeat(200);
+        assert_eq!(first_meaningful_line(&long).chars().count(), 120);
+    }
+
+    // --- gen_classify: split_body_lines ---
+
+    #[test]
+    fn split_body_lines_splits_and_strips_cr() {
+        assert_eq!(split_body_lines("a\r\nb\nc"), vec!["a", "b", "c"]);
+        assert_eq!(split_body_lines(""), vec![""]);
+        assert_eq!(split_body_lines("x\r\n"), vec!["x", ""]);
+    }
+
+    // --- gen_prompt_diff: compute_prompt_diff ---
+
+    #[test]
+    fn compute_prompt_diff_empty_when_no_prior_or_unchanged() {
+        assert_eq!(compute_prompt_diff(None, "body"), "");
+        assert_eq!(compute_prompt_diff(Some("body"), "body"), "");
+    }
+
+    #[test]
+    fn compute_prompt_diff_uses_body_line_diff_when_changed() {
+        assert_eq!(
+            compute_prompt_diff(Some("old line"), "new line"),
+            diff_body_lines("old line", "new line").unified
+        );
+    }
+
+    // --- gen_attribution_check: assert_attribution_sane ---
+
+    fn attribution(entries: Vec<AttributionEntry>) -> Attribution {
+        Attribution {
+            module: "m".to_string(),
+            target: "rust".to_string(),
+            entries,
+        }
+    }
+
+    #[test]
+    fn assert_attribution_sane_ok_when_no_files_and_no_entries() {
+        assert_eq!(assert_attribution_sane(&attribution(vec![]), &[]), Ok(()));
+    }
+
+    #[test]
+    fn assert_attribution_sane_rejects_empty_entries_with_attributed_files() {
+        assert_eq!(
+            assert_attribution_sane(&attribution(vec![]), &["a.ts".to_string()]),
+            Err("attribution has no entries but the module has attributed source files".to_string())
+        );
+    }
+
+    #[test]
+    fn assert_attribution_sane_ok_when_entry_in_allowed_set() {
+        assert_eq!(
+            assert_attribution_sane(&attribution(vec![entry("a.ts")]), &["a.ts".to_string()]),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn assert_attribution_sane_rejects_entry_outside_allowed_set() {
+        assert_eq!(
+            assert_attribution_sane(&attribution(vec![entry("b.ts")]), &["a.ts".to_string()]),
+            Err("attribution entry references file \"b.ts\" which is outside the attributed file set".to_string())
+        );
+    }
+
+    // --- gen_mode: can_incremental + message renderers ---
+
+    #[test]
+    fn can_incremental_requires_record_hash_not_full_not_unattributed() {
+        assert!(can_incremental(false, true, false, true));
+        assert!(!can_incremental(true, true, false, true));
+        assert!(!can_incremental(false, false, false, true));
+        assert!(!can_incremental(false, true, true, true));
+        assert!(!can_incremental(false, true, false, false));
+    }
+
+    #[test]
+    fn mode_messages_render_exact_strings() {
+        assert_eq!(
+            incremental_mode_message(3, 2),
+            "  mode: INCREMENTAL — 3 changed prompt line(s), 2 owned region(s) affected"
+        );
+        assert_eq!(
+            full_mode_message(FullModeReason::NoPriorOnDisk),
+            "  mode: full (no prior prompt body or attribution on disk to diff against)"
+        );
+        assert_eq!(
+            full_mode_message(FullModeReason::ForcedFull),
+            "  mode: full (forced --full)"
+        );
+        assert_eq!(
+            full_mode_message(FullModeReason::NoPriorGen),
+            "  mode: full (no prior successful gen for this target)"
+        );
+    }
 }

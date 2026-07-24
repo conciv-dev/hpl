@@ -878,3 +878,121 @@ requiring a corpus and an extraction refactor first and two composing on generat
 phase-1 crates. What remains in phase 2 is the scarcer pure slices outside `cmd_gen`
 and, ultimately, the conformance-gated `cmd_gen` fixpoint — the generator
 regenerating itself.
+
+## Phase 2 — batch 3 (the `cmd_gen` decomposition — the fixpoint push)
+
+Batch 3 opens the generator itself. `cmd_gen.rs` (1,133 LOC) is the stage0
+orchestrator — the last thing to self-host and the true fixpoint when it does. It
+cannot be self-hosted whole (it spawns processes, drives the LLM, and writes the
+journal), but its **pure decision logic** can be sliced out, generated from prose,
+and swapped back in. Batch 3 does exactly that for four slices, each converged on
+**attempt 1 of 3**. New totals: **36/36 generated modules, 225 equivalence cases
+green, conformance 40/40 byte-identical, escape-hatch list empty.**
+
+`docs/selfhost-map.md` → "Batch 3 — the `cmd_gen` decomposition" carries the full
+function-by-function survey (every `cmd_gen.rs` function classified as a pure slice
+or irreducible I/O shell). The four slices generated:
+
+| Generated crate | Replaces (cmd_gen pure slice) | Deps | Equivalence |
+| --- | --- | --- | --- |
+| `gen_classify` | `is_source_file` (+ the source-extension set), `first_meaningful_line`, `split_body_lines` | — | 3/3 |
+| `gen_prompt_diff` | `compute_prompt_diff` | `incremental` | 2/2 |
+| `gen_attribution_check` | `assert_attribution_sane` (byte-exact error strings) | `schemas_attribution` | 4/4 |
+| `gen_mode` | `can_incremental` + the byte-exact `mode:` message renderers | — | 2/2 |
+
+### Corpus-first — `cmd_gen` had no unit tests
+
+`cmd_gen` shipped with **no** `#[cfg(test)] mod tests`. The batch therefore added an
+11-case unit corpus to the hand-written module first (test-only, conformance
+byte-identical), pinning the exact behavior of each slice — including byte-exact
+assertions on the four `assert_attribution_sane` error/ok cases and the four
+`mode:` status lines the conformance corpus substring-checks. That corpus is both
+the extraction safety net and the equivalence spec replayed against the generated
+crates; it rides along in `cmd_gen.rs` as the regression net after the swaps.
+
+### One extraction refactor, three bare re-exports
+
+Three slices (`is_source_file`/`first_meaningful_line`/`split_body_lines`,
+`compute_prompt_diff`, `assert_attribution_sane`) were already cleanly separable
+functions, so each swap is a `use <crate>::…` behind unchanged call sites with the
+hand-written body deleted. Only **`gen_mode`** needed an extraction refactor first:
+the full-vs-incremental decision (`can_incremental`) and the `mode:` status lines
+were inlined in `build_task_builder`. They were lifted into a pure predicate over
+four primitive booleans plus three message renderers (a `FullModeReason` enum + an
+`incremental_mode_message(changed, affected)` renderer), the shell rewritten to
+compute the booleans and print the rendered lines — conformance byte-identical
+**before** the gen, and again after the swap.
+
+### More phase-2-on-phase-1 composition, and one by-value seam
+
+`gen_prompt_diff` composes on generated `incremental` (`diff_body_lines(...).unified`)
+and `gen_attribution_check` on generated `schemas_attribution`
+(`Attribution`/`AttributionEntry`). Because napl-core re-exports those generated
+types and every crate path-deps the same sibling, the shell passes
+`napl_core::schemas::Attribution` straight into the generated checker and the types
+unify with no glue — the same evidence batches 1–2 produced, now inside the
+generator. The one seam: the generated `gen_mode::full_mode_message` takes
+`FullModeReason` **by value** where the hand-written helper took it by reference —
+bridged at the three call sites (pass by value). The equivalence is behavioral
+(identical strings); the by-value/by-ref difference is exactly the kind of
+under-specified ownership contract the campaign bridges at the boundary.
+
+### `state.rs` — surveyed, declined honestly
+
+`state.rs` (89 LOC) was surveyed for a pure slice. Every reader/writer is fs I/O
+wrapping a pure core that is **already generated** (`parse_map`, `read_journal_str`,
+`parse_lock`, `resolve_prompt_aliases`, `next_gen_number` are phase-1 `napl-core`
+modules). `default_lock()` is pure but a literal constructor of an `HlLock` from
+schema constants — schema glue with no derivation, no branching, and no independent
+behavioral corpus, the same class as `error` (declined in batches 1–2). No
+corpus-worthy pure slice; `state.rs` stays a shell.
+
+### Gate results
+
+1. `cargo test --workspace` — **245 pass, 0 fail** (181 `napl-core` unit + 5
+   `cross_check` + 43 `napl-cli` — up 11 with the new `cmd_gen` corpus — + 16
+   `napl-lsp`), the hand-written corpora running against the adapters and shells.
+2. `cargo clippy --workspace --all-targets` — **clean** (0 warnings).
+3. `cargo build --release` — green.
+4. **Conformance — 40/40 BYTE-IDENTICAL** at every step: after the `gen_mode`
+   extraction refactor, and after each of the four swaps.
+5. `selfhost/` — `napl status` clean, **36/36 modules** (32 prior + 4 batch-3),
+   the generated tree drift-clean.
+6. Equivalence harness — **225/225** (214 prior + 11 batch-3: 3 + 2 + 4 + 2).
+
+### How far can the shell shrink? — the fixpoint, honestly
+
+Batch 3 took `cmd_gen.rs` from 1,133 LOC to a **~1,088-LOC hand-written shell**
+(plus a 137-LOC regression corpus). The extracted ~45 LOC were the generator's
+*pure decision logic* — file classification, description derivation, prompt-diff
+derivation, the attribution sanity gate, and the full-vs-incremental mode
+selection. What remains is **genuinely irreducible I/O**: spawning the coding agent
+and the test command (`run_attempts`, `retry_for_change`), the LLM derivation loops
+for IR/attribution/machine-layer (`derive_ir`, `derive_attribution_gated`,
+`derive_ml` — each an LLM round-trip, not a pure function), the filesystem reads
+and writes (numbered files, prior body/attribution, journal append, guard files,
+workspace manifest), and the top-level `run_gen_locked` orchestrator that sequences
+them.
+
+This clarifies what "**cmd_gen regenerates itself**" can mean. The generator will
+never be a single pure function the equivalence harness replays — its essence is
+orchestrating a filesystem, subprocesses, and an LLM. The honest fixpoint is:
+**every pure decision the generator makes is generated code, and the thin I/O shell
+that sequences those decisions is the only hand-written part left** — and the proof
+is that the shipping binary, whose generator's pure logic is now generated from
+prose, still drives the whole 40-scenario conformance corpus byte-identically,
+including the `mode:` lines and attribution accounting that batch 3's slices now
+render. The shell can shrink further (the `enforce_no_op` decision, the
+workspace-member merge, the numbered-files gate), but it converges on the I/O
+skeleton, not on zero — and that skeleton, gated by conformance, is the fixpoint.
+
+### Verdict
+
+Batch 3 slices the generator's own pure decision logic — source-file
+classification, description derivation, prompt-diff derivation, the attribution
+sanity gate, and full-vs-incremental mode selection — into four generated crates,
+all converged on attempt 1, all swapped in behind the unchanged I/O shell,
+conformance byte-identical throughout. `cmd_gen`'s hand-written surface is now the
+irreducible I/O skeleton plus a regression corpus. The generator's decisions are
+generated; what sequences them is the shell — which is the honest shape of the
+fixpoint.

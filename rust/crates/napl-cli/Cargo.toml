@@ -29,6 +29,10 @@ snapshot_filter = { path = "../../../selfhost/.napl/src/rust/snapshot_filter" }
 blame_render = { path = "../../../selfhost/.napl/src/rust/blame_render" }
 watch_filter = { path = "../../../selfhost/.napl/src/rust/watch_filter" }
 reconcile_derive = { path = "../../../selfhost/.napl/src/rust/reconcile_derive" }
+gen_classify = { path = "../../../selfhost/.napl/src/rust/gen_classify" }
+gen_prompt_diff = { path = "../../../selfhost/.napl/src/rust/gen_prompt_diff" }
+gen_attribution_check = { path = "../../../selfhost/.napl/src/rust/gen_attribution_check" }
+gen_mode = { path = "../../../selfhost/.napl/src/rust/gen_mode" }
 
 [lints]
 workspace = true

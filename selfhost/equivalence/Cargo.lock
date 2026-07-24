@@ -92,6 +92,10 @@ dependencies = [
  "drift",
  "driftdetect_replay",
  "extensions",
+ "gen_attribution_check",
+ "gen_classify",
+ "gen_mode",
+ "gen_prompt_diff",
  "guard",
  "hash",
  "incremental",
@@ -130,6 +134,28 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "extensions"
 version = "0.1.0"
+
+[[package]]
+name = "gen_attribution_check"
+version = "0.1.0"
+dependencies = [
+ "schemas_attribution",
+]
+
+[[package]]
+name = "gen_classify"
+version = "0.1.0"
+
+[[package]]
+name = "gen_mode"
+version = "0.1.0"
+
+[[package]]
+name = "gen_prompt_diff"
+version = "0.1.0"
+dependencies = [
+ "incremental",
+]
 
 [[package]]
 name = "generic-array"

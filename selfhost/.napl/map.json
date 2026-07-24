@@ -512,6 +512,70 @@
           ]
         }
       }
+    },
+    "gen_classify.napl": {
+      "module": "gen_classify",
+      "promptHash": "3627515696a514875f675bff4c4b5d80502695bc2ee3cd1c112a1863e40dc2d1",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "3627515696a514875f675bff4c4b5d80502695bc2ee3cd1c112a1863e40dc2d1",
+          "files": [
+            ".napl/src/rust/gen_classify/Cargo.toml",
+            ".napl/src/rust/gen_classify/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "gen_prompt_diff.napl": {
+      "module": "gen_prompt_diff",
+      "promptHash": "f1eadaec8f24352623f38a565a0b746f2ffad044b2f2ce04c37d9308c6d87811",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "f1eadaec8f24352623f38a565a0b746f2ffad044b2f2ce04c37d9308c6d87811",
+          "files": [
+            ".napl/src/rust/gen_prompt_diff/Cargo.toml",
+            ".napl/src/rust/gen_prompt_diff/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "gen_attribution_check.napl": {
+      "module": "gen_attribution_check",
+      "promptHash": "b4c17dd61957714a9953a0a631236ceae382b2b389450f2b7eea1416a53cd897",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "b4c17dd61957714a9953a0a631236ceae382b2b389450f2b7eea1416a53cd897",
+          "files": [
+            ".napl/src/rust/gen_attribution_check/Cargo.toml",
+            ".napl/src/rust/gen_attribution_check/src/lib.rs"
+          ]
+        }
+      }
+    },
+    "gen_mode.napl": {
+      "module": "gen_mode",
+      "promptHash": "fde5685a475e2a0776d6a95b88eaaa5a07ccc6dd78a0670ae39c2ee2f90adced",
+      "declaredTargets": [
+        "rust"
+      ],
+      "targets": {
+        "rust": {
+          "promptHashAtGen": "fde5685a475e2a0776d6a95b88eaaa5a07ccc6dd78a0670ae39c2ee2f90adced",
+          "files": [
+            ".napl/src/rust/gen_mode/Cargo.toml",
+            ".napl/src/rust/gen_mode/src/lib.rs"
+          ]
+        }
+      }
     }
   },
   "files": {
@@ -961,6 +1025,62 @@
       "hash": "063e1e437203c23abc27a0d71daf69f43fb509caeb06d13d0d217edee0ebd265",
       "prompts": [
         "reconcile_derive.napl"
+      ]
+    },
+    ".napl/src/rust/gen_classify/Cargo.toml": {
+      "target": "rust",
+      "hash": "196eeb541367f2fd7fa40afd882193f21bc9443ec75fa5406f4798edc5e4cc95",
+      "prompts": [
+        "gen_classify.napl"
+      ]
+    },
+    ".napl/src/rust/gen_classify/src/lib.rs": {
+      "target": "rust",
+      "hash": "f079dea119b5264c99f0fbefdfc3b7b22ca4e9335941a8176d784091f2c9ff99",
+      "prompts": [
+        "gen_classify.napl"
+      ]
+    },
+    ".napl/src/rust/gen_prompt_diff/Cargo.toml": {
+      "target": "rust",
+      "hash": "ab77d30fac121fbcd6ab2f209808dd41b524990927bfbe1238710998523d231e",
+      "prompts": [
+        "gen_prompt_diff.napl"
+      ]
+    },
+    ".napl/src/rust/gen_prompt_diff/src/lib.rs": {
+      "target": "rust",
+      "hash": "bad7da76b74023c37839a2234b2ed3deb13652e6d831fc428eefe5511b4bb3f7",
+      "prompts": [
+        "gen_prompt_diff.napl"
+      ]
+    },
+    ".napl/src/rust/gen_attribution_check/Cargo.toml": {
+      "target": "rust",
+      "hash": "90c859a34e81d6b6190a4921137aa116e45c00af54d930490d462062716049ab",
+      "prompts": [
+        "gen_attribution_check.napl"
+      ]
+    },
+    ".napl/src/rust/gen_attribution_check/src/lib.rs": {
+      "target": "rust",
+      "hash": "c0a05084787f44636425ec7ce4d0b8026e39e6df8e29a593213d8aba7716d58e",
+      "prompts": [
+        "gen_attribution_check.napl"
+      ]
+    },
+    ".napl/src/rust/gen_mode/Cargo.toml": {
+      "target": "rust",
+      "hash": "8cb9695efb6b25a4c6310798d4deb624fdc53c825c24297ae69fa8282120410a",
+      "prompts": [
+        "gen_mode.napl"
+      ]
+    },
+    ".napl/src/rust/gen_mode/src/lib.rs": {
+      "target": "rust",
+      "hash": "68b79fe4c18777e42a9b37c524d27640b97c9ff546ee01d6f4108a967dd731d5",
+      "prompts": [
+        "gen_mode.napl"
       ]
     }
   }

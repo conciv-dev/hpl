@@ -1,0 +1,18 @@
+module: gen_prompt_diff
+deps:
+  - incremental
+types: []
+functions:
+  - name: compute_prompt_diff
+    signature: "compute_prompt_diff(prior_body: Option<&str>, body: &str) -> String"
+    behavior: "Pure function, no I/O. Returns unified diff text describing change in prompt body since last successful generation. If prior_body is Some(prior) and prior differs from body, returns the unified diff (via incremental::diff_body_lines(prior, body).unified) between prior and body. If prior_body is None, or prior_body is Some(prior) with prior == body, returns an empty string.\n"
+tests:
+  - name: no_prior_body_returns_empty
+    given: prior_body = None, body = "body"
+    expect: returns ""
+  - name: unchanged_body_returns_empty
+    given: prior_body = Some("body"), body = "body"
+    expect: returns "" (bodies equal)
+  - name: changed_body_returns_unified_diff
+    given: prior_body = Some("old line"), body = "new line"
+    expect: returns diff_body_lines("old line", "new line").unified, and result is non-empty

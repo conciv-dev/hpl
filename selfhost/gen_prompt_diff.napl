@@ -1,0 +1,58 @@
+---
+module: gen_prompt_diff
+deps: [incremental]
+targets: [rust]
+tests:
+  - name: no prior body yields an empty diff
+    given: { prior: null, body: "body" }
+    expect: { diff: "" }
+  - name: an unchanged body yields an empty diff
+    given: { prior: "body", body: "body" }
+    expect: { diff: "" }
+  - name: a changed body yields the incremental body-line diff
+    given: { prior: "old line", body: "new line" }
+    expect: { diff: "diff_body_lines(\"old line\", \"new line\").unified" }
+---
+# Deriving the prompt diff for a journal entry
+
+This module is the **pure** prompt-diff derivation the code-generation command
+records in each journal entry. It is pure — no filesystem access, no process
+spawning. The I/O shell reads the prior prompt body off disk (when one exists) and
+passes it, together with the current body, to this function.
+
+## Where this code lives
+
+The working directory is a Cargo workspace whose root manifest is written and
+owned by the toolchain — leave it alone. Create this module as its own member
+crate in a subdirectory named `gen_prompt_diff/`: `gen_prompt_diff/Cargo.toml`
+(package name `gen_prompt_diff`) and `gen_prompt_diff/src/lib.rs`. Touch nothing
+outside `gen_prompt_diff/`. Ensure `cargo test` passes from the workspace root
+before finishing.
+
+## Builds on the `incremental` module of this workspace
+
+This module composes on a **generated sibling member crate** in the same
+workspace — not a crates.io dependency and not a hand-written crate. Add a path
+dependency on it in your `Cargo.toml`:
+
+- `incremental` lives at `../incremental`. Use its public
+  `diff_body_lines(old_body: &str, new_body: &str) -> BodyLineDiff` function. The
+  returned `BodyLineDiff` has a public `unified: String` field holding the unified
+  diff text. Do not reimplement it.
+
+Depending on a sibling by path only reads it; leave the `incremental` crate
+untouched.
+
+## `compute_prompt_diff(prior_body: Option<&str>, body: &str) -> String`
+
+Return the unified diff describing how the prompt body changed since the last
+successful generation:
+
+- When `prior_body` is `Some(prior)` **and** `prior` differs from `body`, return
+  `diff_body_lines(prior, body).unified` — the `unified` field of the body-line
+  diff between the prior and current bodies.
+- Otherwise — when `prior_body` is `None`, or when the prior body equals the
+  current body — return an empty string.
+
+So `(None, "body")` → `""`; `(Some("body"), "body")` → `""` (unchanged);
+`(Some("old line"), "new line")` → `diff_body_lines("old line", "new line").unified`.
