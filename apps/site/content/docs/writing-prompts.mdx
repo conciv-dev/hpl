@@ -7,16 +7,16 @@ A `.napl` prompt is not a chat message you send once. It is source code: it will
 regenerated, diffed, and re-attributed every time it changes, and a fresh coding agent
 will read it cold each time with no memory of the last run. A prompt _holds_ when that
 agent produces the same behavior every time and the toolchain can prove the connection.
-This page is about writing prompts that hold — what to put where, what the toolchain
+This page is about writing prompts that hold: what to put where, what the toolchain
 checks, and which of your sentences are actually load-bearing.
 
 ## The body is a contract, not a description
 
 The prose below the frontmatter is a specification handed to the agent. It should say
-what the code must _do_ — the public API, the behavior, the edge cases — and leave every
+what the code must _do_ (the public API, the behavior, the edge cases) and leave every
 implementation choice to the agent. Name the functions and the shapes; describe the
 rules; enumerate the corners. Don't describe an algorithm you don't care about, and don't
-paste code — that's an implementation choice masquerading as a spec.
+paste code: that's an implementation choice masquerading as a spec.
 
 <NaplExample
   filename="auth/session.napl"
@@ -35,21 +35,21 @@ SESSION_EXPIRED, never silently renewed.
 />
 
 Every sentence here is a claim the agent must satisfy and the toolchain must be able to
-attribute to real lines of code. "Never silently renewed" is not decoration — it forbids
+attribute to real lines of code. "Never silently renewed" is not decoration: it forbids
 a whole class of implementation. Vague sentences produce vague code and get flagged (see
 [the machine's replies](#the-machine-answers-back)); precise ones become the spec.
 
 ## Tests are data, and they gate
 
 Behavior that can be pinned as an input/output pair belongs in `tests:`, not in the prose.
-Each entry is a `name`, a `given`, and an `expect` — plain data, not code. The agent
+Each entry is a `name`, a `given`, and an `expect`: plain data, not code. The agent
 iterates until every case passes, or `gen` fails loudly after three attempts. This is what
 separates NAPL from "AI wrote some code": the tests are part of the source, they travel
 with the prompt, and no generation is accepted until they're green.
 
 Prose and tests divide the work cleanly:
 
-- **Frontmatter tests** pin behavior expressible as data — a given input maps to an
+- **Frontmatter tests** pin behavior expressible as data: a given input maps to an
   expected output or error.
 - **Prose** carries everything the data can't: invariants, ordering guarantees, what is
   _forbidden_, why an edge case exists.
@@ -59,18 +59,18 @@ where the toolchain can enforce it mechanically.
 
 ## The machine answers back
 
-`napl gen` writes a reply in the margin of your prompt — a `.mapl` file, regenerated on
+`napl gen` writes a reply in the margin of your prompt: a `.mapl` file, regenerated on
 every compile. It is how the toolchain tells you your prompt was ambiguous, what it had to
 assume, and why the code is shaped the way it is:
 
-- **ambiguity** — your words were unclear. Surfaces as a red squiggle on the exact words,
+- **ambiguity**: your words were unclear. Surfaces as a red squiggle on the exact words,
   like a syntax error, usually with a suggested rewording.
-- **assumption** — a decision your prose left open. A warning you can either accept or
+- **assumption**: a decision your prose left open. A warning you can either accept or
   close by making the choice explicit.
-- **no-op** — the prompt changed but the code didn't. The entry must say why, or the gen
+- **no-op**: the prompt changed but the code didn't. The entry must say why, or the gen
   fails. A changed prompt that quietly reports "clean" is a bug the toolchain refuses to
   ship.
-- **note** — hover-visible reasoning about why the code came out this way.
+- **note**: hover-visible reasoning about why the code came out this way.
 
 ```mapl title="greeting.mapl"
 - promptLines: [12, 14]
@@ -94,18 +94,18 @@ the page; the difference only shows up on regeneration.
 The clearest case comes from dependencies. When one module builds on another, its
 frontmatter declares `deps:`, and the gen loop surfaces that to the agent as a
 `Declared dependencies: …` line automatically. So a prompt sentence that merely _restates_
-the dependency —
+the dependency:
 
 > Add a path dependency on `../schemas_line_range` in your `Cargo.toml`; it is a workspace
 > sibling, not a crates.io dependency.
 
-— is **redundant**. The `deps:` frontmatter already carries the _where_. It's deletable.
+That sentence is **redundant**. The `deps:` frontmatter already carries the _where_. It's deletable.
 
-But the sentence that tells the agent _how to relate_ to that dependency —
+But the sentence that tells the agent _how to relate_ to that dependency:
 
-> Use its public API — do not reimplement its types or logic.
+> Use its public API. Do not reimplement its types or logic.
 
-— is **spec**. It is the only thing standing between the agent and a local
+That sentence is **spec**. It is the only thing standing between the agent and a local
 reimplementation. Delete it and a fresh agent, reading the prompt cold, will happily write
 its own copy of the sibling's types. This one is load-bearing.
 
@@ -113,7 +113,7 @@ its own copy of the sibling's types. This one is load-bearing.
 ### The war story
 
 This distinction was not theoretical. During the self-host campaign, a pass over the
-prompts trimmed the redundant dependency prose — correctly, in most cases. But on the
+prompts trimmed the redundant dependency prose, correctly in most cases. But on the
 `incremental` module the trim was too aggressive and deleted the whole imperative,
 _"Add a path dependency on each in your `Cargo.toml`… use their public API, and do not
 reimplement their logic or depend on any hand-written crate,"_ leaving only two bullets
@@ -121,21 +121,21 @@ that _described_ the sibling types.
 
 On the next regeneration (journal gen #93), the agent did exactly what an unconstrained
 prompt invites: it **reimplemented** `LineRange` and `AttributionEntry` locally and emptied
-its `Cargo.toml` dependencies. The code compiled. The tests passed. Nothing was red — and
+its `Cargo.toml` dependencies. The code compiled. The tests passed. Nothing was red, and
 the module had silently stopped composing on the rest of the toolchain. What caught it was
 the expected-no-op discipline: a prose trim should regenerate as a no-op, and this regen
-produced patches — so the run halted and the diff got read. The fix was to revert the
+produced patches, so the run halted and the diff got read. The fix was to revert the
 regen and restore the imperative, in compact form, to the nine prompts that had lost it.
 
-Here is the module as it stands, imperative intact — the prose that makes it hold is the
+Here is the module as it stands, imperative intact: the prose that makes it hold is the
 "do not reimplement its types or logic" line:
 
 <NaplExample module="incremental" filename="incremental.napl" />
 
 The reusable lesson: **a prompt that only _describes_ a dependency invites
 reimplementation; a prompt must _instruct_ the agent to depend on it.** When you trim a
-prompt, ask of every sentence — does the toolchain enforce this already, or is this the
+prompt, ask of every sentence: does the toolchain enforce this already, or is this the
 only place it's said? Keep the second kind.
 
-Next: [Drift, moves & reconcile](/docs/drift) — what happens to a prompt's output after
+Next: [Drift, moves & reconcile](/docs/drift): what happens to a prompt's output after
 it's locked, and how to change generated code the sanctioned way.

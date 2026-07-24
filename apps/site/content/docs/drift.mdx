@@ -1,10 +1,10 @@
 ---
 title: Drift, moves & reconcile
-description: Generated code is locked read-only. Edit it and you get drift — a compile error with a guided fix. Plus location-free identity, so moving files is free.
+description: Generated code is locked read-only. Edit it and you get drift: a compile error with a guided fix. Plus location-free identity, so moving files is free.
 ---
 
 Once a generation passes its tests, the code is locked. That lock is the mechanism that
-keeps the prompt the source of truth — but a lock you can never open is a cage, and a lock
+keeps the prompt the source of truth, but a lock you can never open is a cage, and a lock
 that breaks silently is worthless. This page is about the discipline around locked code:
 what drift is, why it's a compile error, the three sanctioned ways out, and why moving
 files around costs you nothing.
@@ -15,8 +15,8 @@ After its tests pass, every generated file is set read-only (`0444`) and its con
 is recorded. The lock is deliberately soft in the places that matter and hard in the ones
 that do:
 
-- **Your app's own tooling never cares.** `npm run dev`, the test runner, the bundler —
-  none of them are blocked. Day-to-day development is untouched.
+- **Your app's own tooling never cares.** `npm run dev`, the test runner, the bundler.
+  None of them are blocked. Day-to-day development is untouched.
 - **Humans get a one-click unlock.** Editors offer "make writable" on the `0444` bit, so
   reading or poking at generated code to understand it stays frictionless.
 - **AI agents get mechanically stopped.** `napl init` writes an `AGENTS.md` + `CLAUDE.md`
@@ -31,12 +31,12 @@ you just can't slip an un-prompted change past `napl gen` or a commit.
 
 Edit a locked file and keep the edit, and you have **drift**: the file's content no longer
 matches the hash recorded at gen. `napl gen` refuses to run, `napl status` exits `1`, and
-CI fails. This is intentional — drift means the code and the prompt disagree about what the
+CI fails. This is intentional: drift means the code and the prompt disagree about what the
 program does, and the prompt is supposed to win.
 
 But a compile error you can't act on is just a wall, so drift ships with the fix attached.
 Before it runs any agent, `napl gen <target>` checks every module in scope for drift; if it
-finds un-prompted edits it hard-blocks with a guided report per drifted module — the module
+finds un-prompted edits it hard-blocks with a guided report per drifted module: the module
 and exact files, a unified diff of the recorded baseline against your current content
 (reconstructed by replaying the [prompt-blame journal](/docs/cli#blame)), and the three
 ways out.
@@ -47,7 +47,7 @@ Every drift has exactly three sanctioned resolutions. Pick the one that matches 
 
 1. **Fold the edit into the prompt.** `napl reconcile <target> --module <m>` takes the delta
    between your drifted file and its baseline and asks the model to propose a prompt
-   amendment — including test-case updates when the behavior changed. It never silently
+   amendment, including test-case updates when the behavior changed. It never silently
    rewrites your words; you accept the amendment, the module goes stale, and the next
    `napl gen` must reproduce your edit, proven by tests. This is the path for a deliberate
    change you made in the code first.
@@ -73,14 +73,14 @@ because it exits non-zero the moment the code and prompt disagree:
 | `DRIFT`        | A locked file was edited by hand                     | 1    |
 | `unattributed` | Generated files exist but attribution failed         | 1    |
 
-`prompt-stale` is not an error — it just means you've edited a prompt and haven't regenerated
+`prompt-stale` is not an error: it just means you've edited a prompt and haven't regenerated
 yet. `DRIFT` and `unattributed` are the two that fail the build.
 
 ## Identity is the name, not the path
 
 A module's identity is its frontmatter `module:` name, never its file path. Discovery walks
 the whole tree and resolves each module wherever its files happen to live, so **you can move
-prompt files freely** — reorganize directories, rename folders, group by feature — and
+prompt files freely** (reorganize directories, rename folders, group by feature) and
 nothing breaks. (Two files claiming the same module name is the one hard error; identity has
 to be unique.)
 
@@ -89,13 +89,13 @@ as drift:
 
 - **Identical content at a new path** is recognized as a move, re-recorded, and relocked. No
   drift, no regen.
-- **Mostly-similar content at a new path** heals as moved-plus-drifted — the move is tracked
+- **Mostly-similar content at a new path** heals as moved-plus-drifted: the move is tracked
   and the remaining delta is surfaced as ordinary drift.
-- **An ambiguous match** — where the toolchain can't tell which file moved where — refuses to
+- **An ambiguous match** (where the toolchain can't tell which file moved where) refuses to
   guess and reports it for you to resolve.
 
 The healing is content-hash based, the same mechanism drift detection uses, run in reverse: a
 file whose hash matches a known locked file at a different path is a move, not a violation.
 
-Next: [Running it for real](/docs/running) — watch mode, choosing your coding agent, and
+Next: [Running it for real](/docs/running): watch mode, choosing your coding agent, and
 wiring `status` into CI.

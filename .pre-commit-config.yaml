@@ -1,0 +1,17 @@
+repos:
+  - repo: local
+    hooks:
+      - id: oxfmt
+        name: oxfmt (format staged files)
+        entry: bash -c 'root=$(git rev-parse --show-toplevel); "$root/node_modules/.bin/oxfmt" --write "$@" && git add -- "$@"' --
+        language: system
+        pass_filenames: true
+        files: '\.(m?[jt]sx?|c[jt]s|jsonc?|md)$'
+        exclude: '^(.*/)?(dist|build|\.turbo)/|^conformance/|^selfhost/|^rust/|(^|/)\.napl/'
+      - id: oxlint
+        name: oxlint (lint staged files)
+        entry: bash -c 'root=$(git rev-parse --show-toplevel); "$root/node_modules/.bin/oxlint" --fix "$@" && git add -- "$@"' --
+        language: system
+        pass_filenames: true
+        files: '\.(m?[jt]sx?|c[jt]s)$'
+        exclude: '^(.*/)?(dist|build|\.turbo)/|^conformance/|^selfhost/|^rust/|(^|/)\.napl/'

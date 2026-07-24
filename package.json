@@ -3,19 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "description": "Prompts are the source of truth: a coding agent generates and locks per-target code, attributed line by line. The Rust toolchain lives in rust/; the conformance corpus is its acceptance gate.",
-  "type": "module",
   "license": "MIT",
-  "engines": {
-    "node": ">=22"
-  },
-  "packageManager": "pnpm@11.7.0",
+  "type": "module",
   "scripts": {
-    "conformance": "turbo run conformance"
+    "prepare": "node -e \"process.exit(process.env.CI || process.env.GIT_INDEX_FILE ? 0 : 1)\" || prek install",
+    "conformance": "turbo run conformance",
+    "lint": "oxlint && node --experimental-strip-types scripts/check-content.ts",
+    "lint:content": "node --experimental-strip-types scripts/check-content.ts",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
   },
   "devDependencies": {
+    "@j178/prek": "^0.4.5",
     "@types/node": "^26.1.1",
+    "fallow": "2.98.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0",
     "turbo": "^2.5.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
-  }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.7.0"
 }

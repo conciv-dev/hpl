@@ -20,21 +20,21 @@ Anyone can ask a model for code. The problem is everything _after_: the chat scr
 away, the code stays, and nobody remembers why any line exists. NAPL inverts that. When
 you run `napl gen <target>`, a coding agent:
 
-- **writes a real project** and iterates until the tests you declared pass — the tests
+- **writes a real project** and iterates until the tests you declared pass: the tests
   are data in the prompt's frontmatter, not an afterthought;
 - **maps every sentence to the exact lines that implement it.** Hover a sentence in the
-  example above to see them. If the agent can't prove that mapping, the build _fails_ —
+  example above to see them. If the agent can't prove that mapping, the build _fails_:
   attribution is a hard gate, not a nicety;
 - **locks the result read-only.** Edit the generated code by hand and `napl status`
   reports drift and exits non-zero, so your CI catches it.
 
 The English stays the source of truth. The code becomes a build artifact: inspectable,
-tested, traceable — never hand-edited. To change behavior, you change the prompt.
+tested, traceable, never hand-edited. To change behavior, you change the prompt.
 
 ## The compile is a dialogue
 
-Gen doesn't only emit code. The model writes back into the margin of your prompt — a
-`.mapl` file per module — flagging where your words were unclear (**ambiguity**, a red
+Gen doesn't only emit code. The model writes back into the margin of your prompt (a
+`.mapl` file per module) flagging where your words were unclear (**ambiguity**, a red
 squiggle), what it decided that you left open (**assumption**), and why the code came
 out as it did (**note**). A prompt change that produces no code change must say why, or
 the gen fails: silence is forbidden. Ambiguity becomes a first-class compile diagnostic,
@@ -44,7 +44,7 @@ the way a type error is.
   <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="Install, write a prompt, generate tested code — five commands."
+    description="Install, write a prompt, generate tested code: five commands."
   />
   <Card
     title="Writing prompts that hold"
@@ -54,12 +54,12 @@ the way a type error is.
   <Card
     title="Self-host"
     href="/docs/selfhost"
-    description="NAPL regenerating its own Rust toolchain from prompts — to a fixed point."
+    description="NAPL regenerating its own Rust toolchain from prompts, all the way to a fixed point."
   />
 </Cards>
 
 <Callout>
-  Status: wild experiment — a bet that English can be a real programming language if the
+  Status: wild experiment, a bet that English can be a real programming language if the
   toolchain enforces the discipline compilers used to. The voice here is honest and
   experimental; expect sharp edges, and see [Running it for real](/docs/running) for
   what the coding agent actually needs on your machine.

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn"],
+  "jsPlugins": [{"name": "napl", "specifier": "./tools/oxlint/napl-rules.js"}],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "napl/no-comments": "error",
+    "napl/no-em-dash": "error",
+    "napl/no-emoji": "error",
+    "unicorn/filename-case": ["error", {"case": "kebabCase"}],
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/require-module-specifiers": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/no-unstable-nested-components": "off",
+    "react-hooks/exhaustive-deps": "warn",
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["_splat", "__TSR_ROUTER__", "__TSR_index"]
+      }
+    ]
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "overrides": [
+    {
+      "files": ["**/*.worker.ts"],
+      "rules": {
+        "unicorn/require-post-message-target-origin": "off"
+      }
+    },
+    {
+      "files": ["**/routes/**/$*.ts", "**/routes/**/$*.tsx"],
+      "rules": {
+        "unicorn/filename-case": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist",
+    "build",
+    "node_modules",
+    ".turbo",
+    ".source",
+    ".wrangler",
+    ".output",
+    ".nitro",
+    ".tanstack",
+    ".playwright-cli",
+    "**/*.gen.ts",
+    "**/test-results",
+    "**/target",
+    "packages/napl-wasm/pkg",
+    "apps/site/src/fixtures",
+    "conformance",
+    "**/.napl"
+  ]
+}

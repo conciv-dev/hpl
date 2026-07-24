@@ -6,7 +6,7 @@ description: Watch mode for the edit loop, the agent-engine and backend model (a
 Once you've written a prompt or two, the question becomes operational: how do you run this
 in a tight edit loop, which coding agent actually does the work, and how do you keep a team
 honest in CI? This page covers all three, including the one piece of the setup that trips
-people up — why `claude` has to be on your `PATH` even when a different agent writes the code.
+people up: why `claude` has to be on your `PATH` even when a different agent writes the code.
 
 ## Watch mode
 
@@ -22,7 +22,7 @@ napl watch typescript --once               # drain pending changes, then exit
 
 Saving a `.napl` file triggers a debounced gen (default 400ms) for the affected module only.
 `--once` is the CI-friendly form: it processes whatever is currently pending and exits,
-rather than staying resident. Watch is the incremental gen loop — nothing about the gates
+rather than staying resident. Watch is the incremental gen loop: nothing about the gates
 relaxes because you're in watch mode.
 
 ## Agent engines and adapters
@@ -46,11 +46,11 @@ ship:
 
 | Preset   | Coding agent                          | Extra config                                  |
 | -------- | ------------------------------------- | --------------------------------------------- |
-| `claude` | the `claude` CLI in agentic mode      | — (the default)                               |
+| `claude` | the `claude` CLI in agentic mode      | none (the default)                            |
 | `codex`  | the `codex` CLI in headless mode      | `codex` must be on your `PATH`                |
 | `custom` | any CLI you name                      | `command:` array with `{task}`/`{dir}` slots  |
 
-A `custom` agent is any command template — for example
+A `custom` agent is any command template, for example
 `"command": ["mycli", "--task-file", "{task}", "--dir", "{dir}"]`. So the agent that _writes
 the code_ genuinely can be any tool you like.
 
@@ -58,24 +58,24 @@ the code_ genuinely can be any tool you like.
 
 Here is the part to internalize: whichever agent writes the code, the **attribution, IR, and
 machine-layer derivations currently route through the `claude` CLI client**. That is why
-`napl gen` calls a hard check for `claude` on your `PATH` before it does anything — and then
+`napl gen` calls a hard check for `claude` on your `PATH` before it does anything, and then
 separately checks that your chosen agent (codex, or your custom command) is available too.
 
 So today the honest statement is: **`claude` is required regardless of your agent preset.**
 Running codex as your coding agent works, but claude still has to be present to anchor the
-derivations. There is no API key involved either way — the `claude-cli` backend reuses your
+derivations. There is no API key involved either way: the `claude-cli` backend reuses your
 existing Claude Code login.
 
 <Callout type="warn">
   The `anthropic-api` backend (calling the Anthropic API directly with an
-  `ANTHROPIC_API_KEY`) is **not yet supported in the native Rust CLI** — `napl gen` exits
+  `ANTHROPIC_API_KEY`) is **not yet supported in the native Rust CLI**: `napl gen` exits
   with a clear message if `lock.json` selects it. Use the default `claude-cli` backend. A
   `lock.json` with no `backend` field is treated as `claude-cli`.
 </Callout>
 
 ## CI setup
 
-The `.napl/` directory is committed by design — it's the durable record of every gen, and it
+The `.napl/` directory is committed by design: it's the durable record of every gen, and it
 is what makes CI able to check the prompt/code connection without regenerating anything. Three
 mechanisms make a team's discipline mechanical rather than cultural:
 
@@ -84,11 +84,11 @@ mechanisms make a team's discipline mechanical rather than cultural:
 
    ```yaml title=".github/workflows/napl.yml"
    - run: npm i -g napl-lang
-   - run: napl status   # exits 1 on DRIFT or unattributed — fails the build
+   - run: napl status   # exits 1 on DRIFT or unattributed, fails the build
    ```
 
    Because `.napl/` (including `map.json` and the recorded hashes) is in the repo, `status`
-   needs no agent and no network — it just compares the committed hashes against the files on
+   needs no agent and no network: it just compares the committed hashes against the files on
    disk.
 
 2. **The pre-commit hook.** `napl init` installs a POSIX `pre-commit` hook that runs
@@ -96,11 +96,11 @@ mechanisms make a team's discipline mechanical rather than cultural:
    WIP escape hatch is the usual `git commit --no-verify`.
 
 3. **The lock rails.** The `0444` locks plus the `.claude/settings.json` deny rules mean an AI
-   agent working in the repo is mechanically stopped from editing generated files — the same
+   agent working in the repo is mechanically stopped from editing generated files: the same
    protection described in [Drift, moves & reconcile](/docs/drift#locked-but-softly).
 
-If your CI needs to _regenerate_ rather than just verify — for a target you don't commit, say
-— that job needs `claude` on its `PATH` and a Claude Code login available, per the adapter
+If your CI needs to _regenerate_ rather than just verify (for a target you don't commit, say)
+that job needs `claude` on its `PATH` and a Claude Code login available, per the adapter
 rules above. Most pipelines only need `napl status`, which needs neither.
 
 Next: the [file formats](/docs/file-formats) and [CLI](/docs/cli) references for the exhaustive

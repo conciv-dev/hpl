@@ -1,10 +1,10 @@
 ---
 title: Self-host
-description: NAPL regenerating its own toolchain from prompts — to a literal fixed point, then self-hosting the I/O shells too.
+description: NAPL regenerating its own toolchain from prompts, all the way to a literal fixed point, then self-hosting the I/O shells too.
 ---
 
 The endgame is to rewrite NAPL's own toolchain as `.napl` prompts targeting Rust, with the
-hand-written binary acting as **stage0** — the compiler that generates its successor. This
+hand-written binary acting as **stage0**, the compiler that generates its successor. This
 page is the proof track: what has been generated, how it's gated, and the point at which the
 generator reproduces itself exactly.
 
@@ -22,15 +22,15 @@ equivalence gates            the hand-written modules' own unit-test corpora,
 ## The fixpoint is behavioral, not byte-identical
 
 A generated module passes when the hand-written module's exact test corpus passes against it,
-whatever the implementation looks like. The pilot module — `body_lines`, frontmatter
-line-offset math — genned on attempt 1, passed its corpus 5/5, and honestly flagged the one
+whatever the implementation looks like. The pilot module (`body_lines`, frontmatter
+line-offset math) genned on attempt 1, passed its corpus 5/5, and honestly flagged the one
 thing the prose left open (the return type) as a machine-layer assumption rather than hiding
 it. That is the compile-as-dialogue model working on the toolchain's own code.
 
 From there the campaign generated the toolchain in dependency-ordered waves: the pure
 `napl-core` crate (all 23 modules), then the pure cores extracted from the `napl-cli` I/O
-layer. Each generated crate composes on its _generated_ siblings by path — a wave-2 module
-depends on the generated wave-1 crate, never on hand-written code — expressed entirely in
+layer. Each generated crate composes on its _generated_ siblings by path (a wave-2 module
+depends on the generated wave-1 crate, never on hand-written code) expressed entirely in
 prompt prose, with the conformance corpus staying byte-identical throughout.
 
 ## The toolchain regenerates itself
@@ -43,8 +43,8 @@ force-regenerated from prose with the stage1 binary (in dependency order) to bui
   **245/245** · clippy clean · `napl status` **36/36 clean** · generated-workspace `cargo test`
   **419/419**.
 - **Every module converged on gen attempt 1; the escape-hatch list is empty.**
-- Every force-regen was a **byte-identical no-op** — `gen(src) == src`, verified by all 36
-  journal entries recording 0 file patches — so stage2 is bit-identical to stage1.
+- Every force-regen was a **byte-identical no-op**: `gen(src) == src`, verified by all 36
+  journal entries recording 0 file patches, so stage2 is bit-identical to stage1.
 
 That last point is the strong result: the generated source is a **literal fixed point** of
 the generator, not merely a behavioral one. The toolchain reads its own prompts, regenerates
@@ -53,14 +53,14 @@ its own source, and produces exactly what was already there.
 ## The shell wave
 
 The fixpoint covered the pure logic. The **shell wave** goes the rest of the way, self-hosting
-the `napl-cli` I/O shells themselves — filesystem, subprocess, and orchestration plumbing —
+the `napl-cli` I/O shells themselves (filesystem, subprocess, and orchestration plumbing)
 gated by the conformance corpus (byte-identical goldens) rather than unit vectors. The first
 batches pushed the count of generated modules past **39** (`fsutil`, the deprecation notice,
 the discovery stragglers, then the subprocess and state I/O leaves), each converging on
 attempt 1 and each keeping conformance byte-identical before and after the swap.
 
 A gen-time gate was added along the way: a generated module whose `Cargo.toml` declares a path
-dependency on a sibling not listed in its prompt's `deps:` now fails the gen — the enforcement
+dependency on a sibling not listed in its prompt's `deps:` now fails the gen: the enforcement
 half of the [enumeration-vs-imperative lesson](/docs/writing-prompts#deletable-sentences-and-load-bearing-sentences).
 The corpus grew 47 → 48 to pin it.
 
@@ -69,7 +69,7 @@ The corpus grew 47 → 48 to pin it.
 Not every module has to gen cleanly, and the campaign never forces convergence. Scaling keeps
 an **escape-hatch list**: modules that stay hand-written until their prompt drives a generation
 that passes its corpus. The list is the honest measure of how much of the toolchain actually
-self-hosts — and it is currently empty, which is the claim, stated so it can be checked.
+self-hosts, and it is currently empty, which is the claim, stated so it can be checked.
 
 <Callout>
   Explore the [interactive showcase](/selfhost): the self-hosted modules with prompt on the

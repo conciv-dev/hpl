@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/build/**",
+    "**/.turbo/**",
+    "**/*.d.ts",
+    "**/*.gen.ts",
+    "conformance/scenarios/**",
+    "rust/**",
+    "**/.napl/**",
+    "selfhost/**",
+    "packages/napl-wasm/pkg/**",
+    "apps/site/src/fixtures/**",
+    "apps/site/test/e2e/**"
+  ],
+  "duplicates": {
+    "minOccurrences": 3
+  },
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCrap": 30
+  },
+  "rules": {
+    "unused-exports": "warn",
+    "unused-dependencies": "warn",
+    "unused-dev-dependencies": "warn",
+    "circular-dependencies": "warn"
+  },
+  "ignoreDependencies": [
+    "collections",
+    "@napl-lang/binary-darwin-arm64",
+    "@napl-lang/binary-darwin-x64",
+    "@napl-lang/binary-linux-arm64-gnu",
+    "@napl-lang/binary-linux-x64-gnu",
+    "@napl-lang/binary-win32-x64"
+  ],
+  "ignoreUnresolvedImports": ["collections/*"],
+  "ignoreExports": [
+    {
+      "file": "apps/site/src/components/ui/**",
+      "exports": ["*"]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ see [Writing prompts that hold](/docs/writing-prompts) and [Drift, moves & recon
 
 A prompt is YAML frontmatter (machine-facing metadata) followed by markdown prose (the
 contract handed to the coding agent). Edit the example below and the validator runs as you
-type — break the YAML or misspell a field and the squiggle appears.
+type. Break the YAML or misspell a field and the squiggle appears.
 
 <NaplExample
   filename="auth/session.napl"
@@ -35,7 +35,7 @@ SESSION_EXPIRED, never silently renewed.
 
 | Field     | Type       | Required | Description                                                                                          |
 | --------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------- |
-| `module`  | `string`   | yes      | The module's identity — a name, which may be path-like (`auth/session`). Not a file path.            |
+| `module`  | `string`   | yes      | The module's identity: a name, which may be path-like (`auth/session`). Not a file path.            |
 | `deps`    | `string[]` | no       | Dependency module names. Surfaced to the agent as `Declared dependencies: …` and enforced at gen.    |
 | `targets` | `string[]` | no       | Target languages to generate for, e.g. `typescript`, `react`, `rust`.                                |
 | `tests`   | `Test[]`   | no       | `given`/`expect` cases as data. They gate every generation.                                          |
@@ -49,7 +49,7 @@ reimplement it lives in the prose (see [load-bearing sentences](/docs/writing-pr
 
 ## The `.mapl` reply
 
-`napl gen` writes a `.mapl` file per module — the machine layer's answer, regenerated on
+`napl gen` writes a `.mapl` file per module: the machine layer's answer, regenerated on
 every compile. Its top level is `{ module, target, entries }`; each entry records the prompt
 lines it refers to and one of four kinds.
 
@@ -67,51 +67,52 @@ lines it refers to and one of four kinds.
 | ------------- | ----------------- | -------------------------------------------------------------------- |
 | `promptLines` | `LineRange`       | The 1-based body line(s) the entry refers to (scalar `n` or `[a,b]`).|
 | `kind`        | see below         | One of `ambiguity`, `assumption`, `no-op`, `note`.                   |
-| `message`     | `string`          | Required, non-empty — the one-line summary.                          |
+| `message`     | `string`          | Required, non-empty: the one-line summary.                          |
 | `reasoning`   | `string`          | Optional prose reasoning (defaults empty).                           |
 | `suggestion`  | `string \| null`  | Optional suggested rewording, chiefly for `ambiguity`.               |
 
 ### Kinds and severities
 
-The kind maps to an editor diagnostic severity — this is how ambiguity becomes a first-class
+The kind maps to an editor diagnostic severity: this is how ambiguity becomes a first-class
 compile diagnostic:
 
 | Kind         | Severity      | Meaning                                                                            |
 | ------------ | ------------- | ---------------------------------------------------------------------------------- |
 | `ambiguity`  | error         | Your words were unclear. Red squiggle on the exact words, usually with a rewording.|
 | `assumption` | warning       | A decision your prose left open; the model chose one.                              |
-| `no-op`      | warning       | The prompt changed but the code didn't — the entry must say why, or the gen fails. |
+| `no-op`      | warning       | The prompt changed but the code didn't: the entry must say why, or the gen fails. |
 | `note`       | information    | Hover-visible reasoning about why the code is shaped this way.                     |
 
 ## Emoji aliases
 
 Each side of the dialogue has a canonical extension and emoji aliases. Both spellings in a
-pair are byte-identical to every tool — discovery, LSP, grammar, the VS Code extension:
+pair are byte-identical to every tool (discovery, LSP, grammar, the VS Code extension):
 
-| Side    | Canonical | Aliases                             | Voice            |
-| ------- | --------- | ----------------------------------- | ---------------- |
-| Human   | `.napl`   | `.🧑` `.🧓` `.👤` `.👨` `.👩` `.🧒` | what you write   |
-| Machine | `.mapl`   | `.🤖`                               | its margin notes |
+| Side    | Canonical | Alias   | Voice            |
+| ------- | --------- | ------- | ---------------- |
+| Human   | `.napl`   | `.🧑`   | what you write   |
+| Machine | `.mapl`   | `.🤖`   | its margin notes |
 
-The human aliases are a curated single-code-point list on purpose. ZWJ sequences (like
-`.👨‍💻`) are rejected so filenames stay filesystem-safe and round-trip cleanly across tools
-and shells. Override the human list in `lock.json`:
+The human alias is a single code point on purpose. ZWJ sequences (a base
+emoji joined to another with a zero-width joiner) are rejected so filenames stay
+filesystem-safe and round-trip cleanly across tools and shells. Override the human alias in
+`lock.json`:
 
 ```json title=".napl/lock.json"
 {
   "model": "claude-sonnet-5",
-  "promptAliases": [".🧑", ".🧓"]
+  "promptAliases": [".🧑"]
 }
 ```
 
-Each override entry starts with `.`, carries one or two code points after the dot, and may
+Each override entry starts with `.`, carries a single code point after the dot, and may
 not contain a ZWJ. **The mirror rule:** `napl gen` writes `.mapl` for a `.napl` prompt and
-`.🤖` for an emoji-spelled one — it mirrors your choice. Reading accepts both spellings on
+`.🤖` for an emoji-spelled one. It mirrors your choice. Reading accepts both spellings on
 both sides.
 
 ## The `.napl/` directory
 
-Committed by design — the durable record of every gen, and what lets `napl status` verify the
+Committed by design: the durable record of every gen, and what lets `napl status` verify the
 prompt/code connection in CI without regenerating.
 
 | Path                        | Contents                                                             |

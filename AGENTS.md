@@ -15,6 +15,8 @@ Operational rules for agents and contributors in this repo. The product story li
 - TypeScript only for JS surfaces: no authored `.js`/`.mjs` files. Node scripts are `.ts` (native type stripping). Exceptions: generated artifacts (wasm pkg) and the published npm shim (`npm/napl-lang/bin`, CommonJS by design).
 - Filenames: kebab-case everywhere. Component names stay PascalCase; files do not.
 - Formatting/linting: oxfmt + oxlint at the root (`pnpm format`, `pnpm lint`) — no semicolons, single quotes, printWidth 120. Run both before finishing.
+- No em dashes anywhere, including inside string literals and test names. Use a comma, colon, or period.
+- No emoji anywhere, with one exception: the two NAPL file-extension alias code points U+1F9D1 and U+1F916. The three `napl/*` oxlint rules (`napl/no-comments`, `napl/no-em-dash`, `napl/no-emoji`, custom rules in `tools/oxlint/napl-rules.js`) plus `pnpm lint:content` (`scripts/check-content.ts`, over `apps/site/content`) enforce comments, em dashes, and emoji mechanically, so a violation fails lint rather than review.
 - Strict TS: no `any`, no `as` escapes, named exports.
 
 ## UI work (apps/site, packages/napl-editor)
@@ -34,6 +36,18 @@ Operational rules for agents and contributors in this repo. The product story li
 - Expected-no-op discipline: a regen after a prompt edit should produce 0 file patches with an honest mapl entry. A regen that produces real patches means the prompt lost or gained meaning — stop and investigate, do not plow on.
 - Escape-hatch list (docs/selfhost-map.md) for modules that won't converge in 3 attempts — with the reason. Never force convergence.
 - Gate battery after toolchain/selfhost changes: conformance byte-identical, `cargo test --workspace`, `cargo clippy --workspace --all-targets` clean, `selfhost/equivalence` tests, generated-tree `cargo test`, `napl status` fully clean.
+
+## Codebase analysis (fallow)
+
+- Before finishing a task, run `pnpm exec fallow audit --changed-since main --format json` and fix anything it flags as INTRODUCED: dead code, unused exports or dependencies, duplication, complexity, circular deps. Fallow builds the whole module graph, so it catches cross-file dead code and unused deps that are invisible from a single file.
+- Before deleting a supposedly-unused export, verify with `pnpm exec fallow dead-code --trace 'file.ts:Symbol'`. A "USED but file unreachable" result means a missing entry point, not dead code, so do not delete it.
+- Config is `.fallowrc.json`. It ignores the byte-sensitive and generated trees (`rust/`, `selfhost/`, every `.napl/`, `conformance/scenarios/`, `apps/site/src/fixtures/`, `apps/site/test/e2e/`, wasm `pkg`, `*.gen.ts`, `*.d.ts`) and lists the five published binary packages under `ignoreDependencies` so they never read as unused. CI runs the same audit (`.github/workflows/fallow.yml`).
+
+## Commit hooks (prek)
+
+- `prek` (devDep `@j178/prek`, config `.pre-commit-config.yaml`) runs oxfmt then oxlint on staged files. The `prepare` script auto-installs the hook on `pnpm install`; there is no per-clone step. The byte-sensitive and generated trees (`conformance/`, `selfhost/`, `rust/`, any `.napl/`, `dist`, `build`, `.turbo`) are excluded from both hooks.
+- The hook entries call the binaries directly from `node_modules/.bin` (resolved via `git rev-parse --show-toplevel`), never through `pnpm exec`. Going through `pnpm exec` inside a hook triggers pnpm's verify-deps-before-run install against the stashed (committed) manifest, which uninstalls the very devDeps the hook needs and then fails with `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL: Command "oxfmt" not found`. Do not reintroduce `pnpm exec` there.
+- If a hook run races the index and aborts (a `.lock.lock` file-lock error or a stash-restore conflict on a large working tree), recover with `pnpm format` then `git commit --no-verify`. Whole-project gates (typecheck, tests, conformance) are not in the hooks; run them manually.
 
 ## Process
 

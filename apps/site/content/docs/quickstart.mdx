@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Install the binary, write one prompt, generate tested TypeScript, and see the attribution — in five commands.
+description: Install the binary, write one prompt, generate tested TypeScript, and see the attribution, all in five commands.
 ---
 
 This page takes you from nothing to generated, tested, attributed code. It should take a
@@ -8,7 +8,7 @@ few minutes; the only prerequisite is one CLI on your `PATH`.
 
 <Callout>
   You need the [Claude Code](https://claude.ai/code) CLI (`claude`) on your `PATH`. Your
-  coding agent is configurable — codex or a custom command work too — but `claude`
+  coding agent is configurable (codex or a custom command work too) but `claude`
   anchors the attribution, IR, and machine-layer derivations regardless of which agent
   writes the code, so `napl gen` checks for it before doing anything. No API key either
   way; it reuses your Claude Code login. [Running it for real](/docs/running#agent-engines-and-adapters)
@@ -38,7 +38,7 @@ napl init
 ```
 
 Writes `.napl/`, `lock.json` (pins the model and the `claude-cli` backend), an example
-prompt, and the guard rails that keep generated code honest — a `pre-commit` hook and
+prompt, and the guard rails that keep generated code honest: a `pre-commit` hook and
 deny rules that stop AI agents from hand-editing generated files.
 
 </Step>
@@ -50,7 +50,7 @@ deny rules that stop AI agents from hand-editing generated files.
 <NaplExample module="greeting" filename="greeting.napl" />
 
 Markdown prose plus YAML frontmatter. The prose is the contract; the `tests:` are data,
-and they gate the build. This example is editable — delete the `tests:` key and watch the
+and they gate the build. This example is editable: delete the `tests:` key and watch the
 validator object before you ever run the CLI. The right-hand tab is the code it generated.
 
 </Step>
@@ -87,5 +87,5 @@ it, or Cmd+click to jump straight into them.
 
 </Steps>
 
-Next: [Writing prompts that hold](/docs/writing-prompts) — how to write a prompt the
+Next: [Writing prompts that hold](/docs/writing-prompts): how to write a prompt the
 toolchain can hold you to, and which sentences carry real weight.
