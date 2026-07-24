@@ -1,0 +1,29 @@
+name: agent-invalid-preset
+description: >
+  lock.json is strictly parsed: an unknown agent preset is a hard parse error,
+  not a silent fallback. gen refuses to run and exits non-zero.
+setup:
+  .napl/lock.json: |
+    {
+      "model": "claude-sonnet-5",
+      "backend": "claude-cli",
+      "agent": {
+        "preset": "gpt"
+      }
+    }
+  examples/greeting.napl: |
+    ---
+    module: greeting
+    deps: []
+    targets: [typescript]
+    tests: []
+    ---
+    Greet a person by name.
+run: [gen, typescript]
+expect:
+  exitCode: 1
+  stderrContains:
+    - "napl:"
+    - "unknown variant"
+    - "claude"
+    - "custom"

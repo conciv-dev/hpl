@@ -147,6 +147,70 @@ pub fn build_incremental_task(
     parts.join("\n")
 }
 
+/// One drifted file's observed edit, for the reconcile task.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReconcileFile {
+    /// The generated file path (relative to the project root).
+    pub file: String,
+    /// The recorded-baseline -> current unified diff of the hand edit.
+    pub diff: String,
+}
+
+/// Build the reconcile coding-agent task: amend the prompt so a future
+/// regeneration reproduces the observed hand edits. The agent edits the prompt
+/// file(s), never the generated source.
+#[must_use]
+pub fn build_reconcile_task(
+    module: &str,
+    prompt_file: &str,
+    body: &str,
+    files: &[ReconcileFile],
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    parts.push(format!(
+        "You are reconciling hand edits back into the prompt (the durable source of truth) for the module \"{module}\"."
+    ));
+    parts.extend(
+        [
+            "A developer edited generated source files directly, so they no longer match the prompt.",
+            "Amend the prompt file below so that regenerating from it would reproduce the edited behavior.",
+            "Edit ONLY the prompt file(s) named here — NEVER touch the generated source under .napl/src.",
+            "",
+        ]
+        .iter()
+        .map(ToString::to_string),
+    );
+    parts.push(format!("Prompt file to amend: {prompt_file}"));
+    parts.extend(
+        ["", "Current prompt body:", "\"\"\""]
+            .iter()
+            .map(ToString::to_string),
+    );
+    parts.push(body.trim().to_string());
+    parts.push("\"\"\"".to_string());
+    parts.push(String::new());
+    parts.push("Observed source edits (recorded baseline -> current), per file:".to_string());
+    for file in files {
+        parts.push(format!("=== FILE: {} ===", file.file));
+        parts.push("```diff".to_string());
+        parts.push(file.diff.trim().to_string());
+        parts.push("```".to_string());
+    }
+    parts.extend(
+        [
+            "",
+            "Requirements:",
+            "- Rewrite or extend the prompt prose so its described behavior matches the edited source.",
+            "- Keep the YAML frontmatter valid; change only what the behavior change requires.",
+            "- Do not restate the diff verbatim — describe the intended behavior in the prompt's own voice.",
+            "- Do not edit, create, or delete any file under .napl/src — those are regenerated from the prompt.",
+        ]
+        .iter()
+        .map(ToString::to_string),
+    );
+    parts.join("\n")
+}
+
 /// Append the change-required escalation, mirroring `buildChangeRequiredRetry`.
 #[must_use]
 pub fn build_change_required_retry(base_task: &str) -> String {
@@ -414,6 +478,25 @@ mod tests {
         assert!(task.contains("-Greet a person by name."));
         assert!(task.contains("+Greet a person by name, loudly."));
         assert!(task.contains("greet.ts lines 1-1 — builds greeting"));
+    }
+
+    #[test]
+    fn reconcile_task_carries_prompt_and_diff() {
+        let task = build_reconcile_task(
+            "greeting",
+            "examples/greeting.napl",
+            "Greet a person by name.",
+            &[ReconcileFile {
+                file: ".napl/src/typescript/greet.ts".to_string(),
+                diff: "@@ -1,1 +1,1 @@\n-Hello\n+HELLO".to_string(),
+            }],
+        );
+        assert!(task.contains("reconciling hand edits"));
+        assert!(task.contains("Prompt file to amend: examples/greeting.napl"));
+        assert!(task.contains("Greet a person by name."));
+        assert!(task.contains("=== FILE: .napl/src/typescript/greet.ts ==="));
+        assert!(task.contains("+HELLO"));
+        assert!(task.contains("NEVER touch the generated source"));
     }
 
     #[test]

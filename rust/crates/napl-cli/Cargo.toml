@@ -16,6 +16,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 clap = { version = "4", features = ["derive"] }
+notify = "8"
+ctrlc = "3"
 
 [lints]
 workspace = true

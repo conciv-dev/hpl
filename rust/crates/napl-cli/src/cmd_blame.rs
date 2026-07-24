@@ -25,6 +25,7 @@ fn mode_str(mode: JournalMode) -> &'static str {
     match mode {
         JournalMode::Full => "full",
         JournalMode::Incremental => "incremental",
+        JournalMode::Reconcile => "reconcile",
     }
 }
 

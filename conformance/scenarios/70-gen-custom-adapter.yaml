@@ -1,0 +1,65 @@
+name: gen-custom-adapter
+description: >
+  An "agent" section in lock.json with the custom preset compiles through a
+  user-supplied command template. napl writes the coding-agent task to a file,
+  substitutes {task} and {dir}, and runs the command in the target src dir. The
+  fake custom agent writes greet.ts and records the substituted {dir} and the
+  task text at the project root, proving template substitution. IR/attribution/
+  machine-layer derivations still run through the LLM client, and the file locks.
+setup:
+  .napl/lock.json: |
+    {
+      "model": "claude-sonnet-5",
+      "backend": "claude-cli",
+      "agent": {
+        "preset": "custom",
+        "command": ["fake-agent", "--task-file", "{task}", "--dir", "{dir}"]
+      }
+    }
+  examples/greeting.napl: |
+    ---
+    module: greeting
+    deps: []
+    targets: [typescript]
+    tests: []
+    ---
+    Greet a person by name.
+script:
+  ir:
+    - |
+      ```yaml
+      module: greeting
+      deps: []
+      types: []
+      functions: []
+      tests: []
+      ```
+  attribution:
+    - |
+      ```yaml
+      - promptLines: [1, 1]
+        file: greet.ts
+        lines: [1, 1]
+        note: "builds the greeting string"
+      ```
+  ml:
+    - |
+      ```yaml
+      []
+      ```
+run: [gen, typescript]
+expect:
+  exitCode: 0
+  stdoutContains:
+    - "gen     greeting (typescript)"
+    - "generated 1, skipped 0"
+  files:
+    .napl/src/typescript/greet.ts:
+      mode: "0444"
+      content: "export const greet = (name: string): string => `Hello, ${name}!`;\n"
+    agent-capture.txt:
+      contains:
+        - "dir="
+        - "/.napl/src/typescript"
+        - "You are a coding agent implementing the module \"greeting\""
+        - "Greet a person by name."

@@ -26,7 +26,8 @@ pub use journal::{
 };
 pub use line_range::LineRange;
 pub use lock::{
-    parse_lock, resolve_prompt_aliases, Backend, HlLock, DEFAULT_BACKEND, DEFAULT_MODEL,
+    default_agent_config, parse_lock, resolve_agent_config, resolve_prompt_aliases, AgentConfig,
+    AgentPreset, Backend, HlLock, DEFAULT_AGENT_PRESET, DEFAULT_BACKEND, DEFAULT_MODEL,
 };
 pub use map::{
     declared_targets_for_module, empty_map, files_for_module, has_module, is_prompt_gen_stale,

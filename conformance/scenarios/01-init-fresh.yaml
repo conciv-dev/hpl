@@ -25,7 +25,10 @@ expect:
       content: |
         {
           "model": "claude-sonnet-5",
-          "backend": "claude-cli"
+          "backend": "claude-cli",
+          "agent": {
+            "preset": "claude"
+          }
         }
     .napl/map.json:
       content: |

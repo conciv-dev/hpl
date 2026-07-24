@@ -7,8 +7,10 @@ mod cmd_blame;
 mod cmd_build;
 mod cmd_gen;
 mod cmd_init;
+mod cmd_reconcile;
 mod cmd_status;
 mod cmd_test;
+mod cmd_watch;
 mod driftdetect;
 mod error;
 mod fsutil;
@@ -65,6 +67,28 @@ enum Command {
         #[arg(short = 'v', long)]
         verbose: bool,
     },
+    /// Fold drifted src edits back into the prompt, then leave the module stale for regen.
+    Reconcile {
+        /// Target language (e.g. typescript, react).
+        target: String,
+        /// Scope the run to a single module by name.
+        #[arg(short = 'm', long)]
+        module: Option<String>,
+    },
+    /// Watch prompt files and auto-run gen for changed modules on save.
+    Watch {
+        /// Target language (e.g. typescript, react).
+        target: String,
+        /// Scope the run to a single module by name.
+        #[arg(short = 'm', long)]
+        module: Option<String>,
+        /// Debounce window in milliseconds before a settled change triggers gen.
+        #[arg(long, default_value_t = 400)]
+        debounce: u64,
+        /// Process the currently-pending changes once, then exit.
+        #[arg(long)]
+        once: bool,
+    },
     /// Report clean / prompt-stale / DRIFT / unattributed per prompt.
     Status,
     /// Run generated tests for a target without regenerating.
@@ -118,6 +142,27 @@ fn real_main() -> i32 {
                 line,
                 gen,
                 verbose,
+            },
+        ),
+        Command::Reconcile { target, module } => cmd_reconcile::run(
+            &root,
+            &cmd_reconcile::ReconcileArgs {
+                target: &target,
+                module: module.as_deref(),
+            },
+        ),
+        Command::Watch {
+            target,
+            module,
+            debounce,
+            once,
+        } => cmd_watch::run(
+            &root,
+            &cmd_watch::WatchArgs {
+                target: &target,
+                module: module.as_deref(),
+                debounce,
+                once,
             },
         ),
         Command::Status => cmd_status::run(&root),

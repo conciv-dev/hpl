@@ -102,7 +102,7 @@ pub fn format_gen_drift_report(drifts: &[ModuleDrift], target: &str) -> String {
         lines.push(String::new());
         lines.push("  Resolve it one of three ways:".to_string());
         lines.push(format!(
-            "    1) napl reconcile {}  — fold this edit back into your prompt (coming soon)",
+            "    1) napl reconcile {}  — fold this edit back into your prompt",
             drift.module
         ));
         lines.push(format!(

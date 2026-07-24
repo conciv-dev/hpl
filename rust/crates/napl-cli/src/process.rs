@@ -93,6 +93,151 @@ pub fn run_agent(
     Ok(RunOutput { output, code })
 }
 
+/// The resolved coding-agent engine the toolchain compiles through.
+pub enum AgentEngine {
+    /// The `claude` CLI in agentic mode (the default).
+    Claude,
+    /// The `codex` CLI in headless mode.
+    Codex,
+    /// A user-supplied command template with `{task}`/`{dir}` placeholders.
+    Custom {
+        /// The command and its argument template.
+        command: Vec<String>,
+    },
+}
+
+/// Resolve the agent engine from the lock's agent configuration.
+#[must_use]
+pub fn resolve_engine(agent: &napl_core::schemas::AgentConfig) -> AgentEngine {
+    match agent.preset {
+        napl_core::schemas::AgentPreset::Claude => AgentEngine::Claude,
+        napl_core::schemas::AgentPreset::Codex => AgentEngine::Codex,
+        napl_core::schemas::AgentPreset::Custom => AgentEngine::Custom {
+            command: agent.command.clone().unwrap_or_default(),
+        },
+    }
+}
+
+/// Probe that the configured coding-agent engine is available on `PATH`.
+pub fn require_engine(engine: &AgentEngine) -> CliResult<()> {
+    match engine {
+        AgentEngine::Claude => require_claude(),
+        AgentEngine::Codex => require_program(
+            "codex",
+            "the \"codex\" CLI was not found on PATH. Install it, or set the agent preset to \"claude\" or \"custom\" in .napl/lock.json.",
+        ),
+        AgentEngine::Custom { command } => {
+            if command.is_empty() {
+                return Err(CliError::new(
+                    "the \"custom\" agent preset has an empty command in .napl/lock.json.",
+                ));
+            }
+            Ok(())
+        }
+    }
+}
+
+fn require_program(program: &str, message: &str) -> CliResult<()> {
+    let status = Command::new(program)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    match status {
+        Ok(status) if status.success() => Ok(()),
+        _ => Err(CliError::new(message)),
+    }
+}
+
+/// Run the coding agent through the resolved engine. The contract is uniform:
+/// the agent runs in `cwd`, receives the task text, edits files, and exits 0.
+pub fn run_coding_agent(
+    engine: &AgentEngine,
+    task: &str,
+    cwd: &Path,
+    model: &str,
+    allowed_tools: &[String],
+) -> CliResult<RunOutput> {
+    match engine {
+        AgentEngine::Claude => run_agent(task, cwd, model, allowed_tools),
+        AgentEngine::Codex => run_codex(task, cwd, model),
+        AgentEngine::Custom { command } => run_custom(task, cwd, command),
+    }
+}
+
+fn run_codex(task: &str, cwd: &Path, model: &str) -> CliResult<RunOutput> {
+    let args = vec![
+        "exec".to_string(),
+        "--full-auto".to_string(),
+        "--model".to_string(),
+        model.to_string(),
+    ];
+    let (stdout, stderr, code) = run_with_stdin("codex", &args, Some(cwd), task)
+        .map_err(|e| CliError::new(format!("failed to spawn the \"codex\" agent: {e}")))?;
+    let output = if stderr.trim().is_empty() {
+        stdout
+    } else {
+        format!("{stdout}\n{stderr}")
+    };
+    Ok(RunOutput { output, code })
+}
+
+fn substitute_template(arg: &str, task_file: &str, dir: &str) -> String {
+    arg.replace("{task}", task_file).replace("{dir}", dir)
+}
+
+fn run_custom(task: &str, cwd: &Path, command: &[String]) -> CliResult<RunOutput> {
+    if command.is_empty() {
+        return Err(CliError::new("the custom agent command is empty"));
+    }
+    let task_file = std::env::temp_dir().join(format!(
+        "napl-agent-task-{}-{}.txt",
+        std::process::id(),
+        now_nanos()
+    ));
+    std::fs::write(&task_file, task)
+        .map_err(|e| CliError::new(format!("could not write the custom agent task file: {e}")))?;
+    let task_path = task_file.to_string_lossy().into_owned();
+    let dir = cwd.to_string_lossy().into_owned();
+    let substituted: Vec<String> = command
+        .iter()
+        .map(|arg| substitute_template(arg, &task_path, &dir))
+        .collect();
+    let result = Command::new(&substituted[0])
+        .args(&substituted[1..])
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output();
+    let _ = std::fs::remove_file(&task_file);
+    match result {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+            let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+            let combined = if stderr.trim().is_empty() {
+                stdout
+            } else {
+                format!("{stdout}\n{stderr}")
+            };
+            Ok(RunOutput {
+                output: combined,
+                code: output.status.code().unwrap_or(1),
+            })
+        }
+        Err(error) => Err(CliError::new(format!(
+            "failed to spawn the custom agent \"{}\": {error}",
+            substituted[0]
+        ))),
+    }
+}
+
+fn now_nanos() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos())
+}
+
 /// Complete an LLM request via the `claude` CLI, mirroring `createClaudeCliClient`.
 pub fn llm_complete(model: &str, system: &str, user: &str) -> CliResult<String> {
     let mut args = vec![

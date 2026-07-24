@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+// A deterministic stand-in for a custom coding-agent binary. It proves the
+// lock.json custom-adapter template substitution: napl replaces {task} with a
+// path to the task file and {dir} with the target src directory, then runs this
+// command in that directory. The agent reads the task file, writes the source
+// into {dir}, and records what it received (the substituted {dir} and the task
+// text) at the project root so the scenario can assert substitution happened.
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+function argValue(argv, flag) {
+  const index = argv.indexOf(flag);
+  if (index < 0 || index + 1 >= argv.length) return '';
+  return argv[index + 1];
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  const taskFile = argValue(argv, '--task-file');
+  const dir = argValue(argv, '--dir');
+  const task = taskFile === '' ? '' : readFileSync(taskFile, 'utf8');
+
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, 'greet.ts'),
+    'export const greet = (name: string): string => `Hello, ${name}!`;\n',
+    'utf8',
+  );
+
+  // dir is <root>/.napl/src/<target>; the project root is three levels up.
+  const root = resolve(dir, '..', '..', '..');
+  writeFileSync(join(root, 'agent-capture.txt'), `dir=${dir}\n---task---\n${task}`, 'utf8');
+
+  process.stdout.write('custom agent wrote greet.ts from the substituted template\n');
+  process.exit(0);
+}
+
+main();

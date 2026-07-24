@@ -62,8 +62,7 @@ expect:
     - "recorded baseline -> current:"
     - "-export const greet = (name: string): string => `Hello, ${name}!`;"
     - "+export const greet = (name: string): string => `HELLO, ${name}!`;"
-    - "1) napl reconcile greeting"
-    - "(coming soon)"
+    - "1) napl reconcile greeting  — fold this edit back into your prompt"
     - "2) napl gen typescript --module greeting --force"
     - "3) edit the prompt to describe the change, then napl gen typescript"
   stderrContains:

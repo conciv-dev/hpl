@@ -24,6 +24,7 @@ pub struct JournalFile {
 pub enum JournalMode {
     Full,
     Incremental,
+    Reconcile,
 }
 
 /// One journal entry (one generation).

@@ -31,7 +31,10 @@ use crate::driftdetect::detect_gen_drift;
 use crate::error::{CliError, CliResult};
 use crate::fsutil::{self, READONLY_MODE, WRITABLE_MODE};
 use crate::paths::{find_prompt_files, rel_to, resolve_paths, NaplPaths};
-use crate::process::{acquire_gen_lock, llm_complete, require_claude, run_agent, run_command};
+use crate::process::{
+    acquire_gen_lock, llm_complete, require_claude, require_engine, resolve_engine,
+    run_coding_agent, run_command, AgentEngine,
+};
 use crate::snapshot::{
     diff_snapshots, make_filter, snapshot_contents, snapshot_hashes, SnapshotFilter,
 };
@@ -70,10 +73,11 @@ pub fn run(root: &Path, args: &GenArgs) -> CliResult<i32> {
     }
     require_claude()?;
     let model = lock.model.clone();
-    require_claude()?;
+    let engine = resolve_engine(&napl_core::schemas::resolve_agent_config(&lock));
+    require_engine(&engine)?;
 
     let genlock = acquire_gen_lock(&paths.gen_lock_path)?;
-    let result = run_gen_locked(root, &paths, args, &model);
+    let result = run_gen_locked(root, &paths, args, &model, &engine);
     genlock.release();
     let summary = result?;
     println!(
@@ -338,13 +342,14 @@ fn run_attempts(
     frontmatter: &Frontmatter,
     body: &str,
     plan: &TaskPlan,
+    engine: &AgentEngine,
 ) -> CliResult<AttemptResult> {
     let mut failure: Option<String> = None;
     let mut output = String::new();
     for attempt in 1..=MAX_ATTEMPTS {
         println!("  attempt {attempt}/{MAX_ATTEMPTS}: running coding agent");
         let task = build_task(adapter, frontmatter, body, plan, failure.as_deref());
-        let run = run_agent(&task, target_dir, model, &adapter.agent_tools)?;
+        let run = run_coding_agent(engine, &task, target_dir, model, &adapter.agent_tools)?;
         output = run.output;
         let cmd = adapter.test_command(&target_dir.to_string_lossy());
         let result = run_command(&cmd.command, &cmd.args, target_dir);
@@ -363,11 +368,13 @@ fn retry_for_change(
     target_dir: &Path,
     model: &str,
     base_task: &str,
+    engine: &AgentEngine,
 ) -> CliResult<(String, bool)> {
     println!(
         "  prompt changed but the agent made no source edits — retrying once with an explicit change-required instruction"
     );
-    let run = run_agent(
+    let run = run_coding_agent(
+        engine,
         &build_change_required_retry(base_task),
         target_dir,
         model,
@@ -639,6 +646,7 @@ fn run_gen_locked(
     paths: &NaplPaths,
     args: &GenArgs,
     model: &str,
+    engine: &AgentEngine,
 ) -> CliResult<GenSummary> {
     let target = args.target;
     let adapter = get_adapter(target).map_err(CliError::new)?;
@@ -741,6 +749,7 @@ fn run_gen_locked(
             &frontmatter,
             &body,
             &builder.plan,
+            engine,
         )?;
         if !attempt.ok {
             return Err(CliError::new(format!(
@@ -755,7 +764,7 @@ fn run_gen_locked(
         if prompt_changed && changed.is_empty() {
             let base_task = build_task(&adapter, &frontmatter, &body, &builder.plan, None);
             let (output, tests_passed) =
-                retry_for_change(&adapter, &target_dir, model, &base_task)?;
+                retry_for_change(&adapter, &target_dir, model, &base_task, engine)?;
             agent_output = output;
             after = snapshot_hashes(&target_dir, &filter)?;
             changed = diff_snapshots(&before, &after);

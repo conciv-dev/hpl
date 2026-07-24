@@ -72,6 +72,7 @@ pub fn default_lock() -> HlLock {
         model: napl_core::schemas::DEFAULT_MODEL.to_string(),
         backend: Backend::ClaudeCli,
         prompt_aliases: None,
+        agent: Some(napl_core::schemas::default_agent_config()),
     }
 }
 

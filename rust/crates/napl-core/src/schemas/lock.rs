@@ -26,6 +26,38 @@ fn default_backend() -> Backend {
     DEFAULT_BACKEND
 }
 
+/// The coding-agent engine preset the toolchain compiles through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentPreset {
+    Claude,
+    Codex,
+    Custom,
+}
+
+/// The default agent preset.
+pub const DEFAULT_AGENT_PRESET: AgentPreset = AgentPreset::Claude;
+
+/// The agent-adapter configuration: which engine runs the coding agent, and,
+/// for the `custom` preset, the command template invoked (with `{task}` and
+/// `{dir}` placeholders).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentConfig {
+    pub preset: AgentPreset,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub command: Option<Vec<String>>,
+}
+
+/// The `claude`-preset agent configuration written by `init`.
+#[must_use]
+pub fn default_agent_config() -> AgentConfig {
+    AgentConfig {
+        preset: DEFAULT_AGENT_PRESET,
+        command: None,
+    }
+}
+
 /// The lock document.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HlLock {
@@ -38,6 +70,40 @@ pub struct HlLock {
         default
     )]
     pub prompt_aliases: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub agent: Option<AgentConfig>,
+}
+
+/// The effective agent configuration: the lock's override or the `claude` default.
+#[must_use]
+pub fn resolve_agent_config(lock: &HlLock) -> AgentConfig {
+    lock.agent.clone().unwrap_or_else(default_agent_config)
+}
+
+fn validate_agent(agent: &AgentConfig) -> Result<(), SchemaError> {
+    match agent.preset {
+        AgentPreset::Custom => match &agent.command {
+            None => Err(SchemaError::Validation(
+                "the \"custom\" agent preset requires a non-empty \"command\" array".to_string(),
+            )),
+            Some(command) if command.is_empty() => Err(SchemaError::Validation(
+                "the \"custom\" agent preset requires a non-empty \"command\" array".to_string(),
+            )),
+            Some(_) => Ok(()),
+        },
+        AgentPreset::Claude | AgentPreset::Codex => {
+            if agent.command.is_some() {
+                return Err(SchemaError::Validation(format!(
+                    "the \"{}\" agent preset does not accept a \"command\"; only the \"custom\" preset does",
+                    match agent.preset {
+                        AgentPreset::Codex => "codex",
+                        _ => "claude",
+                    }
+                )));
+            }
+            Ok(())
+        }
+    }
 }
 
 /// Validate a single prompt alias, mirroring `promptAliasSchema`: it must start
@@ -75,6 +141,9 @@ pub fn parse_lock(raw: &str) -> Result<HlLock, SchemaError> {
         for alias in aliases {
             validate_alias(alias)?;
         }
+    }
+    if let Some(agent) = &lock.agent {
+        validate_agent(agent)?;
     }
     Ok(lock)
 }
@@ -160,5 +229,62 @@ mod tests {
     fn rejects_zwj_sequence() {
         // ".👨‍💻" as JSON escapes: man + ZWJ + laptop.
         assert!(parse_lock(r#"{"model":"m","promptAliases":[".👨‍💻"]}"#).is_err());
+    }
+
+    #[test]
+    fn agent_defaults_to_claude_when_absent() {
+        let lock = parse_lock(r#"{"model":"m"}"#).unwrap();
+        assert!(lock.agent.is_none());
+        assert_eq!(resolve_agent_config(&lock), default_agent_config());
+        assert_eq!(resolve_agent_config(&lock).preset, AgentPreset::Claude);
+    }
+
+    #[test]
+    fn accepts_codex_preset() {
+        let lock = parse_lock(r#"{"model":"m","agent":{"preset":"codex"}}"#).unwrap();
+        assert_eq!(lock.agent.unwrap().preset, AgentPreset::Codex);
+    }
+
+    #[test]
+    fn accepts_custom_preset_with_command() {
+        let lock = parse_lock(
+            r#"{"model":"m","agent":{"preset":"custom","command":["mycli","--task-file","{task}"]}}"#,
+        )
+        .unwrap();
+        let agent = lock.agent.unwrap();
+        assert_eq!(agent.preset, AgentPreset::Custom);
+        assert_eq!(
+            agent.command,
+            Some(vec![
+                "mycli".to_string(),
+                "--task-file".to_string(),
+                "{task}".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_preset() {
+        assert!(parse_lock(r#"{"model":"m","agent":{"preset":"gpt"}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_custom_without_command() {
+        assert!(parse_lock(r#"{"model":"m","agent":{"preset":"custom"}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_custom_with_empty_command() {
+        assert!(parse_lock(r#"{"model":"m","agent":{"preset":"custom","command":[]}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_claude_preset_with_command() {
+        assert!(parse_lock(r#"{"model":"m","agent":{"preset":"claude","command":["x"]}}"#).is_err());
+    }
+
+    #[test]
+    fn rejects_unknown_agent_field() {
+        assert!(parse_lock(r#"{"model":"m","agent":{"preset":"claude","extra":1}}"#).is_err());
     }
 }

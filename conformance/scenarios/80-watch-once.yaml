@@ -1,0 +1,70 @@
+name: watch-once
+description: >
+  napl watch --once is the deterministic seam over the file-watcher: it runs a
+  single gen pass over the currently-pending (stale) prompts through the exact
+  gen code path, then exits. Touch-prompt -> watch triggers gen -> state updated,
+  with byte-pinned output: the fake agent writes greet.ts, tests pass, the file
+  locks 0444, and map/journal are written just as a direct gen would.
+setup:
+  .napl/lock.json: |
+    {
+      "model": "claude-sonnet-5",
+      "backend": "claude-cli"
+    }
+  examples/greeting.napl: |
+    ---
+    module: greeting
+    deps: []
+    targets: [typescript]
+    tests: []
+    ---
+    Greet a person by name.
+script:
+  agent:
+    - files:
+        greet.ts: "export const greet = (name: string): string => `Hello, ${name}!`;\n"
+      output: "implemented the greeting module"
+  ir:
+    - |
+      ```yaml
+      module: greeting
+      deps: []
+      types: []
+      functions: []
+      tests: []
+      ```
+  attribution:
+    - |
+      ```yaml
+      - promptLines: [1, 1]
+        file: greet.ts
+        lines: [1, 1]
+        note: "builds the greeting string"
+      ```
+  ml:
+    - |
+      ```yaml
+      []
+      ```
+run: [watch, typescript, --once]
+expect:
+  exitCode: 0
+  stdout:
+    - "watch   typescript (once) — running gen for pending changes"
+    - "gen     greeting (typescript)"
+    - "  mode: full (no prior successful gen for this target)"
+    - "  attempt 1/3: running coding agent"
+    - "  attempt 1/3: tests passed"
+    - "  attribution attempt 1/3: 1 mapping(s) valid"
+    - "  machine-layer attempt 1/2: 0 entr(ies) valid"
+    - "  attributed 1 file(s) to greeting"
+    - "  attribution: 1 mapping(s) -> .napl/attribution/greeting.yaml"
+    - "  machine layer: 0 entr(ies) -> .napl/mapl/greeting.mapl"
+    - "  journal: gen #1 recorded (1 file patch(es)) -> .napl/journal.jsonl"
+    - "generated 1, skipped 0"
+  files:
+    .napl/src/typescript/greet.ts:
+      mode: "0444"
+      content: "export const greet = (name: string): string => `Hello, ${name}!`;\n"
+    .napl/gen.lock:
+      absent: true

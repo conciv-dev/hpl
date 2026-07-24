@@ -1,0 +1,133 @@
+name: reconcile-drift
+description: >
+  napl reconcile folds a drifted hand edit back into the prompt. It detects the
+  drift, runs the agent with a reconcile task (the prompt text + the observed src
+  diff) which amends the .napl prompt, then accepts the edited source as the new
+  baseline (re-locked 0444, map hash updated so drift clears), journals a
+  reconcile entry, and leaves the module stale so the next gen regenerates from
+  the amended prompt.
+setup:
+  .napl/lock.json: |
+    {
+      "model": "claude-sonnet-5",
+      "backend": "claude-cli"
+    }
+  examples/greeting.napl: |
+    ---
+    module: greeting
+    deps: []
+    targets: [typescript]
+    tests: []
+    ---
+    Greet a person by name.
+  .napl/src/typescript/greet.ts: "export const greet = (name: string): string => `HELLO, ${name}!`;\n"
+  .napl/journal.jsonl: |
+    {"gen":1,"timestamp":"2026-07-23T00:00:00.000Z","module":"greeting","target":"typescript","promptHash":"a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3","promptDiff":"","mode":"full","files":[{"path":".napl/src/typescript/greet.ts","patch":"@@ -0,0 +1,1 @@\n+export const greet = (name: string): string => `Hello, ${name}!`;","hashBefore":null,"hashAfter":"ba0fff9dc431972a2488987562dbf68bc99b9c991a3cdc7506f64eff6a703545"}]}
+  .napl/map.json: |
+    {
+      "version": 2,
+      "prompts": {
+        "examples/greeting.napl": {
+          "module": "greeting",
+          "promptHash": "a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3",
+          "declaredTargets": [
+            "typescript"
+          ],
+          "targets": {
+            "typescript": {
+              "promptHashAtGen": "a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3",
+              "files": [
+                ".napl/src/typescript/greet.ts"
+              ]
+            }
+          }
+        }
+      },
+      "files": {
+        ".napl/src/typescript/greet.ts": {
+          "target": "typescript",
+          "hash": "ba0fff9dc431972a2488987562dbf68bc99b9c991a3cdc7506f64eff6a703545",
+          "prompts": [
+            "examples/greeting.napl"
+          ]
+        }
+      }
+    }
+script:
+  agent:
+    - files:
+        examples/greeting.napl: |
+          ---
+          module: greeting
+          deps: []
+          targets: [typescript]
+          tests: []
+          ---
+          Greet a person by name, LOUDLY (uppercase the greeting).
+      output: "amended the prompt to describe the uppercase greeting"
+run: [reconcile, typescript]
+expect:
+  exitCode: 0
+  stdout:
+    - "reconcile greeting (typescript) — 1 drifted file(s) from examples/greeting.napl"
+    - "  amending prompt examples/greeting.napl via the coding agent"
+    - "  accepted .napl/src/typescript/greet.ts as the new baseline (re-locked 0444)"
+    - "  journal: reconcile #2 recorded (1 file patch(es)) -> .napl/journal.jsonl"
+    - "  module greeting left stale — run 'napl gen typescript' to regenerate from the amended prompt"
+    - "reconciled 1 module(s), 1 file(s)"
+  agentInputs:
+    - index: 0
+      contains:
+        - "reconciling hand edits back into the prompt"
+        - "Prompt file to amend: examples/greeting.napl"
+        - "=== FILE: .napl/src/typescript/greet.ts ==="
+        - "-export const greet = (name: string): string => `Hello, ${name}!`;"
+        - "+export const greet = (name: string): string => `HELLO, ${name}!`;"
+  files:
+    .napl/src/typescript/greet.ts:
+      mode: "0444"
+      content: "export const greet = (name: string): string => `HELLO, ${name}!`;\n"
+    examples/greeting.napl:
+      content: |
+        ---
+        module: greeting
+        deps: []
+        targets: [typescript]
+        tests: []
+        ---
+        Greet a person by name, LOUDLY (uppercase the greeting).
+    .napl/journal.jsonl:
+      content: |
+        {"gen":1,"timestamp":"2026-07-23T00:00:00.000Z","module":"greeting","target":"typescript","promptHash":"a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3","promptDiff":"","mode":"full","files":[{"path":".napl/src/typescript/greet.ts","patch":"@@ -0,0 +1,1 @@\n+export const greet = (name: string): string => `Hello, ${name}!`;","hashBefore":null,"hashAfter":"ba0fff9dc431972a2488987562dbf68bc99b9c991a3cdc7506f64eff6a703545"}]}
+        {"gen":2,"timestamp":"2026-07-23T00:00:00.000Z","module":"greeting","target":"typescript","promptHash":"2dba41c80371b896d7563e3532f8908a7a8d77a2d0647f5ca4b979637135b753","promptDiff":"@@ -1,2 +1,2 @@\n-Greet a person by name.\n+Greet a person by name, LOUDLY (uppercase the greeting).\n ","mode":"reconcile","files":[{"path":".napl/src/typescript/greet.ts","patch":"@@ -1,1 +1,1 @@\n-export const greet = (name: string): string => `Hello, ${name}!`;\n+export const greet = (name: string): string => `HELLO, ${name}!`;","hashBefore":"ba0fff9dc431972a2488987562dbf68bc99b9c991a3cdc7506f64eff6a703545","hashAfter":"29c4769fcac1ab3d75f0065ad08944203a9bd3686180a6c32cf1002aaf933a13"}]}
+    .napl/map.json:
+      content: |
+        {
+          "version": 2,
+          "prompts": {
+            "examples/greeting.napl": {
+              "module": "greeting",
+              "promptHash": "a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3",
+              "declaredTargets": [
+                "typescript"
+              ],
+              "targets": {
+                "typescript": {
+                  "promptHashAtGen": "a89eecb1f31e12e98001c16dfa96c74cc9edfc11e24a4abcd54cfb2258c5d3e3",
+                  "files": [
+                    ".napl/src/typescript/greet.ts"
+                  ]
+                }
+              }
+            }
+          },
+          "files": {
+            ".napl/src/typescript/greet.ts": {
+              "target": "typescript",
+              "hash": "29c4769fcac1ab3d75f0065ad08944203a9bd3686180a6c32cf1002aaf933a13",
+              "prompts": [
+                "examples/greeting.napl"
+              ]
+            }
+          }
+        }
